@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    /* File Layout */
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    /* Environment Settings */
+    "module": "nodenext",
+    "target": "es2022",           // Changed from esnext to es2022 for stable native async/await on Node
+    "moduleResolution": "nodenext",
+    "lib": ["es2022"],            // Added to give TypeScript native access to modern JavaScript features
+    "types": ["node"],            // Added "node" to make global types like process.env and Buffer work perfectly
+
+    /* Other Outputs */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    /* Stricter Typechecking Options */
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    /* Recommended & Performance Options */
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "esModuleInterop": true        // Added to handle clean imports from legacy CommonJS libraries like multer
+  },
+  "include": ["src/**/*"]          // Added to explicitly tell the compiler where your code lives
+}
