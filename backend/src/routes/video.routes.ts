@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { RoomController } from '../rooms/room.controller.js';
+import { RoomController } from '../controllers/room.controller.js';
 
 const router = Router();
 
@@ -13,7 +13,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// Fix #7: Use UUID-prefixed filenames to prevent concurrent upload collisions
+// UUID-prefixed filenames to prevent concurrent upload collisions
 const movieStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, UPLOADS_DIR);

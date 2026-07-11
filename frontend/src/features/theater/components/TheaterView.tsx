@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheater } from '../context/useTheater';
 import { SyncVideoPlayer } from './SyncVideoPlayer';
@@ -21,10 +21,19 @@ export const TheaterView: React.FC = () => {
     sessionState,
     isHost,
     endSession,
+    setUserRole,
+    knocks,
+    approveGuest,
+    rejectGuest,
   } = useTheater();
 
   // Connect to LiveKit Room at the top level
   const livekit = useLiveKitRoom(roomId, sessionState);
+
+  // Sync RBAC role from LiveKit token into shared theater context
+  useEffect(() => {
+    if (livekit.userRole) setUserRole(livekit.userRole);
+  }, [livekit.userRole, setUserRole]);
 
   const handleLeaveOrClose = async () => {
     if (isHost) {
@@ -40,11 +49,30 @@ export const TheaterView: React.FC = () => {
     <div className="w-full flex flex-col min-h-[75vh] justify-between relative bg-neutral-950/40 rounded-3xl border border-white/5 p-4 animate-fade-in font-sans">
       
       {/* Main body area: Video + Sidebar */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch mb-6 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch mb-6 min-h-0 justify-center">
         
         {/* Main Synced Video Player */}
-        <div className={`flex-1 bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 relative flex items-center justify-center transition-all duration-300`}>
+        <div className={`flex-1 max-w-[1200px] w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 relative flex items-center justify-center transition-all duration-300 ${sidebarOpen ? '' : 'mx-auto'}`}>
           <SyncVideoPlayer />
+          
+          {/* Host Join Requests UI overlay */}
+          {isHost && knocks.length > 0 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-auto px-4">
+              {knocks.map((knock) => (
+                <div key={knock.socketId} className="bg-neutral-900/95 border border-white/20 shadow-2xl rounded-2xl p-4 flex items-center gap-4 animate-slide-down backdrop-blur-md">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-xl">👋</div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm font-bold text-white truncate">{knock.username}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold">wants to join</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => rejectGuest(knock.socketId)} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 border border-red-500/20 cursor-pointer transition-all active:scale-95">Deny</button>
+                    <button onClick={() => approveGuest(knock.socketId)} className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold hover:bg-cyan-500/20 border border-cyan-500/30 cursor-pointer transition-all active:scale-95">Admit</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Slide-out / Collapsible Sidebar */}

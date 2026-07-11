@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { LiveKitController } from '../livekit/livekit.controller.js';
+import { LiveKitController } from '../controllers/livekit.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { getLivekitTokenSchema } from '../validations/room.validation.js';
 

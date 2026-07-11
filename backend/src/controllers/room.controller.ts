@@ -4,14 +4,14 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { AppError } from '../utils/AppError.js';
-import { RoomRepository } from './room.repository.js';
+import { AppError } from '../utils/appError.js';
+import { RoomRepository } from '../repositories/room.repository.js';
 
 dotenv.config();
 
 // ─── Telegram Lazy Singleton ────────────────────────────────────────────────
-// The client is initialized only on first use (streamVideo) to avoid crashing
-// the entire server on startup when Telegram credentials are missing.
+// Initialised only on first use to avoid crashing the server if credentials
+// are missing at startup.
 let _telegramClient: import('telegram').TelegramClient | null = null;
 
 async function getTelegramClient(): Promise<import('telegram').TelegramClient> {
@@ -40,6 +40,8 @@ async function getTelegramClient(): Promise<import('telegram').TelegramClient> {
 const channelId: string = process.env.TELEGRAM_CHANNEL_ID || '';
 
 export class RoomController {
+  // ── Room Lifecycle ─────────────────────────────────────────────────────────
+
   static async createRoom(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { hostId, movieUrl } = req.body;
@@ -49,6 +51,7 @@ export class RoomController {
         hostId || 'default-host-id',
         movieUrl || `http://localhost:5000/api/video/hls-local/master_party.m3u8`
       );
+      // createRoom() already calls assignRoomHost() internally
       res.status(201).json({ success: true, roomId, metadata });
     } catch (error) {
       next(new AppError('Failed to create a new watch room.', 500));
@@ -58,9 +61,7 @@ export class RoomController {
   static async getMetadata(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { roomId } = req.params;
-      if (!roomId) {
-        return next(new AppError('Missing room identifier parameter.', 400));
-      }
+      if (!roomId) return next(new AppError('Missing room identifier parameter.', 400));
       const cleanRoomId = (Array.isArray(roomId) ? roomId[0] : roomId) as string;
       const metadata = await RoomRepository.getRoomMetadata(cleanRoomId);
       res.status(200).json({ success: true, metadata });
@@ -72,18 +73,16 @@ export class RoomController {
   static async toggleActiveStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { roomId, isActive } = req.body;
-      if (!roomId) {
-        return next(new AppError('Missing room identifier parameter.', 400));
-      }
-      if (typeof isActive !== 'boolean') {
-        return next(new AppError('Missing or invalid isActive flag.', 400));
-      }
+      if (!roomId) return next(new AppError('Missing room identifier parameter.', 400));
+      if (typeof isActive !== 'boolean') return next(new AppError('Missing or invalid isActive flag.', 400));
       await RoomRepository.setSessionActiveStatus(roomId, isActive);
       res.status(200).json({ success: true, roomId, isActive });
     } catch (error) {
       next(new AppError('Failed to toggle room active status.', 500));
     }
   }
+
+  // ── Video Upload Pipeline ──────────────────────────────────────────────────
 
   static async startUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -100,27 +99,34 @@ export class RoomController {
 
   static async uploadChunk(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      if (!req.file) {
-        return next(new AppError('Missing binary payload stream fields.', 400));
-      }
+      if (!req.file) return next(new AppError('Missing binary payload stream fields.', 400));
 
       const uploadedFilePath = req.file.path;
       console.log(`🚀 File uploaded to: ${uploadedFilePath}. Launching transcoder pipeline...`);
 
-      // Fire off transcoder in background; pass the uploaded file path via env var
-      exec(`UPLOAD_FILE_PATH="${uploadedFilePath}" npx tsx src/utils/transcodeAndUpload.ts`, (error, stdout, stderr) => {
-        if (error) {
-          console.error('❌ Transcoding pipeline failed:', error);
-        } else {
-          console.log('✅ Transcoding pipeline completed!');
-          if (stdout) console.log(stdout);
-          if (stderr) console.warn('⚠️ Pipeline warning:', stderr);
-          // Clean up upload file after transcoding
-          fs.unlink(uploadedFilePath, (unlinkErr) => {
-            if (unlinkErr) console.warn('⚠️ Could not remove temp upload file:', unlinkErr);
-          });
+      const jsScriptPath = path.resolve(process.cwd(), 'dist/utils/transcodeAndUpload.js');
+      const isCompiled = fs.existsSync(jsScriptPath);
+      
+      const scriptPath = isCompiled ? 'dist/utils/transcodeAndUpload.js' : 'src/utils/transcodeAndUpload.ts';
+      const command = isCompiled
+        ? `UPLOAD_FILE_PATH="${uploadedFilePath}" node ${scriptPath}`
+        : `UPLOAD_FILE_PATH="${uploadedFilePath}" npx tsx ${scriptPath}`;
+
+      exec(
+        command,
+        (error, stdout, stderr) => {
+          if (error) {
+            console.error('❌ Transcoding pipeline failed:', error);
+          } else {
+            console.log('✅ Transcoding pipeline completed!');
+            if (stdout) console.log(stdout);
+            if (stderr) console.warn('⚠️ Pipeline warning:', stderr);
+            fs.unlink(uploadedFilePath, (unlinkErr) => {
+              if (unlinkErr) console.warn('⚠️ Could not remove temp upload file:', unlinkErr);
+            });
+          }
         }
-      });
+      );
 
       const fallbackStreamUrl = `http://${req.hostname}:5000/api/video/hls-local/master_party.m3u8`;
       res.status(200).json({ success: true, fileId: 'master_party.m3u8', streamUrl: fallbackStreamUrl });
@@ -147,19 +153,17 @@ export class RoomController {
     }
   }
 
+  // ── Telegram Media Streaming ───────────────────────────────────────────────
+
   static async streamVideo(req: Request, res: Response, next: NextFunction): Promise<any> {
     const messageIdParam = req.params.messageId;
-    if (!messageIdParam) {
-      return next(new AppError('Missing identification parameter', 400));
-    }
+    if (!messageIdParam) return next(new AppError('Missing identification parameter', 400));
 
     const parsedMessageId = parseInt(
       (Array.isArray(messageIdParam) ? messageIdParam[0] : messageIdParam) as string,
       10
     );
-    if (isNaN(parsedMessageId)) {
-      return next(new AppError('Invalid message identification parameter', 400));
-    }
+    if (isNaN(parsedMessageId)) return next(new AppError('Invalid message identification parameter', 400));
 
     try {
       const { default: bigInt } = await import('big-integer');

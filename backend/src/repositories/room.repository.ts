@@ -1,5 +1,8 @@
 import { supabase, isSupabaseDisabled, handleSharedDbError } from '../config/supabase.js';
 
+// ─── Type Definitions ──────────────────────────────────────────────────────
+export type WatchPartyRole = 'host' | 'co-host' | 'viewer';
+
 export interface RoomState {
   isPlaying: boolean;
   position: number;
@@ -13,7 +16,7 @@ export interface RoomMetadata {
   is_active: boolean;
 }
 
-// In-memory store fallbacks for localized environment or offline testing
+// ─── In-memory fallbacks (offline / no-Supabase mode) ─────────────────────
 const inMemoryRoomStates: Record<string, RoomState> = {};
 const inMemoryRoomMetadata: Record<string, RoomMetadata> = {
   'enjoy-together-main': {
@@ -22,13 +25,80 @@ const inMemoryRoomMetadata: Record<string, RoomMetadata> = {
     is_active: false,
   },
 };
+/** In-memory role store: { [roomId:userId]: role } */
+const inMemoryRoleStore: Record<string, WatchPartyRole> = {};
 
-// Startup warning: in-memory state is not persisted across server restarts.
 if (!supabase) {
   console.warn('⚠️  [RoomRepository] Running in-memory mode. All room data will be lost on server restart.');
 }
 
+// ─── RoomRepository ─────────────────────────────────────────────────────────
 export class RoomRepository {
+
+  // ── RBAC ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Assign the 'host' role to a user for a given room.
+   * Called immediately after a room is created / a video is uploaded.
+   */
+  static async assignRoomHost(roomId: string, userId: string): Promise<void> {
+    const cleanRoomId = roomId.trim();
+    const cleanUserId = userId.trim();
+    const key = `${cleanRoomId}:${cleanUserId}`;
+    inMemoryRoleStore[key] = 'host';
+
+    if (supabase && !isSupabaseDisabled()) {
+      try {
+        const { error } = await supabase
+          .from('room_members')
+          .upsert(
+            { room_id: cleanRoomId, user_id: cleanUserId, role: 'host' },
+            { onConflict: 'room_id,user_id' }
+          );
+        if (error) throw error;
+      } catch (err) {
+        handleSharedDbError(err, `assignRoomHost for room ${cleanRoomId}, user ${cleanUserId}`);
+      }
+    }
+  }
+
+  /**
+   * Retrieve the RBAC role for a user within a room.
+   * Secure fallback: always returns 'viewer' when no record is found.
+   */
+  static async getUserRoomRole(roomId: string, userId: string): Promise<WatchPartyRole> {
+    const cleanRoomId = roomId.trim();
+    const cleanUserId = userId.trim();
+
+    if (supabase && !isSupabaseDisabled()) {
+      try {
+        const { data, error } = await supabase
+          .from('room_members')
+          .select('role')
+          .eq('room_id', cleanRoomId)
+          .eq('user_id', cleanUserId)
+          .single();
+
+        if (!error && data?.role) {
+          return data.role as WatchPartyRole;
+        }
+      } catch (err) {
+        handleSharedDbError(err, `getUserRoomRole for room ${cleanRoomId}, user ${cleanUserId}`);
+      }
+    }
+
+    // In-memory fallback: check role store, then compare to host_id as safety net
+    const key = `${cleanRoomId}:${cleanUserId}`;
+    if (inMemoryRoleStore[key]) return inMemoryRoleStore[key]!;
+
+    const meta = inMemoryRoomMetadata[cleanRoomId];
+    if (meta && meta.host_id === cleanUserId) return 'host';
+
+    return 'viewer';
+  }
+
+  // ── Room State ─────────────────────────────────────────────────────────────
+
   static async getRoomState(roomId: string): Promise<RoomState> {
     const cleanRoomId = roomId.trim();
     if (supabase && !isSupabaseDisabled()) {
@@ -97,6 +167,8 @@ export class RoomRepository {
     return updatedState;
   }
 
+  // ── Room Metadata & Lifecycle ──────────────────────────────────────────────
+
   static async setSessionActiveStatus(roomId: string, isActive: boolean): Promise<void> {
     const cleanRoomId = roomId.trim();
     console.log(`📡 RoomRepository: Setting room ${cleanRoomId} isActive → ${isActive}`);
@@ -159,8 +231,9 @@ export class RoomRepository {
 
   static async createRoom(roomId: string, hostId: string, movieUrl: string): Promise<RoomMetadata> {
     const cleanRoomId = roomId.trim();
+    const cleanHostId = hostId.trim() || 'default-host-id';
     const metadata: RoomMetadata = {
-      host_id: hostId || 'default-host-id',
+      host_id: cleanHostId,
       movie_url: movieUrl || 'http://localhost:5000/api/video/hls-local/master_party.m3u8',
       is_active: false,
     };
@@ -183,6 +256,9 @@ export class RoomRepository {
         handleSharedDbError(err, `insert new room ${cleanRoomId}`);
       }
     }
+
+    // Always assign host role on creation
+    await this.assignRoomHost(cleanRoomId, cleanHostId);
 
     return metadata;
   }
