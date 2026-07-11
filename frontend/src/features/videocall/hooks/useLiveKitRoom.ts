@@ -3,14 +3,8 @@ import { Room, RoomEvent, Track } from 'livekit-client';
 import axios from 'axios';
 import { supabase } from '@/shared/lib/supabase';
 
-const getAnonymousUserId = () => {
-  let anonId = localStorage.getItem('et_anon_user_id');
-  if (!anonId) {
-    anonId = 'anon_' + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('et_anon_user_id', anonId);
-  }
-  return anonId;
-};
+// ─── Types ───────────────────────────────────────────────────────────────────
+export type WatchPartyRole = 'host' | 'co-host' | 'viewer';
 
 export interface ParticipantInfo {
   identity: string;
@@ -21,15 +15,27 @@ export interface ParticipantInfo {
   audioTrack?: Track;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const getAnonymousUserId = () => {
+  let anonId = localStorage.getItem('et_anon_user_id');
+  if (!anonId) {
+    anonId = 'anon_' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('et_anon_user_id', anonId);
+  }
+  return anonId;
+};
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
 export function useLiveKitRoom(roomId: string, sessionState: string) {
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(sessionState === 'active_session');
   const [error, setError] = useState<string | null>(null);
   const [isMicEnabled, setIsMicEnabled] = useState(true);
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+  const [userRole, setUserRole] = useState<WatchPartyRole>('viewer');
   const roomRef = useRef<Room | null>(null);
 
-  // Reset states on roomId / sessionState change using derived state pattern
+  // Reset states on roomId / sessionState change (derived state pattern)
   const [prevRoomId, setPrevRoomId] = useState(roomId);
   const [prevSessionState, setPrevSessionState] = useState(sessionState);
   if (roomId !== prevRoomId || sessionState !== prevSessionState) {
@@ -40,6 +46,7 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
     setParticipants([]);
     setIsMicEnabled(true);
     setIsCameraEnabled(false);
+    setUserRole('viewer');
   }
 
   const toggleMic = async () => {
@@ -65,29 +72,23 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
   };
 
   useEffect(() => {
-    if (sessionState !== 'active_session') {
-      return;
-    }
+    if (sessionState !== 'active_session') return;
 
     let active = true;
-    
-    const room = new Room({
-      adaptiveStream: true,
-      dynacast: true,
-    });
+
+    const room = new Room({ adaptiveStream: true, dynacast: true });
     roomRef.current = room;
 
     const updateParticipantsList = () => {
       if (!active) return;
       const list: ParticipantInfo[] = [];
 
-      // Add local participant
       const local = room.localParticipant;
       if (local) {
         const videoPub = Array.from(local.videoTrackPublications.values())[0];
         const audioPub = Array.from(local.audioTrackPublications.values())[0];
         list.push({
-          identity: local.identity + ' (You)',
+          identity: (local.name || local.identity) + ' (You)',
           isLocal: true,
           isMicEnabled: local.isMicrophoneEnabled,
           isCameraEnabled: local.isCameraEnabled,
@@ -96,12 +97,11 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
         });
       }
 
-      // Add remote participants
       room.remoteParticipants.forEach((p) => {
         const videoPub = Array.from(p.videoTrackPublications.values())[0];
         const audioPub = Array.from(p.audioTrackPublications.values())[0];
         list.push({
-          identity: p.identity,
+          identity: p.name || p.identity,
           isLocal: false,
           isMicEnabled: p.isMicrophoneEnabled,
           isCameraEnabled: p.isCameraEnabled,
@@ -116,23 +116,27 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
     const setupLiveKit = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const userIdentity = session?.user?.email || session?.user?.id || getAnonymousUserId();
+        const userId = session?.user?.id || getAnonymousUserId();
+        const userName = session?.user?.email || userId;
 
         const backendHost = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
-        
-        // 1. Hit the backend to grab BOTH the token and the server URL target
+
         const res = await axios.get(
-          `http://${backendHost}:5000/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userIdentity)}`
+          `http://${backendHost}:5000/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userId)}&user_name=${encodeURIComponent(userName)}`
         );
-        const { token, serverUrl } = res.data;
+        const { token, serverUrl, role } = res.data as {
+          token: string;
+          serverUrl: string;
+          role: WatchPartyRole;
+        };
 
         if (!active) return;
 
-        if (!serverUrl) {
-          throw new Error('LiveKit configuration missing server routing target location.');
-        }
+        if (!serverUrl) throw new Error('LiveKit configuration missing server routing target location.');
 
-        // Register room events to trigger updates
+        // ── Hydrate RBAC role received from backend ──────────────────────────
+        if (role) setUserRole(role);
+
         const events = [
           RoomEvent.ParticipantConnected,
           RoomEvent.ParticipantDisconnected,
@@ -143,16 +147,12 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
           RoomEvent.LocalTrackPublished,
           RoomEvent.LocalTrackUnpublished,
         ];
+        events.forEach((evt) => { room.on(evt, updateParticipantsList); });
 
-        events.forEach((evt) => {
-          room.on(evt, updateParticipantsList);
-        });
-
-        // 2. Connect dynamically to whatever serverUrl the backend returned
         console.log(`🌐 Routing connection pipeline to node target: ${serverUrl}`);
         await room.connect(serverUrl, token);
         console.log('✅ Connected to LiveKit Room:', room.name);
-        
+
         if (!active) {
           await room.disconnect();
           return;
@@ -160,10 +160,11 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
 
         setLoading(false);
 
-        // Meet-style defaults
-        await room.localParticipant.setMicrophoneEnabled(true);
+        // Viewers are receive-only — don't enable mic publishing on the SFU
+        const canPublish = role === 'host' || role === 'co-host';
+        await room.localParticipant.setMicrophoneEnabled(canPublish);
         await room.localParticipant.setCameraEnabled(false);
-        setIsMicEnabled(true);
+        setIsMicEnabled(canPublish);
         setIsCameraEnabled(false);
 
         updateParticipantsList();
@@ -191,5 +192,5 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
     };
   }, [roomId, sessionState]);
 
-  return { participants, loading, error, isMicEnabled, isCameraEnabled, toggleMic, toggleCamera };
+  return { participants, loading, error, isMicEnabled, isCameraEnabled, userRole, toggleMic, toggleCamera };
 }

@@ -5,7 +5,8 @@ import util from 'util';
 
 const execPromise = util.promisify(exec);
 const BACKEND_ROOT = process.cwd();
-const INPUT_MOVIE = process.argv[2] ? path.resolve(process.argv[2]) : path.join(BACKEND_ROOT, 'sample.mp4');
+const inputFromEnv = process.env.UPLOAD_FILE_PATH || process.argv[2];
+const INPUT_MOVIE = inputFromEnv ? path.resolve(inputFromEnv) : path.join(BACKEND_ROOT, 'sample.mp4');
 const OUTPUT_DIR = path.join(BACKEND_ROOT, 'output_hls');
 
 interface VideoMetadata {

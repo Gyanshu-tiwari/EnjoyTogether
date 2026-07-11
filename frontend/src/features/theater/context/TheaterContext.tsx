@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { TheaterContext, type Comment } from './useTheater';
 import { useRoomSession } from '../hooks/useRoomSession';
 import { useSocketConnection } from '../hooks/useSocketConnection';
+import type { WatchPartyRole } from '@/features/videocall/hooks/useLiveKitRoom';
 
 export const TheaterProvider: React.FC<{
   roomId?: string;
@@ -16,6 +17,8 @@ export const TheaterProvider: React.FC<{
   const [inputMessage, setInputMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'chat' | 'call'>('chat');
   const [comments, setComments] = useState<Comment[]>([]);
+  /** RBAC role — populated by TheaterView after LiveKit token is received */
+  const [userRole, setUserRole] = useState<WatchPartyRole>('viewer');
 
   // ─── Room session state machine ───────────────────────────────────────────
   const {
@@ -48,7 +51,7 @@ export const TheaterProvider: React.FC<{
     setComments,
   });
 
-  // Fix #5: Emit change-video-src ONLY after mount (not on initial render)
+  // Emit change-video-src ONLY after mount (not on initial render)
   const hasMountedStreamRef = useRef(false);
   useEffect(() => {
     if (!hasMountedStreamRef.current) {
@@ -93,6 +96,8 @@ export const TheaterProvider: React.FC<{
         rejectGuest,
         sendEmoji,
         floatingEmojis,
+        userRole,
+        setUserRole,
       }}
     >
       {children}

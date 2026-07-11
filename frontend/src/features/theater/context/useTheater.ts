@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import { Socket } from 'socket.io-client';
+import type { WatchPartyRole } from '@/features/videocall/hooks/useLiveKitRoom';
 
 export interface Comment {
   user: string;
@@ -39,6 +40,10 @@ export interface TheaterContextType {
   rejectGuest: (socketId: string) => void;
   sendEmoji: (emoji: string) => void;
   floatingEmojis: FloatingEmoji[];
+  /** RBAC role resolved from LiveKit token response */
+  userRole: WatchPartyRole;
+  /** Setter called by TheaterView once LiveKit token is received */
+  setUserRole: (role: WatchPartyRole) => void;
 }
 
 export const TheaterContext = createContext<TheaterContextType | undefined>(undefined);

@@ -1,15 +1,42 @@
 @import "tailwindcss";
 
+/* ─── CSS Design Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --color-bg-primary:    #0F0F1A;   /* Dark Obsidian  — dominant bg     */
+  --color-bg-card:       #1E1E30;   /* Deep Indigo    — cards/panels    */
+  --color-accent:        #8B5CF6;   /* Electric Purple— CTA buttons     */
+  --color-interactive:   #06B6D4;   /* Bright Turquoise— links/outline  */
+  --color-text-primary:  #FFFFFF;   /* Crisp White    — headings        */
+  --color-text-secondary:#9CA3AF;  /* Soft Silver    — body copy       */
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes emojiFloat {
+  0%   { transform: translateY(100%) scale(0.5); opacity: 0; }
+  15%  { opacity: 1; transform: translateY(70%) scale(1.2); }
+  100% { transform: translateY(-100vh) scale(0.9); opacity: 0; }
+}
+
+/* stylelint-disable at-rule-no-unknown */
 @utility animate-fade-in {
   animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -18,39 +45,23 @@
   animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom scrollbar utility */
-@utility custom-scrollbar {
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 9999px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
+@utility animate-slide-left {
+  animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes emojiFloat {
-  0% {
-    transform: translateY(100%) scale(0.5);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(70%) scale(1.2);
-  }
-  100% {
-    transform: translateY(-100vh) scale(0.9);
-    opacity: 0;
-  }
+@utility animate-slide-down {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @utility animate-emoji-float {
   animation: emojiFloat 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+
+/* Custom scrollbar utility */
+@utility custom-scrollbar {
+  &::-webkit-scrollbar        { width: 4px; height: 4px; }
+  &::-webkit-scrollbar-track  { background: transparent; }
+  &::-webkit-scrollbar-thumb  { background: rgba(139, 92, 246, 0.25); border-radius: 9999px; }
+  &::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.45); }
+}
+/* stylelint-enable at-rule-no-unknown */

@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { registerVideoHandlers } from './video.handler.js';
 import { registerChatHandlers } from './chat.handler.js';
 import { SOCKET_EVENTS } from '../constants/socketEvents.js';
-import { RoomRepository } from '../rooms/room.repository.js';
+import { RoomRepository } from '../repositories/room.repository.js';
 import { supabase } from '../config/supabase.js';
 
 interface HostSession {
@@ -11,12 +11,12 @@ interface HostSession {
   disconnectTimeout?: NodeJS.Timeout;
 }
 
-// In-memory registry to manage active hosts and grace-period timers
-const activeHosts = new Map<string, HostSession>(); // roomId -> HostSession
-const socketInfo = new Map<string, { roomId: string; userId: string; isHost: boolean }>(); // socketId -> Info
+// In-memory registry: active hosts and socket metadata
+const activeHosts = new Map<string, HostSession>();                                 // roomId → HostSession
+const socketInfo  = new Map<string, { roomId: string; userId: string; isHost: boolean }>(); // socketId → Info
 
 export const setupSockets = (io: Server): void => {
-  // Use middleware to authenticate sockets if Supabase is enabled
+  // ── Authentication Middleware ──────────────────────────────────────────────
   io.use(async (socket, next) => {
     if (supabase) {
       const token = socket.handshake.auth?.token;
@@ -30,7 +30,7 @@ export const setupSockets = (io: Server): void => {
           console.warn('⚠️ Socket connection rejected: invalid authentication token.', error);
           return next(new Error('Invalid authentication token'));
         }
-        (socket as any).user = user;
+        (socket as any).user   = user;
         (socket as any).userId = user.id;
       } catch (err) {
         console.error('❌ Error during socket token authentication:', err);
@@ -43,7 +43,7 @@ export const setupSockets = (io: Server): void => {
   io.on(SOCKET_EVENTS.CONNECTION, (socket: Socket) => {
     console.log(`User connected to syncing mesh: ${socket.id}`);
 
-    // Listen for room:join (the main active session entry event)
+    // ── Room Join ────────────────────────────────────────────────────────────
     socket.on('room:join', async (data: { roomId: string; userId: string }) => {
       const { roomId, userId } = data;
       const cleanRoomId = String(roomId).trim();
@@ -53,55 +53,52 @@ export const setupSockets = (io: Server): void => {
       console.log(`👥 User ${cleanUserId} (${socket.id}) joined room ${cleanRoomId}`);
 
       const metadata = await RoomRepository.getRoomMetadata(cleanRoomId);
-      const isHost = cleanUserId === metadata.host_id;
+      const isHost   = cleanUserId === metadata.host_id;
 
       socketInfo.set(socket.id, { roomId: cleanRoomId, userId: cleanUserId, isHost });
 
       if (isHost) {
         const existing = activeHosts.get(cleanRoomId);
-        if (existing && existing.disconnectTimeout) {
-          console.log(`🔄 Host reconnected within grace period. Clearing teardown timer for room: ${cleanRoomId}`);
+        if (existing?.disconnectTimeout) {
+          console.log(`🔄 Host reconnected. Clearing teardown timer for room: ${cleanRoomId}`);
           clearTimeout(existing.disconnectTimeout);
         }
-        
-        activeHosts.set(cleanRoomId, {
-          userId: cleanUserId,
-          socketId: socket.id,
-        });
+        activeHosts.set(cleanRoomId, { userId: cleanUserId, socketId: socket.id });
       }
 
       const roomState = await RoomRepository.getRoomState(cleanRoomId);
       socket.emit('sync-state', roomState);
     });
 
-    // Lobby System: Guests knock
+    // ── Lobby: Guests Knock ──────────────────────────────────────────────────
     socket.on('room:knock', (data: { roomId: string; username: string }) => {
       const { roomId, username } = data;
-      const cleanRoomId = String(roomId).trim();
+      const cleanRoomId  = String(roomId).trim();
       const cleanUsername = String(username).trim();
       console.log(`✊ Guest ${cleanUsername} (${socket.id}) is knocking on room ${cleanRoomId}`);
 
-      socketInfo.set(socket.id, { roomId: cleanRoomId, userId: (socket as any).user?.id || 'guest', isHost: false });
+      socketInfo.set(socket.id, {
+        roomId:  cleanRoomId,
+        userId:  (socket as any).user?.id || 'guest',
+        isHost:  false,
+      });
 
-      // Broadcast room:knock-alert to the Host/everyone in cleanRoomId
       io.to(cleanRoomId).emit('room:knock-alert', { socketId: socket.id, username: cleanUsername });
     });
 
-    // Admission Verdicts: Host approves entry
+    // ── Admission: Approve ───────────────────────────────────────────────────
     socket.on('room:approve-entry', async (data: { guestSocketId: string }) => {
       const { guestSocketId } = data;
       const info = socketInfo.get(socket.id);
-      if (!info) {
-        return socket.emit('error', 'Room session info not found.');
-      }
-      const roomId = info.roomId;
+      if (!info) return socket.emit('error', 'Room session info not found.');
+      const { roomId } = info;
 
       try {
-        const metadata = await RoomRepository.getRoomMetadata(roomId);
         const socketUserId = (socket as any).userId || (socket as any).user?.id;
-        if (!socketUserId || socketUserId !== metadata.host_id) {
-          console.warn(`⚠️ Security Alert: Unauthorized user ${socketUserId} attempted room:approve-entry!`);
-          return socket.emit('error', 'Unauthorized: Only the host can approve admission.');
+        const role = await RoomRepository.getUserRoomRole(roomId, socketUserId);
+        if (role !== 'host' && role !== 'co-host') {
+          console.warn(`⚠️ RBAC: ${socketUserId} attempted room:approve-entry without host/co-host role.`);
+          return socket.emit('error', 'Unauthorized: only host or co-host can approve admission.');
         }
 
         const guestSocket = io.sockets.sockets.get(guestSocketId);
@@ -113,26 +110,24 @@ export const setupSockets = (io: Server): void => {
           console.warn(`⚠️ Guest socket ${guestSocketId} not found for approval.`);
         }
       } catch (err) {
-        console.error('Error in room:approve-entry authorization:', err);
+        console.error('Error in room:approve-entry:', err);
         socket.emit('error', 'Internal server error during authorization.');
       }
     });
 
-    // Admission Verdicts: Host rejects entry
+    // ── Admission: Reject ────────────────────────────────────────────────────
     socket.on('room:reject-entry', async (data: { guestSocketId: string }) => {
       const { guestSocketId } = data;
       const info = socketInfo.get(socket.id);
-      if (!info) {
-        return socket.emit('error', 'Room session info not found.');
-      }
-      const roomId = info.roomId;
+      if (!info) return socket.emit('error', 'Room session info not found.');
+      const { roomId } = info;
 
       try {
-        const metadata = await RoomRepository.getRoomMetadata(roomId);
         const socketUserId = (socket as any).userId || (socket as any).user?.id;
-        if (!socketUserId || socketUserId !== metadata.host_id) {
-          console.warn(`⚠️ Security Alert: Unauthorized user ${socketUserId} attempted room:reject-entry!`);
-          return socket.emit('error', 'Unauthorized: Only the host can reject admission.');
+        const role = await RoomRepository.getUserRoomRole(roomId, socketUserId);
+        if (role !== 'host' && role !== 'co-host') {
+          console.warn(`⚠️ RBAC: ${socketUserId} attempted room:reject-entry without host/co-host role.`);
+          return socket.emit('error', 'Unauthorized: only host or co-host can reject admission.');
         }
 
         const guestSocket = io.sockets.sockets.get(guestSocketId);
@@ -144,12 +139,12 @@ export const setupSockets = (io: Server): void => {
           console.warn(`⚠️ Guest socket ${guestSocketId} not found for rejection.`);
         }
       } catch (err) {
-        console.error('Error in room:reject-entry authorization:', err);
+        console.error('Error in room:reject-entry:', err);
         socket.emit('error', 'Internal server error during authorization.');
       }
     });
 
-    // Emoji Relay
+    // ── Emoji Relay ──────────────────────────────────────────────────────────
     socket.on('room:send-emoji', (data: { roomId: string; emoji: string }) => {
       const { roomId, emoji } = data;
       const cleanRoomId = String(roomId).trim();
@@ -157,12 +152,12 @@ export const setupSockets = (io: Server): void => {
       io.to(cleanRoomId).emit('room:receive-emoji', { emoji });
     });
 
-    // Support legacy join-room event for backward compatibility
+    // ── Legacy join-room ─────────────────────────────────────────────────────
     socket.on(SOCKET_EVENTS.JOIN_ROOM, async (roomId: string) => {
       const cleanRoomId = String(roomId).trim();
       socket.join(cleanRoomId);
-      console.log(`👥 Legacy join-room: connection ${socket.id} joined room ${cleanRoomId}`);
-      
+      console.log(`👥 Legacy join-room: ${socket.id} joined room ${cleanRoomId}`);
+
       const roomState = await RoomRepository.getRoomState(cleanRoomId);
       if (roomState.streamUrl) {
         socket.emit(SOCKET_EVENTS.UPDATE_VIDEO_SRC, roomState.streamUrl);
@@ -170,13 +165,14 @@ export const setupSockets = (io: Server): void => {
       socket.emit(SOCKET_EVENTS.SYNC_STATE, roomState);
     });
 
-    // Register sub-handlers (relaying media and chats)
+    // ── Register Sub-handlers ────────────────────────────────────────────────
     registerVideoHandlers(io, socket);
     registerChatHandlers(io, socket);
 
+    // ── Disconnect ───────────────────────────────────────────────────────────
     socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
-      console.log(`User decoupled tracking index parameters: ${socket.id}`);
-      
+      console.log(`User decoupled: ${socket.id}`);
+
       const info = socketInfo.get(socket.id);
       if (!info) return;
 
@@ -184,18 +180,15 @@ export const setupSockets = (io: Server): void => {
       socketInfo.delete(socket.id);
 
       if (isHost) {
-        console.log(`⚠️ Host ${userId} disconnected from room ${roomId}. Starting 10-second grace period...`);
-        
+        console.log(`⚠️ Host ${userId} disconnected from room ${roomId}. Starting 10s grace period...`);
         const hostSession = activeHosts.get(roomId);
         if (hostSession && hostSession.socketId === socket.id) {
           const timeout = setTimeout(async () => {
             console.log(`💀 Host grace period expired. Deactivating room: ${roomId}`);
             activeHosts.delete(roomId);
-            
             await RoomRepository.setSessionActiveStatus(roomId, false);
             io.to(roomId).emit('room:host_disconnected_fallback');
-          }, 10000);
-          
+          }, 10_000);
           hostSession.disconnectTimeout = timeout;
         }
       }

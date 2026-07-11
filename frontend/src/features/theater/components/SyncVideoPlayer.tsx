@@ -7,7 +7,8 @@ import { Spinner } from '@/shared/components/feedback/Spinner';
 import { Button } from '@/shared/components/ui/Button';
 
 export const SyncVideoPlayer: React.FC = () => {
-  const { currentStreamUrl, socket, roomId } = useTheater();
+  const { currentStreamUrl, socket, roomId, userRole } = useTheater();
+  const isViewer = userRole === 'viewer';
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [retryCount, setRetryCount] = useState<number>(0);
@@ -143,10 +144,17 @@ export const SyncVideoPlayer: React.FC = () => {
     <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 group">
       <video
         ref={videoRef}
-        controls
+        controls={!isViewer}
         className="w-full h-full object-contain"
         playsInline
       />
+
+      {/* Viewer-only overlay: no controls exposed */}
+      {isViewer && (
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10 pointer-events-none select-none">
+          <span className="text-[10px] text-purple-300 font-semibold tracking-widest uppercase">👁 View Only</span>
+        </div>
+      )}
 
       {playbackError && (
         <div className="absolute inset-0 bg-neutral-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-50 animate-fade-in">
@@ -200,7 +208,7 @@ export const SyncVideoPlayer: React.FC = () => {
         </div>
       )}
 
-      {isBlocked && !isProcessing && (
+      {isBlocked && !isProcessing && !isViewer && (
         <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-50">
           <div className="bg-white/5 border border-white/10 p-6 rounded-2xl max-w-sm text-center shadow-xl">
             <p className="text-sm text-neutral-300 mb-4 font-medium">
