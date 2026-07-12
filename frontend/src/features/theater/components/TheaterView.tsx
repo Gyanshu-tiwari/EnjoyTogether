@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useTheater } from '../context/useTheater';
 import { SyncVideoPlayer } from './SyncVideoPlayer';
 import { VideoCallOverlay, useLiveKitRoom } from '@/features/videocall';
+import { ActiveUsersModal } from './ActiveUsersModal';
 
 export const TheaterView: React.FC = () => {
   const navigate = useNavigate();
   const [emojiPopoverOpen, setEmojiPopoverOpen] = useState(false);
+  const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const {
@@ -25,6 +27,7 @@ export const TheaterView: React.FC = () => {
     knocks,
     approveGuest,
     rejectGuest,
+    currentUserId,
   } = useTheater();
 
   // Connect to LiveKit Room at the top level
@@ -103,14 +106,33 @@ export const TheaterView: React.FC = () => {
                         <p>chat with you friends appear here</p>
                       </div>
                     ) : (
-                      comments.map((msg, index) => (
-                        <div key={index} className="bg-white/5 border border-white/5 p-2.5 rounded-xl text-xs backdrop-blur-md animate-slide-up">
-                          <b className={msg.user === 'You' ? 'text-cyan-400 font-mono' : 'text-neutral-350'}>
-                            {msg.user}:{' '}
-                          </b>
-                          <span className="text-neutral-200">{msg.text}</span>
-                        </div>
-                      ))
+                      comments.map((msg, index) => {
+                        const isMe = msg.userId === currentUserId || msg.user === 'You';
+                        return (
+                          <div key={index} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} animate-slide-up mb-2`}>
+                            {!isMe && (
+                              <div className="flex flex-col items-start max-w-[80%]">
+                                <span className="text-[10px] text-neutral-400 font-bold ml-1 mb-0.5">{msg.user}</span>
+                                <div className="flex items-end gap-1.5">
+                                  <div className="w-6 h-6 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-md">
+                                    {msg.user.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="bg-neutral-800 border border-white/5 px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-neutral-200 shadow-sm">
+                                    {msg.text}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {isMe && (
+                              <div className="flex flex-col items-end max-w-[80%]">
+                                <div className="bg-blue-600 px-3 py-2 rounded-2xl rounded-br-sm text-xs text-white shadow-md">
+                                  {msg.text}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
 
@@ -236,6 +258,27 @@ export const TheaterView: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Participants Popover trigger */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setParticipantsModalOpen(!participantsModalOpen);
+                setEmojiPopoverOpen(false);
+              }}
+              className={`w-11 h-11 rounded-full border border-white/10 flex items-center justify-center text-lg transition-all cursor-pointer shadow-lg active:scale-90 ${
+                participantsModalOpen ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200'
+              }`}
+              title="Participants"
+            >
+              👥
+            </button>
+
+            <ActiveUsersModal 
+              isOpen={participantsModalOpen} 
+              onClose={() => setParticipantsModalOpen(false)} 
+            />
           </div>
 
           {/* Red leave / close meeting button */}

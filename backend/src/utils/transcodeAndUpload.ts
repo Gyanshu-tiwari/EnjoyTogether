@@ -39,9 +39,13 @@ async function runPipeline() {
     }
 
     if (fs.existsSync(OUTPUT_DIR)) {
-      fs.rmSync(OUTPUT_DIR, { recursive: true, force: true });
+      const files = fs.readdirSync(OUTPUT_DIR);
+      for (const file of files) {
+        fs.rmSync(path.join(OUTPUT_DIR, file), { recursive: true, force: true });
+      }
+    } else {
+      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     }
-    fs.mkdirSync(OUTPUT_DIR);
 
     console.log('🔍 Inspecting incoming video attributes with ffprobe...');
     const { duration, videoCodec, audioCodec } = await getVideoMetadata(INPUT_MOVIE);
@@ -136,8 +140,13 @@ async function runPipeline() {
     
     updateStatus({ status: 'complete', progress: 100, eta: '0s', speed: '0x' });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Pipeline processing failed:', error);
+    try {
+      const errLogPath = path.join(OUTPUT_DIR, 'transcoder.log');
+      fs.writeFileSync(errLogPath, '❌ Pipeline processing failed: ' + (error?.stack || error) + '\n', { flag: 'a' });
+    } catch (e) {}
+
     try {
       fs.writeFileSync(path.join(BACKEND_ROOT, 'transcode_status.json'), JSON.stringify({
         status: 'failed',

@@ -1,13 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import { AppError } from '../utils/appError.js';
 import { RoomRepository } from '../repositories/room.repository.js';
 
-dotenv.config();
+// __dirname equivalent for ESM modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ─── Telegram Lazy Singleton ────────────────────────────────────────────────
 // Initialised only on first use to avoid crashing the server if credentials
@@ -49,7 +51,7 @@ export class RoomController {
       const metadata = await RoomRepository.createRoom(
         roomId,
         hostId || 'default-host-id',
-        movieUrl || `http://localhost:5000/api/video/hls-local/master_party.m3u8`
+        movieUrl || `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`
       );
       // createRoom() already calls assignRoomHost() internally
       res.status(201).json({ success: true, roomId, metadata });
@@ -104,32 +106,35 @@ export class RoomController {
       const uploadedFilePath = req.file.path;
       console.log(`🚀 File uploaded to: ${uploadedFilePath}. Launching transcoder pipeline...`);
 
-      const jsScriptPath = path.resolve(process.cwd(), 'dist/utils/transcodeAndUpload.js');
-      const isCompiled = fs.existsSync(jsScriptPath);
+      // Resolve script path relative to THIS compiled file's directory (__dirname).
+      // This is robust regardless of what process.cwd() happens to be.
+      const isDev = process.env.NODE_ENV !== 'production';
+      const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
+      const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
+
+      const useTsx = isDev && fs.existsSync(tsScript);
+      const cmd = useTsx ? 'npx' : 'node';
+      const args = useTsx ? ['tsx', tsScript, uploadedFilePath] : [jsScript, uploadedFilePath];
+
+      // spawn with detached:true + stdio redirected to a log file
+      // → child process is fully independent of Express; no stdout buffer overflow
+      const logPath = path.join(process.cwd(), 'output_hls', 'transcoder.log');
+      const out = fs.openSync(logPath, 'a');
+      const err = fs.openSync(logPath, 'a');
       
-      const scriptPath = isCompiled ? 'dist/utils/transcodeAndUpload.js' : 'src/utils/transcodeAndUpload.ts';
-      const command = isCompiled
-        ? `UPLOAD_FILE_PATH="${uploadedFilePath}" node ${scriptPath}`
-        : `UPLOAD_FILE_PATH="${uploadedFilePath}" npx tsx ${scriptPath}`;
+      const child = spawn(cmd, args, {
+        detached: true,
+        stdio: ['ignore', out, err],
+        env: process.env,
+      });
+      child.unref();
 
-      exec(
-        command,
-        (error, stdout, stderr) => {
-          if (error) {
-            console.error('❌ Transcoding pipeline failed:', error);
-          } else {
-            console.log('✅ Transcoding pipeline completed!');
-            if (stdout) console.log(stdout);
-            if (stderr) console.warn('⚠️ Pipeline warning:', stderr);
-            fs.unlink(uploadedFilePath, (unlinkErr) => {
-              if (unlinkErr) console.warn('⚠️ Could not remove temp upload file:', unlinkErr);
-            });
-          }
-        }
-      );
+      child.on('error', (err) => {
+        console.error('❌ Failed to spawn transcoder process:', err);
+      });
 
-      const fallbackStreamUrl = `http://${req.hostname}:5000/api/video/hls-local/master_party.m3u8`;
-      res.status(200).json({ success: true, fileId: 'master_party.m3u8', streamUrl: fallbackStreamUrl });
+      const fallbackStreamUrl = `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`;
+      res.status(202).json({ success: true, fileId: 'master_party.m3u8', streamUrl: fallbackStreamUrl });
     } catch (error) {
       next(new AppError('Failed to process uploaded chunk request.', 500));
     }
@@ -227,9 +232,27 @@ export class RoomController {
         if (clientDisconnected) break;
         const remaining = contentLength - bytesWritten;
         if (remaining <= 0) break;
+        
         const dataToWrite = chunk.length <= remaining ? chunk : chunk.slice(0, remaining);
-        res.write(dataToWrite);
+        const canContinue = res.write(dataToWrite);
         bytesWritten += dataToWrite.length;
+
+        if (!canContinue && !clientDisconnected) {
+          // ── Zero-Memory Proxy Backpressure ──
+          // Wait for OS socket buffer to drain before pulling more chunks from Telegram
+          await new Promise<void>((resolve) => {
+            const onDrain = () => {
+              req.off('close', onClose);
+              resolve();
+            };
+            const onClose = () => {
+              res.off('drain', onDrain);
+              resolve();
+            };
+            res.once('drain', onDrain);
+            req.once('close', onClose);
+          });
+        }
       }
 
       res.end();

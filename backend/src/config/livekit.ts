@@ -3,9 +3,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const livekitConfig = {
-  apiKey: process.env.LIVEKIT_API_KEY || 'devkey',
-  apiSecret: process.env.LIVEKIT_API_SECRET || 'secret',
-  serverUrl: process.env.LIVEKIT_URL || 'ws://localhost:7880',
+  apiKey: process.env.LIVEKIT_API_KEY!,
+  apiSecret: process.env.LIVEKIT_API_SECRET!,
+  serverUrl: process.env.LIVEKIT_URL!,
 };
 
 if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET || !process.env.LIVEKIT_URL) {

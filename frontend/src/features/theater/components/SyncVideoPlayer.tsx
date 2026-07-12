@@ -24,23 +24,37 @@ export const SyncVideoPlayer: React.FC = () => {
     roomId,
   });
 
-  // Initial transcode status check on mount
+  // Unified transcode status polling — starts immediately, then polls every 2s.
+  // Runs only while isProcessing is true. Merges the old "initial check" + "interval" pattern
+  // into one effect to eliminate the double-fetch on mount.
   useEffect(() => {
-    const checkInitialStatus = async () => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const fetchStatus = async () => {
       try {
         const data = await getTranscodeStatus();
-        if (data.status && data.status !== 'complete') {
-          setIsProcessing(true);
+        if (cancelled) return;
+        if (data.status && data.status !== 'idle') {
+          setIsProcessing(data.status !== 'complete');
           setTranscodeStatus(data.status);
           setTranscodeProgress(data.progress);
           setTranscodeEta(data.eta);
           setTranscodeSpeed(data.speed);
         }
       } catch (err) {
-        console.error("Failed to fetch initial transcode status:", err);
+        if (!cancelled) console.error('Failed to fetch transcode status:', err);
       }
     };
-    checkInitialStatus();
+
+    // Fire immediately on mount, then every 2s
+    fetchStatus();
+    interval = setInterval(fetchStatus, 2000);
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   // HLS stream decoding lifecycle
@@ -62,10 +76,23 @@ export const SyncVideoPlayer: React.FC = () => {
 
     if (Hls.isSupported() && currentStreamUrl.includes('.m3u8')) {
       hls = new Hls({
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        enableWorker: true,
-        lowLatencyMode: false,
+        // Buffer management — prevents stalls without using excessive memory
+        maxBufferLength: 20,              // buffer up to 20s ahead (not 30 default)
+        maxMaxBufferLength: 60,           // hard cap at 60s
+        maxBufferSize: 60 * 1000 * 1000, // 60 MB cap
+        maxBufferHole: 0.5,              // auto-fill buffer holes up to 0.5s
+
+        // Manifest & segment retry — handles transient network blips
+        manifestLoadingMaxRetry: 6,
+        manifestLoadingRetryDelay: 1000,
+        manifestLoadingMaxRetryTimeout: 32_000,
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 1000,
+
+        // Performance
+        enableWorker: true,              // parse on a separate thread
+        lowLatencyMode: false,           // VOD mode, not live
+        startLevel: -1,                  // auto quality selection
       });
       hls.loadSource(currentStreamUrl);
       hls.attachMedia(video);
@@ -114,31 +141,6 @@ export const SyncVideoPlayer: React.FC = () => {
       if (retryTimeout) clearTimeout(retryTimeout);
     };
   }, [currentStreamUrl, videoRef, retryCount, playbackError]);
-
-  // Transcoding progress polling
-  useEffect(() => {
-    if (!isProcessing) return;
-
-    const fetchStatus = async () => {
-      try {
-        const data = await getTranscodeStatus();
-        setTranscodeStatus(data.status);
-        setTranscodeProgress(data.progress);
-        setTranscodeEta(data.eta);
-        setTranscodeSpeed(data.speed);
-
-        if (data.status === 'complete') {
-          setIsProcessing(false);
-        }
-      } catch (err) {
-        console.error("Failed to fetch transcode status:", err);
-      }
-    };
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 2000);
-    return () => clearInterval(interval);
-  }, [isProcessing]);
 
   return (
     <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 group">

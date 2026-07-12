@@ -21,7 +21,7 @@ const inMemoryRoomStates: Record<string, RoomState> = {};
 const inMemoryRoomMetadata: Record<string, RoomMetadata> = {
   'enjoy-together-main': {
     host_id: 'default-host-id',
-    movie_url: 'http://localhost:5000/api/video/hls-local/master_party.m3u8',
+    movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
     is_active: false,
   },
 };
@@ -58,6 +58,39 @@ export class RoomRepository {
         if (error) throw error;
       } catch (err) {
         handleSharedDbError(err, `assignRoomHost for room ${cleanRoomId}, user ${cleanUserId}`);
+      }
+    }
+  }
+
+  /**
+   * Update the RBAC role for a user within a room.
+   */
+  static async updateUserRoomRole(roomId: string, userId: string, newRole: WatchPartyRole): Promise<void> {
+    const cleanRoomId = roomId.trim();
+    const cleanUserId = userId.trim();
+    const key = `${cleanRoomId}:${cleanUserId}`;
+    inMemoryRoleStore[key] = newRole;
+
+    if (supabase && !isSupabaseDisabled()) {
+      try {
+        const { error } = await supabase
+          .from('room_members')
+          .update({ role: newRole })
+          .eq('room_id', cleanRoomId)
+          .eq('user_id', cleanUserId);
+        
+        if (error) {
+          // If update fails because record doesn't exist, we can try to insert it (upsert)
+          const { error: upsertError } = await supabase
+            .from('room_members')
+            .upsert(
+              { room_id: cleanRoomId, user_id: cleanUserId, role: newRole },
+              { onConflict: 'room_id,user_id' }
+            );
+          if (upsertError) throw upsertError;
+        }
+      } catch (err) {
+        handleSharedDbError(err, `updateUserRoomRole for room ${cleanRoomId}, user ${cleanUserId}`);
       }
     }
   }
@@ -176,7 +209,7 @@ export class RoomRepository {
     if (!inMemoryRoomMetadata[cleanRoomId]) {
       inMemoryRoomMetadata[cleanRoomId] = {
         host_id: 'default-host-id',
-        movie_url: 'http://localhost:5000/api/video/hls-local/master_party.m3u8',
+        movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
         is_active: isActive,
       };
     } else {
@@ -222,7 +255,7 @@ export class RoomRepository {
     if (!inMemoryRoomMetadata[cleanRoomId]) {
       inMemoryRoomMetadata[cleanRoomId] = {
         host_id: 'default-host-id',
-        movie_url: 'http://localhost:5000/api/video/hls-local/master_party.m3u8',
+        movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
         is_active: false,
       };
     }
@@ -234,7 +267,7 @@ export class RoomRepository {
     const cleanHostId = hostId.trim() || 'default-host-id';
     const metadata: RoomMetadata = {
       host_id: cleanHostId,
-      movie_url: movieUrl || 'http://localhost:5000/api/video/hls-local/master_party.m3u8',
+      movie_url: movieUrl || `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
       is_active: false,
     };
 

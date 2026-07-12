@@ -338,8 +338,8 @@ export const Room: React.FC = () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       const hostId = currentSession?.user?.id || 'default-host-id';
 
-      const backendHost = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
-      const res = await axios.post(`http://${backendHost}:5000/api/rooms/create`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await axios.post(`${backendUrl}/api/rooms/create`, {
         hostId,
         movieUrl,
       });

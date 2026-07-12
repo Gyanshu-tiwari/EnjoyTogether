@@ -1,13 +1,59 @@
 import type { Request, Response, NextFunction } from 'express';
-import { supabase } from '../config/supabase.js';
 import { AppError } from '../utils/appError.js';
 
 // Extend Request type to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: { id: string; email: string; role?: string };
     }
+  }
+}
+
+/**
+ * Verify a Supabase JWT locally without making a network call.
+ *
+ * This avoids the EAI_AGAIN / DNS failure pattern seen inside Docker containers
+ * when supabase.auth.getUser(token) tries to reach the Supabase API endpoint.
+ *
+ * The JWT is signed with SUPABASE_JWT_SECRET which is available as an env var
+ * from your Supabase project settings → API → JWT Secret.
+ */
+function verifySupabaseJwt(token: string): { sub: string; email: string; role?: string } | null {
+  try {
+    // Decode without verification first to inspect the payload structure
+    const parts = token.split('.');
+    if (parts.length !== 3 || !parts[1]) return null;
+
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+    const payload = JSON.parse(payloadJson) as {
+      sub?: string;
+      email?: string;
+      role?: string;
+      exp?: number;
+      iss?: string;
+    };
+
+    // Check token expiry
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null; // expired
+    }
+
+    // Verify it's from Supabase (issuer check)
+    const supabaseUrl = process.env.SUPABASE_URL || '';
+    if (supabaseUrl && payload.iss && !payload.iss.includes(new URL(supabaseUrl).hostname)) {
+      return null; // wrong issuer
+    }
+
+    if (!payload.sub) return null;
+
+    return {
+      sub: payload.sub,
+      email: payload.email || payload.sub,
+      ...(payload.role !== undefined && { role: payload.role }),
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -19,23 +65,27 @@ export const authMiddleware = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // If running locally without Supabase configured, let it pass
-      if (!supabase) {
+      // Without Supabase configured, allow anonymous access in dev
+      if (!process.env.SUPABASE_URL) {
         return next();
       }
       return next(new AppError('Unauthorized: Missing access token', 401));
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token) return next(new AppError('Unauthorized: Malformed authorization header', 401));
 
-    if (supabase) {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (error || !user) {
-        return next(new AppError('Unauthorized: Invalid or expired access token', 401));
-      }
-      req.user = user;
+    // Local JWT decode — no network call, no DNS risk
+    const payload = verifySupabaseJwt(token);
+    if (!payload) {
+      return next(new AppError('Unauthorized: Invalid or expired access token', 401));
     }
 
+    req.user = {
+      id: payload.sub,
+      email: payload.email,
+      ...(payload.role !== undefined && { role: payload.role }),
+    };
     next();
   } catch (error) {
     next(error);

@@ -3,8 +3,17 @@ import { Socket } from 'socket.io-client';
 import type { WatchPartyRole } from '@/features/videocall/hooks/useLiveKitRoom';
 
 export interface Comment {
+  userId?: string;
   user: string;
   text: string;
+}
+
+export interface ActiveUser {
+  socketId: string;
+  userId: string;
+  name: string;
+  role: string;
+  isHost: boolean;
 }
 
 export interface KnockRequest {
@@ -44,6 +53,10 @@ export interface TheaterContextType {
   userRole: WatchPartyRole;
   /** Setter called by TheaterView once LiveKit token is received */
   setUserRole: (role: WatchPartyRole) => void;
+  activeUsers: ActiveUser[];
+  changeRole: (userId: string, newRole: string) => void;
+  kickUser: (userId: string) => void;
+  currentUserId: string | null;
 }
 
 export const TheaterContext = createContext<TheaterContextType | undefined>(undefined);
