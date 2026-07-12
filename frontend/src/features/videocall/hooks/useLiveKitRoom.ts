@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
 import axios from 'axios';
 import { supabase } from '@/shared/lib/supabase';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type WatchPartyRole = 'host' | 'co-host' | 'viewer';
@@ -14,16 +15,6 @@ export interface ParticipantInfo {
   videoTrack?: Track;
   audioTrack?: Track;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-const getAnonymousUserId = () => {
-  let anonId = localStorage.getItem('et_anon_user_id');
-  if (!anonId) {
-    anonId = 'anon_' + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('et_anon_user_id', anonId);
-  }
-  return anonId;
-};
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useLiveKitRoom(roomId: string, sessionState: string) {
@@ -119,11 +110,8 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
         const userId = session?.user?.id || getAnonymousUserId();
         const userName = session?.user?.email || userId;
 
-        const backendHost = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
-
-        const res = await axios.get(
-          `http://${backendHost}:5000/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userId)}&user_name=${encodeURIComponent(userName)}`
-        );
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+        const res = await axios.get(`${backendUrl}/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userId)}&user_name=${encodeURIComponent(userName)}`);
         const { token, serverUrl, role } = res.data as {
           token: string;
           serverUrl: string;
@@ -185,8 +173,14 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
     return () => {
       active = false;
       if (roomRef.current) {
+        // Stop all local tracks before disconnecting to ensure
+        // the browser camera/microphone indicator light turns off.
+        roomRef.current.localParticipant?.trackPublications.forEach((pub) => {
+          pub.track?.stop();
+        });
         roomRef.current.removeAllListeners();
         roomRef.current.disconnect();
+        roomRef.current = null;
       }
       setParticipants([]);
     };

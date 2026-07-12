@@ -1,7 +1,45 @@
-node_modules
-npm-debug.log
-dist
+# ─── Compiled outputs (built fresh in each stage) ────────────────────────────
+dist/
+build/
+
+# ─── Local dependencies (installed fresh in each stage) ──────────────────────
+node_modules/
+
+# ─── Runtime data (MUST be volume-mounted, never baked into image) ────────────
+uploads/
+output_hls/
+
+# ─── Video / media files (never ship these into the Docker context) ───────────
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.m3u8
+*.ts
+
+# ─── Transient pipeline artefacts ────────────────────────────────────────────
+transcode_progress.txt
+transcode_status.json
+
+# ─── Environment secrets ──────────────────────────────────────────────────────
 .env
-.git
+.env.*
+!.env.example
+
+# ─── Dev tooling ──────────────────────────────────────────────────────────────
+.git/
 .gitignore
+*.log
+npm-debug.log*
+.eslintcache
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Tests / Documentation ───────────────────────────────────────────────────
+**/*.test.ts
+**/*.spec.ts
+coverage/
 README.md
+docs/

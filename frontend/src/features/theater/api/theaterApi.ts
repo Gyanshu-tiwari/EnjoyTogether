@@ -5,8 +5,7 @@ const TMDB_ACCESS_TOKEN = import.meta.env.VITE_TMDB_ACCESS_TOKEN;
 // Computed lazily per-call so hot reloads and network changes always resolve the
 // correct backend address rather than locking to the value at first module import.
 function getBackendUrl(): string {
-  return import.meta.env.VITE_BACKEND_URL
-    || `http://${window.location.hostname}:5000`;
+  return import.meta.env.VITE_BACKEND_URL || '';
 }
 
 export interface MovieMetadata {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from '@/shared/lib/supabase';
-import { getAnonymousUserId } from './useRoomSession';
-import type { Comment, KnockRequest, FloatingEmoji } from '../context/useTheater';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
+import type { Comment, KnockRequest, FloatingEmoji, ActiveUser } from '../context/useTheater';
 
 type SessionState = 'idle_host' | 'idle_guest' | 'knocking' | 'rejected' | 'active_session';
 
@@ -23,6 +23,10 @@ interface UseSocketConnectionResult {
   rejectGuest: (socketId: string) => void;
   sendEmoji: (emoji: string) => void;
   sendMessage: (roomId: string, text: string) => void;
+  activeUsers: ActiveUser[];
+  changeRole: (userId: string, newRole: string) => void;
+  kickUser: (userId: string) => void;
+  currentUserId: string | null;
 }
 
 const ACTIVE_STATES: SessionState[] = ['active_session', 'idle_host', 'knocking'];
@@ -38,6 +42,8 @@ export function useSocketConnection({
   const [socket, setSocket] = useState<Socket | null>(null);
   const [knocks, setKnocks] = useState<KnockRequest[]>([]);
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Fix #3: Store sessionState in a ref so the connect callback is never stale
   const sessionStateRef = useRef(sessionState);
@@ -56,12 +62,21 @@ export function useSocketConnection({
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       const userId = session?.user?.id || getAnonymousUserId();
+      setCurrentUserId(userId);
       const username = session?.user?.email || `Guest_${userId.slice(0, 5)}`;
-      const backendHost = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
 
-      socketInstance = io(`http://${backendHost}:5000`, {
-        transports: ['websocket'],
+      socketInstance = io(backendUrl, {
+        // Allow polling fallback for restricted corporate/mobile networks
+        transports: ['websocket', 'polling'],
         auth: { token },
+        // Exponential backoff reconnection — prevents thundering herd on server restart
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,       // start at 1s
+        reconnectionDelayMax: 30_000,  // cap at 30s
+        randomizationFactor: 0.5,      // ±50% jitter
+        timeout: 10_000,
       });
 
       socketInstance.on('connect', () => {
@@ -118,6 +133,15 @@ export function useSocketConnection({
 
       socketInstance.on('update-room-chat', (newComment: Comment) => {
         setComments((prev) => [...prev, newComment]);
+      });
+
+      socketInstance.on('room:active-users', (users: ActiveUser[]) => {
+        setActiveUsers(users);
+      });
+
+      socketInstance.on('room:kicked', () => {
+        window.alert('You have been removed from the watch party by the host.');
+        window.location.href = '/';
       });
 
       socketInstance.on('sync-state', (roomState: { streamUrl?: string }) => {
@@ -181,5 +205,17 @@ export function useSocketConnection({
     }
   }, [socket]);
 
-  return { socket, knocks, floatingEmojis, approveGuest, rejectGuest, sendEmoji, sendMessage };
+  const changeRole = useCallback((targetUserId: string, newRole: string) => {
+    if (socket) {
+      socket.emit('room:change-role', { targetUserId, newRole });
+    }
+  }, [socket]);
+
+  const kickUser = useCallback((targetUserId: string) => {
+    if (socket) {
+      socket.emit('room:kick-user', { targetUserId });
+    }
+  }, [socket]);
+
+  return { socket, knocks, floatingEmojis, approveGuest, rejectGuest, sendEmoji, sendMessage, activeUsers, changeRole, kickUser, currentUserId };
 }

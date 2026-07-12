@@ -42,6 +42,10 @@ export const TheaterProvider: React.FC<{
     rejectGuest,
     sendEmoji,
     sendMessage: socketSendMessage,
+    activeUsers,
+    changeRole,
+    kickUser,
+    currentUserId,
   } = useSocketConnection({
     roomId,
     sessionState,
@@ -63,10 +67,20 @@ export const TheaterProvider: React.FC<{
     }
   }, [currentStreamUrl, roomId, socket, sessionState]);
 
+  // Sync userRole dynamically from activeUsers list so RBAC updates in real-time
+  useEffect(() => {
+    if (currentUserId && activeUsers.length > 0) {
+      const me = activeUsers.find((u) => u.userId === currentUserId);
+      if (me && me.role && me.role !== userRole) {
+        setUserRole(me.role as WatchPartyRole);
+      }
+    }
+  }, [activeUsers, currentUserId, userRole]);
+
   // ─── Chat ─────────────────────────────────────────────────────────────────
   const sendMessage = () => {
     if (!inputMessage.trim()) return;
-    setComments((prev) => [...prev, { user: 'You', text: inputMessage }]);
+    setComments((prev) => [...prev, { userId: currentUserId || 'me', user: 'You', text: inputMessage }]);
     socketSendMessage(roomId, inputMessage);
     setInputMessage('');
   };
@@ -98,6 +112,10 @@ export const TheaterProvider: React.FC<{
         floatingEmojis,
         userRole,
         setUserRole,
+        activeUsers,
+        changeRole,
+        kickUser,
+        currentUserId,
       }}
     >
       {children}

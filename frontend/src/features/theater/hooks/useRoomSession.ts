@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/shared/lib/supabase';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 import { getRoomMetadata, toggleRoomActive } from '../api/theaterApi';
 import axios from 'axios';
 
@@ -17,15 +18,6 @@ interface RoomSessionResult {
   startSession: () => Promise<void>;
   endSession: () => Promise<void>;
 }
-
-const getAnonymousUserId = () => {
-  let anonId = localStorage.getItem('et_anon_user_id');
-  if (!anonId) {
-    anonId = 'anon_' + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('et_anon_user_id', anonId);
-  }
-  return anonId;
-};
 
 
 export function useRoomSession(roomId: string, isHostProp?: boolean, initialStreamUrl?: string): RoomSessionResult {
