@@ -34,6 +34,7 @@ const uploadMovie = multer({
 router.post('/start-upload', RoomController.startUpload);
 router.post('/upload-chunk', uploadMovie.single('chunk'), RoomController.uploadChunk);
 router.get('/transcode-status', RoomController.transcodeStatus);
+router.get('/logs', RoomController.getLogs);
 router.get('/stream/:messageId', RoomController.streamVideo);
 
 export default router;

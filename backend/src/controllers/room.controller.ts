@@ -158,6 +158,20 @@ export class RoomController {
     }
   }
 
+  static async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const logPath = path.join(process.cwd(), 'output_hls', 'transcoder.log');
+      if (fs.existsSync(logPath)) {
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(fs.readFileSync(logPath, 'utf-8'));
+      } else {
+        res.send('No logs found.');
+      }
+    } catch (error: any) {
+      res.send('Error reading logs: ' + error.message);
+    }
+  }
+
   // ── Telegram Media Streaming ───────────────────────────────────────────────
 
   static async streamVideo(req: Request, res: Response, next: NextFunction): Promise<any> {
