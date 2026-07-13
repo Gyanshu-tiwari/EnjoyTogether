@@ -124,8 +124,13 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         
         let streamUrl = responseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
         if (streamUrl.startsWith('/')) {
-          const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+          let backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+          if (backendUrl && !backendUrl.startsWith('http')) {
+            backendUrl = `https://${backendUrl}`;
+          }
           streamUrl = `${backendUrl}${streamUrl}`;
+        } else if (!streamUrl.startsWith('http')) {
+          streamUrl = `https://${streamUrl}`;
         }
         setResolvedStreamUrl(streamUrl);
         
