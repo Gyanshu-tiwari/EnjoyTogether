@@ -29,6 +29,7 @@ const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (curl, Postman, server-to-server)
     if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*')) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS: Origin "${origin}" is not permitted.`));
   },
@@ -42,7 +43,7 @@ app.use(express.json());
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: allowedOrigins.includes('*') ? true : allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
