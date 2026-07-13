@@ -41,6 +41,6 @@ export function validateEnv(): void {
 export function getAllowedOrigins(): string[] {
   return (process.env.CORS_ORIGIN || '*')
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 }
