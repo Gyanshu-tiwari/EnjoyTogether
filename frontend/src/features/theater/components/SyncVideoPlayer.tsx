@@ -72,9 +72,16 @@ export const SyncVideoPlayer: React.FC = () => {
 
     let hls: Hls | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-    console.log("🎬 Loading stream asset source target:", currentStreamUrl);
 
-    if (Hls.isSupported() && currentStreamUrl.includes('.m3u8')) {
+    let targetUrl = currentStreamUrl;
+    if (targetUrl.startsWith('/')) {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      targetUrl = `${backendUrl}${targetUrl}`;
+    }
+
+    console.log("🎬 Loading stream asset source target:", targetUrl);
+
+    if (Hls.isSupported() && targetUrl.includes('.m3u8')) {
       hls = new Hls({
         // Buffer management — prevents stalls without using excessive memory
         maxBufferLength: 20,              // buffer up to 20s ahead (not 30 default)
@@ -94,7 +101,7 @@ export const SyncVideoPlayer: React.FC = () => {
         lowLatencyMode: false,           // VOD mode, not live
         startLevel: -1,                  // auto quality selection
       });
-      hls.loadSource(currentStreamUrl);
+      hls.loadSource(targetUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -132,7 +139,7 @@ export const SyncVideoPlayer: React.FC = () => {
         }
       });
     } else {
-      video.src = currentStreamUrl;
+      video.src = targetUrl;
       video.load();
     }
 

@@ -122,7 +122,11 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       if (responseData.success) {
         console.log("Uploaded successfully! File Identifier Map reference:", responseData.fileId);
         
-        const streamUrl = responseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
+        let streamUrl = responseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
+        if (streamUrl.startsWith('/')) {
+          const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+          streamUrl = `${backendUrl}${streamUrl}`;
+        }
         setResolvedStreamUrl(streamUrl);
         
         setProcessingPhase('transcoding');
