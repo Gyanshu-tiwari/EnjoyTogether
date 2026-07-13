@@ -77,7 +77,7 @@ async function runPipeline() {
     console.log(`🎬 Configured mapping -> Video: ${videoFlag}, Audio: ${audioFlag}`);
     console.log('🎬 Starting adaptive keyframe-aligned HLS stream copy/transcode pipeline...');
 
-    const ffmpegCmd = `ffmpeg -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${path.join(OUTPUT_DIR, 'master_party.m3u8')}"`;
+    const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${path.join(OUTPUT_DIR, 'master_party.m3u8')}"`;
     
     const startTime = Date.now();
     const interval = setInterval(() => {
