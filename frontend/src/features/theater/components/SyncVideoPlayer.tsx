@@ -75,8 +75,13 @@ export const SyncVideoPlayer: React.FC = () => {
 
     let targetUrl = currentStreamUrl;
     if (targetUrl.startsWith('/')) {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      let backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      if (backendUrl && !backendUrl.startsWith('http')) {
+        backendUrl = `https://${backendUrl}`;
+      }
       targetUrl = `${backendUrl}${targetUrl}`;
+    } else if (!targetUrl.startsWith('http')) {
+      targetUrl = `https://${targetUrl}`;
     }
 
     console.log("🎬 Loading stream asset source target:", targetUrl);
