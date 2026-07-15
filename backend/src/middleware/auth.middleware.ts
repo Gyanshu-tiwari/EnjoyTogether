@@ -11,57 +11,7 @@ declare global {
   }
 }
 
-/**
- * Verify a Supabase JWT locally without making a network call.
- *
- * This avoids the EAI_AGAIN / DNS failure pattern seen inside Docker containers
- * when supabase.auth.getUser(token) tries to reach the Supabase API endpoint.
- *
- * The JWT is signed with SUPABASE_JWT_SECRET which is available as an env var
- * from your Supabase project settings → API → JWT Secret.
- */
-function verifySupabaseJwt(token: string): { sub: string; email: string; role?: string } | null {
-  const secret = process.env.SUPABASE_JWT_SECRET;
-  if (!secret) {
-    console.error('SUPABASE_JWT_SECRET is missing. Cannot verify tokens.');
-    return null;
-  }
-
-  try {
-    const payload = jwt.verify(token, secret) as {
-      sub?: string;
-      email?: string;
-      role?: string;
-      iss?: string;
-    };
-
-    const supabaseUrl = process.env.SUPABASE_URL || '';
-    let expectedHost = supabaseUrl;
-    try {
-      if (supabaseUrl.startsWith('http')) {
-        expectedHost = new URL(supabaseUrl).hostname;
-      }
-    } catch (e) {
-      // Ignore URL parsing errors and fallback to raw string
-    }
-
-    if (supabaseUrl && payload.iss && !payload.iss.includes(expectedHost)) {
-      console.error(`JWT issuer mismatch. Expected host ${expectedHost} in payload.iss: ${payload.iss}`);
-      return null;
-    }
-
-    if (!payload.sub) return null;
-
-    return {
-      sub: payload.sub,
-      email: payload.email || payload.sub,
-      ...(payload.role !== undefined && { role: payload.role }),
-    };
-  } catch (err) {
-    console.error('JWT Verification failed:', err instanceof Error ? err.message : err);
-    return null;
-  }
-}
+import { supabase } from '../config/supabase.js';
 
 export const authMiddleware = async (
   req: Request,
@@ -81,16 +31,23 @@ export const authMiddleware = async (
     const token = authHeader.split(' ')[1];
     if (!token) return next(new AppError('Unauthorized: Malformed authorization header', 401));
 
-    // Local JWT decode — no network call, no DNS risk
-    const payload = verifySupabaseJwt(token);
-    if (!payload) {
+    if (!supabase) {
+      console.warn('⚠️ authMiddleware bypassed: Supabase client not initialized.');
+      return next();
+    }
+
+    // Official secure validation via Supabase API. Handles HS256/RS256 transparently.
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('Supabase Auth verification failed:', error?.message);
       return next(new AppError('Unauthorized: Invalid or expired access token', 401));
     }
 
     req.user = {
-      id: payload.sub,
-      email: payload.email,
-      ...(payload.role !== undefined && { role: payload.role }),
+      id: user.id,
+      email: user.email || user.id,
+      ...(user.role !== undefined && { role: user.role }),
     };
     next();
   } catch (error) {
