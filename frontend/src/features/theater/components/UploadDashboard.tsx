@@ -88,20 +88,39 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         console.warn("Failed to update global status to uploading, continuing...", err);
       }
 
-      console.log("📤 Dispatching single network request to backend...");
+      console.log("📤 Dispatching sequential chunk network requests to backend...");
 
-      const responseData = await uploadChunk({
-        file,
-        onProgress: (progressEvent: import('axios').AxiosProgressEvent) => {
-          if (progressEvent.total) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const fileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+      
+      let lastResponseData: any = null;
+      let totalLoaded = 0;
+
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunkBlob = file.slice(start, end);
+
+        console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks}`);
+
+        lastResponseData = await uploadChunk({
+          chunk: chunkBlob,
+          fileName: file.name,
+          fileId,
+          chunkIndex,
+          totalChunks,
+          onProgress: (progressEvent: import('axios').AxiosProgressEvent) => {
+            const chunkLoaded = progressEvent.loaded;
+            const currentTotalLoaded = totalLoaded + chunkLoaded;
+            const percentCompleted = Math.round((currentTotalLoaded * 100) / file.size);
             setProgress(percentCompleted);
 
             const elapsedMs = Date.now() - startTimeRef.current;
             if (elapsedMs > 1000) {
               const elapsedSec = elapsedMs / 1000;
-              const bytesPerSec = progressEvent.loaded / elapsedSec;
-              const remainingBytes = progressEvent.total - progressEvent.loaded;
+              const bytesPerSec = currentTotalLoaded / elapsedSec;
+              const remainingBytes = file.size - currentTotalLoaded;
               const remainingSec = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
 
               const speedMBps = bytesPerSec / (1024 * 1024);
@@ -116,13 +135,15 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
               }
             }
           }
-        }
-      });
-
-      if (responseData.success) {
-        console.log("Uploaded successfully! File Identifier Map reference:", responseData.fileId);
+        });
         
-        let streamUrl = responseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
+        totalLoaded += chunkBlob.size;
+      }
+
+      if (lastResponseData?.success) {
+        console.log("Uploaded successfully! File Identifier Map reference:", lastResponseData.fileId);
+        
+        let streamUrl = lastResponseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
         if (streamUrl.startsWith('/')) {
           let backendUrl = import.meta.env.VITE_BACKEND_URL || '';
           if (backendUrl && !backendUrl.startsWith('http')) {

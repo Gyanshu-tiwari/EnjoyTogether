@@ -103,39 +103,60 @@ export class RoomController {
     try {
       if (!req.file) return next(new AppError('Missing binary payload stream fields.', 400));
 
-      const uploadedFilePath = req.file.path;
-      console.log(`🚀 File uploaded to: ${uploadedFilePath}. Launching transcoder pipeline...`);
-
-      // Resolve script path relative to THIS compiled file's directory (__dirname).
-      // This is robust regardless of what process.cwd() happens to be.
-      const isDev = process.env.NODE_ENV !== 'production';
-      const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
-      const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
-
-      const useTsx = isDev && fs.existsSync(tsScript);
-      const cmd = useTsx ? 'npx' : 'node';
-      const args = useTsx ? ['tsx', tsScript, uploadedFilePath] : [jsScript, uploadedFilePath];
-
-      // spawn with detached:true + stdio redirected to a log file
-      // → child process is fully independent of Express; no stdout buffer overflow
-      const logPath = path.join(process.cwd(), 'output_hls', 'transcoder.log');
-      const out = fs.openSync(logPath, 'a');
-      const err = fs.openSync(logPath, 'a');
+      const chunkIndex = parseInt(req.body.chunkIndex, 10);
+      const totalChunks = parseInt(req.body.totalChunks, 10);
+      const fileId = req.body.fileId;
       
-      const child = spawn(cmd, args, {
-        detached: true,
-        stdio: ['ignore', out, err],
-        env: process.env,
-      });
-      child.unref();
+      if (isNaN(chunkIndex) || isNaN(totalChunks) || !fileId) {
+        return next(new AppError('Missing chunking metadata.', 400));
+      }
 
-      child.on('error', (err) => {
-        console.error('❌ Failed to spawn transcoder process:', err);
-      });
+      const uploadedChunkPath = req.file.path;
+      const targetFilePath = path.join(process.cwd(), 'uploads', `${fileId}.mp4`);
+
+      // Append this chunk to the master file
+      fs.appendFileSync(targetFilePath, fs.readFileSync(uploadedChunkPath));
+      
+      // Cleanup the temporary multer chunk file
+      fs.unlinkSync(uploadedChunkPath);
+
+      console.log(`🚀 Chunk ${chunkIndex + 1}/${totalChunks} appended for file ${fileId}`);
+
+      if (chunkIndex === totalChunks - 1) {
+        console.log(`✅ All chunks received. Launching transcoder pipeline for: ${targetFilePath}`);
+
+        // Resolve script path relative to THIS compiled file's directory (__dirname).
+        // This is robust regardless of what process.cwd() happens to be.
+        const isDev = process.env.NODE_ENV !== 'production';
+        const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
+        const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
+
+        const useTsx = isDev && fs.existsSync(tsScript);
+        const cmd = useTsx ? 'npx' : 'node';
+        const args = useTsx ? ['tsx', tsScript, targetFilePath] : [jsScript, targetFilePath];
+
+        // spawn with detached:true + stdio redirected to a log file
+        // → child process is fully independent of Express; no stdout buffer overflow
+        const logPath = path.join(process.cwd(), 'output_hls', 'transcoder.log');
+        const out = fs.openSync(logPath, 'a');
+        const err = fs.openSync(logPath, 'a');
+        
+        const child = spawn(cmd, args, {
+          detached: true,
+          stdio: ['ignore', out, err],
+          env: process.env,
+        });
+        child.unref();
+
+        child.on('error', (err) => {
+          console.error('❌ Failed to spawn transcoder process:', err);
+        });
+      }
 
       const fallbackStreamUrl = `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`;
       res.status(202).json({ success: true, fileId: 'master_party.m3u8', streamUrl: fallbackStreamUrl });
     } catch (error) {
+      console.error('Chunk processing error:', error);
       next(new AppError('Failed to process uploaded chunk request.', 500));
     }
   }

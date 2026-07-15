@@ -53,14 +53,21 @@ export async function startUpload(): Promise<void> {
 }
 
 export interface UploadChunkParams {
-  file: File;
+  chunk: Blob;
+  fileName: string;
+  fileId: string;
+  chunkIndex: number;
+  totalChunks: number;
   onProgress: (progressEvent: import('axios').AxiosProgressEvent) => void;
 }
 
-export async function uploadChunk({ file, onProgress }: UploadChunkParams) {
+export async function uploadChunk({ chunk, fileName, fileId, chunkIndex, totalChunks, onProgress }: UploadChunkParams) {
   const formData = new FormData();
-  formData.append('chunk', file);
-  formData.append('name', file.name);
+  formData.append('chunk', chunk);
+  formData.append('name', fileName);
+  formData.append('fileId', fileId);
+  formData.append('chunkIndex', chunkIndex.toString());
+  formData.append('totalChunks', totalChunks.toString());
 
   const response = await apiClient.post(`/api/video/upload-chunk`, formData, {
     onUploadProgress: onProgress,
