@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '@/shared/api/apiClient';
 import { supabase } from '@/shared/lib/supabase';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/feedback/Spinner';
@@ -338,8 +338,7 @@ export const Room: React.FC = () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       const hostId = currentSession?.user?.id || 'default-host-id';
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-      const res = await axios.post(`${backendUrl}/api/rooms/create`, {
+      const res = await apiClient.post(`/api/rooms/create`, {
         hostId,
         movieUrl,
       });

@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import { AppError } from '../utils/appError.js';
 
 // Extend Request type to include user
@@ -20,29 +21,23 @@ declare global {
  * from your Supabase project settings → API → JWT Secret.
  */
 function verifySupabaseJwt(token: string): { sub: string; email: string; role?: string } | null {
-  try {
-    // Decode without verification first to inspect the payload structure
-    const parts = token.split('.');
-    if (parts.length !== 3 || !parts[1]) return null;
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret) {
+    console.error('SUPABASE_JWT_SECRET is missing. Cannot verify tokens.');
+    return null;
+  }
 
-    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
-    const payload = JSON.parse(payloadJson) as {
+  try {
+    const payload = jwt.verify(token, secret) as {
       sub?: string;
       email?: string;
       role?: string;
-      exp?: number;
       iss?: string;
     };
 
-    // Check token expiry
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null; // expired
-    }
-
-    // Verify it's from Supabase (issuer check)
     const supabaseUrl = process.env.SUPABASE_URL || '';
     if (supabaseUrl && payload.iss && !payload.iss.includes(new URL(supabaseUrl).hostname)) {
-      return null; // wrong issuer
+      return null;
     }
 
     if (!payload.sub) return null;
@@ -52,7 +47,7 @@ function verifySupabaseJwt(token: string): { sub: string; email: string; role?: 
       email: payload.email || payload.sub,
       ...(payload.role !== undefined && { role: payload.role }),
     };
-  } catch {
+  } catch (err) {
     return null;
   }
 }
