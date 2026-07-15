@@ -63,9 +63,6 @@ export async function uploadChunk({ file, onProgress }: UploadChunkParams) {
   formData.append('name', file.name);
 
   const response = await apiClient.post(`/api/video/upload-chunk`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
     onUploadProgress: onProgress,
   });
 

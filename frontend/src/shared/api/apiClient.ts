@@ -16,7 +16,10 @@ apiClient.interceptors.request.use(
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session?.access_token) {
-      config.headers['Authorization'] = `Bearer ${session.access_token}`;
+      console.log('[apiClient] Attaching authorization token to request to', config.url);
+      config.headers.set('Authorization', `Bearer ${session.access_token}`);
+    } else {
+      console.warn('[apiClient] No session found, sending unauthenticated request to', config.url);
     }
     
     return config;
