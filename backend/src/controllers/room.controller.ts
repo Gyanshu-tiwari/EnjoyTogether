@@ -133,7 +133,7 @@ export class RoomController {
 
         const useTsx = isDev && fs.existsSync(tsScript);
         const cmd = useTsx ? 'npx' : 'node';
-        const args = useTsx ? ['tsx', tsScript, targetFilePath] : [jsScript, targetFilePath];
+        const args = useTsx ? ['tsx', tsScript, targetFilePath, fileId] : [jsScript, targetFilePath, fileId];
 
         // spawn with detached:true + stdio redirected to a log file
         // → child process is fully independent of Express; no stdout buffer overflow
@@ -153,8 +153,8 @@ export class RoomController {
         });
       }
 
-      const fallbackStreamUrl = `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`;
-      res.status(202).json({ success: true, fileId: 'master_party.m3u8', streamUrl: fallbackStreamUrl });
+      const fallbackStreamUrl = `${process.env.BACKEND_URL || ''}/api/video/hls-local/${fileId}.m3u8`;
+      res.status(202).json({ success: true, fileId: `${fileId}.m3u8`, streamUrl: fallbackStreamUrl });
     } catch (error) {
       console.error('Chunk processing error:', error);
       next(new AppError('Failed to process uploaded chunk request.', 500));

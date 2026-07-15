@@ -19,6 +19,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
   const [isDragging, setIsDragging] = useState(false);
   const [processingPhase, setProcessingPhase] = useState<'idle' | 'uploading' | 'transcoding' | 'complete'>('idle');
   const [resolvedStreamUrl, setResolvedStreamUrl] = useState('');
+  const [fileId, setFileId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const [uploading, setUploading] = useState(false);
@@ -92,7 +93,8 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
 
       const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-      const fileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+      const newFileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+      setFileId(newFileId);
       
       let lastResponseData: { success?: boolean; fileId?: string; streamUrl?: string } | null = null;
       let totalLoaded = 0;
@@ -107,7 +109,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         lastResponseData = await uploadChunk({
           chunk: chunkBlob,
           fileName: file.name,
-          fileId,
+          fileId: newFileId,
           chunkIndex,
           totalChunks,
           onProgress: (progressEvent: import('axios').AxiosProgressEvent) => {
@@ -143,7 +145,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       if (lastResponseData?.success) {
         console.log("Uploaded successfully! File Identifier Map reference:", lastResponseData.fileId);
         
-        let streamUrl = lastResponseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
+        let streamUrl = lastResponseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/${newFileId}.m3u8`;
         if (streamUrl.startsWith('/')) {
           let backendUrl = import.meta.env.VITE_BACKEND_URL || '';
           if (backendUrl && !backendUrl.startsWith('http')) {
@@ -301,7 +303,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             <div className="mt-4 animate-fade-in">
               <button
                 onClick={() => {
-                  const finalUrl = resolvedStreamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/master_party.m3u8`;
+                  const finalUrl = resolvedStreamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/${fileId}.m3u8`;
                   onUploadSuccess(finalUrl);
                 }}
                 className="w-full py-4 bg-linear-to-r from-cyan-500 via-blue-500 to-indigo-600 shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.01] active:scale-95 rounded-2xl text-xs font-black tracking-widest text-white transition-all duration-300 cursor-pointer border border-cyan-400/20 hover:border-cyan-400/50 flex items-center justify-center gap-2"

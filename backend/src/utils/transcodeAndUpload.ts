@@ -6,8 +6,10 @@ import util from 'util';
 const execPromise = util.promisify(exec);
 const BACKEND_ROOT = process.cwd();
 const inputPath = process.argv[2];
+const fileId = process.argv[3] || 'master_party';
 const INPUT_MOVIE = inputPath ? path.resolve(inputPath) : path.join(BACKEND_ROOT, 'sample.mp4');
 const OUTPUT_DIR = path.join(BACKEND_ROOT, 'output_hls');
+const OUTPUT_M3U8 = path.join(OUTPUT_DIR, `${fileId}.m3u8`);
 
 interface VideoMetadata {
   duration: number;
@@ -77,7 +79,7 @@ async function runPipeline() {
     console.log(`🎬 Configured mapping -> Video: ${videoFlag}, Audio: ${audioFlag}`);
     console.log('🎬 Starting adaptive keyframe-aligned HLS stream copy/transcode pipeline...');
 
-    const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${path.join(OUTPUT_DIR, 'master_party.m3u8')}"`;
+    const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${OUTPUT_M3U8}"`;
     
     const startTime = Date.now();
     const interval = setInterval(() => {
