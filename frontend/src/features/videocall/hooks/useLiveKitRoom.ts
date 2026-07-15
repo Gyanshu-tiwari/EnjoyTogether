@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
-import axios from 'axios';
+import { apiClient } from '@/shared/api/apiClient';
 import { supabase } from '@/shared/lib/supabase';
 import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 
@@ -110,8 +110,7 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
         const userId = session?.user?.id || getAnonymousUserId();
         const userName = session?.user?.email || userId;
 
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-        const res = await axios.get(`${backendUrl}/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userId)}&user_name=${encodeURIComponent(userName)}`);
+        const res = await apiClient.get(`/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userId)}&user_name=${encodeURIComponent(userName)}`);
         const { token, serverUrl, role } = res.data as {
           token: string;
           serverUrl: string;

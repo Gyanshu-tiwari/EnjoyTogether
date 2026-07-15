@@ -12,7 +12,24 @@ export function useAuthSession() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        // Proactively wake up the Railway backend so sockets/streams initialize faster
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+        if (backendUrl) {
+          fetch(`${backendUrl}/health`).catch(err => console.error('Backend wake handshake failed:', err));
+        }
+
+        const win = window as Window & { isCrossTabPending?: boolean };
+        if (win.isCrossTabPending) {
+          setTimeout(() => {
+            win.isCrossTabPending = false;
+            setSession(session);
+          }, 2500);
+          return;
+        }
+      }
+      
       setSession(session);
     });
 

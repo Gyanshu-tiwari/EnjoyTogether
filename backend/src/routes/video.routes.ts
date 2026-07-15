@@ -4,6 +4,9 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { RoomController } from '../controllers/room.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
+import { startUploadSchema } from '../validations/room.validation.js';
 
 const router = Router();
 
@@ -31,10 +34,12 @@ const uploadMovie = multer({
 });
 
 // Video pipeline endpoints
-router.post('/start-upload', RoomController.startUpload);
-router.post('/upload-chunk', uploadMovie.single('chunk'), RoomController.uploadChunk);
-router.get('/transcode-status', RoomController.transcodeStatus);
-router.get('/logs', RoomController.getLogs);
+router.post('/start-upload', authMiddleware, validate(startUploadSchema), RoomController.startUpload);
+router.post('/upload-chunk', authMiddleware, uploadMovie.single('chunk'), RoomController.uploadChunk);
+router.get('/transcode-status', authMiddleware, RoomController.transcodeStatus);
+router.get('/logs', authMiddleware, RoomController.getLogs);
+
+// Keep streaming endpoints public for <video> tags
 router.get('/stream/:messageId', RoomController.streamVideo);
 
 export default router;

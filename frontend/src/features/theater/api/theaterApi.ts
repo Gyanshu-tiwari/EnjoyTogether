@@ -1,12 +1,6 @@
-import axios from 'axios';
+import { apiClient } from '@/shared/api/apiClient';
 
 const TMDB_ACCESS_TOKEN = import.meta.env.VITE_TMDB_ACCESS_TOKEN;
-
-// Computed lazily per-call so hot reloads and network changes always resolve the
-// correct backend address rather than locking to the value at first module import.
-function getBackendUrl(): string {
-  return import.meta.env.VITE_BACKEND_URL || '';
-}
 
 export interface MovieMetadata {
   title: string;
@@ -55,7 +49,7 @@ export async function fetchMovieMetadata(movieName: string): Promise<MovieMetada
 }
 
 export async function startUpload(): Promise<void> {
-  await axios.post(`${getBackendUrl()}/api/video/start-upload`);
+  await apiClient.post(`/api/video/start-upload`);
 }
 
 export interface UploadChunkParams {
@@ -68,7 +62,7 @@ export async function uploadChunk({ file, onProgress }: UploadChunkParams) {
   formData.append('chunk', file);
   formData.append('name', file.name);
 
-  const response = await axios.post(`${getBackendUrl()}/api/video/upload-chunk`, formData, {
+  const response = await apiClient.post(`/api/video/upload-chunk`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -79,7 +73,7 @@ export async function uploadChunk({ file, onProgress }: UploadChunkParams) {
 }
 
 export async function getTranscodeStatus(): Promise<TranscodeStatus> {
-  const response = await axios.get(`${getBackendUrl()}/api/video/transcode-status`);
+  const response = await apiClient.get(`/api/video/transcode-status`);
   return response.data;
 }
 
@@ -93,10 +87,10 @@ export interface RoomMetadataResponse {
 }
 
 export async function getRoomMetadata(roomId: string): Promise<RoomMetadataResponse> {
-  const response = await axios.get(`${getBackendUrl()}/api/rooms/${encodeURIComponent(roomId)}/metadata`);
+  const response = await apiClient.get(`/api/rooms/${encodeURIComponent(roomId)}/metadata`);
   return response.data;
 }
 
 export async function toggleRoomActive(roomId: string, isActive: boolean): Promise<void> {
-  await axios.post(`${getBackendUrl()}/api/rooms/toggle-active`, { roomId, isActive });
+  await apiClient.post(`/api/rooms/toggle-active`, { roomId, isActive });
 }
