@@ -94,7 +94,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
       const fileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
       
-      let lastResponseData: any = null;
+      let lastResponseData: { success?: boolean; fileId?: string; streamUrl?: string } | null = null;
       let totalLoaded = 0;
 
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
