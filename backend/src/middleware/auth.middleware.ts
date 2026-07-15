@@ -36,7 +36,17 @@ function verifySupabaseJwt(token: string): { sub: string; email: string; role?: 
     };
 
     const supabaseUrl = process.env.SUPABASE_URL || '';
-    if (supabaseUrl && payload.iss && !payload.iss.includes(new URL(supabaseUrl).hostname)) {
+    let expectedHost = supabaseUrl;
+    try {
+      if (supabaseUrl.startsWith('http')) {
+        expectedHost = new URL(supabaseUrl).hostname;
+      }
+    } catch (e) {
+      // Ignore URL parsing errors and fallback to raw string
+    }
+
+    if (supabaseUrl && payload.iss && !payload.iss.includes(expectedHost)) {
+      console.error(`JWT issuer mismatch. Expected host ${expectedHost} in payload.iss: ${payload.iss}`);
       return null;
     }
 
@@ -48,6 +58,7 @@ function verifySupabaseJwt(token: string): { sub: string; email: string; role?: 
       ...(payload.role !== undefined && { role: payload.role }),
     };
   } catch (err) {
+    console.error('JWT Verification failed:', err instanceof Error ? err.message : err);
     return null;
   }
 }
