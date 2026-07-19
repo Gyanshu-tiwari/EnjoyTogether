@@ -83,10 +83,10 @@ export const ResetPassword: React.FC = () => {
                 Password updated successfully!
               </div>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/', { replace: true })}
                 className="w-full py-3.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
               >
-                RETURN TO LOGIN
+                CONTINUE TO APP
               </button>
             </div>
           ) : (
