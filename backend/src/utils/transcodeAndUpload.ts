@@ -47,21 +47,19 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
   return { duration, videoCodec, audioCodec };
 }
 
-// ── Upload all HLS assets for this fileId to Supabase Storage ─────────────────
-// Returns the public Supabase CDN URL for the rewritten .m3u8 playlist,
-// or null if Supabase is not configured.
-async function uploadHlsToSupabase(fileId: string): Promise<string | null> {
+// ── Finalize Supabase Upload ────────────────────────────────────────────────
+// Uploads the rewritten .m3u8 playlist, waits for any trailing segment uploads,
+// and cleans up local Railway disk files.
+async function finalizeSupabaseUpload(fileId: string, segmentFiles: string[]): Promise<string | null> {
   if (!supabase) {
     console.warn('⚠️ Supabase not configured — skipping CDN upload, using local Railway URL.');
     return null;
   }
 
-  console.log(`☁️ Uploading HLS assets for [${fileId}] to Supabase Storage...`);
+  console.log(`☁️ Finalizing HLS playlist upload for [${fileId}] to Supabase Storage...`);
 
   const allFiles = fs.readdirSync(OUTPUT_DIR);
-  // Only process files that belong to THIS transcoding session
   const ownFiles = allFiles.filter(f => f.startsWith(fileId));
-  const segmentFiles = ownFiles.filter(f => f.endsWith('.ts'));
   const playlistFile = `${fileId}.m3u8`;
 
   if (!ownFiles.includes(playlistFile)) {
@@ -69,27 +67,7 @@ async function uploadHlsToSupabase(fileId: string): Promise<string | null> {
     return null;
   }
 
-  // Step 1: Upload all .ts segment files
-  for (const segFile of segmentFiles) {
-    const localPath = path.join(OUTPUT_DIR, segFile);
-    const data = fs.readFileSync(localPath);
-    const storagePath = `${fileId}/${segFile}`;
-
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(storagePath, data, {
-        contentType: 'video/MP2T',
-        upsert: true,
-      });
-
-    if (error) {
-      console.error(`❌ Failed to upload segment ${segFile}:`, error.message);
-      return null;
-    }
-    console.log(`  ✓ Uploaded segment: ${segFile}`);
-  }
-
-  // Step 2: Rewrite the .m3u8 playlist — replace relative segment paths
+  // Step 1: Rewrite the .m3u8 playlist — replace relative segment paths
   //         with fully resolved Supabase CDN public URLs
   const m3u8LocalPath = path.join(OUTPUT_DIR, playlistFile);
   const originalPlaylist = fs.readFileSync(m3u8LocalPath, 'utf-8');
@@ -107,7 +85,7 @@ async function uploadHlsToSupabase(fileId: string): Promise<string | null> {
     })
     .join('\n');
 
-  // Step 3: Upload the rewritten .m3u8 playlist
+  // Step 2: Upload the rewritten .m3u8 playlist
   const { error: playlistError } = await supabase.storage
     .from(STORAGE_BUCKET)
     .upload(`${fileId}/${playlistFile}`, Buffer.from(rewrittenPlaylist, 'utf-8'), {
@@ -123,7 +101,7 @@ async function uploadHlsToSupabase(fileId: string): Promise<string | null> {
   const publicUrl = `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${fileId}/${playlistFile}`;
   console.log(`✅ HLS stream uploaded to Supabase CDN: ${publicUrl}`);
 
-  // Step 4: Clean up local Railway disk files to prevent disk bloat
+  // Step 3: Clean up local Railway disk files to prevent disk bloat
   for (const file of ownFiles) {
     try {
       fs.unlinkSync(path.join(OUTPUT_DIR, file));
@@ -186,10 +164,59 @@ async function runPipeline() {
 
     const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${OUTPUT_M3U8}"`;
 
-    // ── Progress polling interval ─────────────────────────────────────────────
+    // ── Pipelined Background Segment Uploader ────────────────────────────────
+    // Uploads segments to Supabase as soon as FFMPEG finishes writing them to the playlist
+    const uploadedSegments = new Set<string>();
+    const activeUploadPromises: Promise<void>[] = [];
+    let allSegmentsIdentified: string[] = [];
+
+    const uploadSegment = async (segFile: string) => {
+      if (!supabase) return;
+      const localPath = path.join(OUTPUT_DIR, segFile);
+      if (!fs.existsSync(localPath)) return;
+      
+      try {
+        const data = fs.readFileSync(localPath);
+        const storagePath = `${fileId}/${segFile}`;
+        const { error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(storagePath, data, {
+            contentType: 'video/MP2T',
+            upsert: true,
+          });
+        if (error) throw error;
+        console.log(`  ✓ Pipelined upload: ${segFile}`);
+      } catch (e: any) {
+        console.error(`❌ Failed to pipeline upload segment ${segFile}:`, e.message);
+      }
+    };
+
+    // ── Progress & Upload polling interval ────────────────────────────────────
     // Declared outside try/finally so it is ALWAYS cleared on exit.
     const startTime = Date.now();
     const interval = setInterval(() => {
+      // 1. Pipeline newly completed segments
+      if (fs.existsSync(OUTPUT_M3U8)) {
+        try {
+          const playlistContent = fs.readFileSync(OUTPUT_M3U8, 'utf-8');
+          const lines = playlistContent.split('\n');
+          for (const line of lines) {
+            const segFile = line.trim();
+            if (segFile.length > 0 && !segFile.startsWith('#') && segFile.endsWith('.ts')) {
+              if (!uploadedSegments.has(segFile)) {
+                uploadedSegments.add(segFile);
+                allSegmentsIdentified.push(segFile);
+                const p = uploadSegment(segFile);
+                activeUploadPromises.push(p);
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore read collisions during FFMPEG writes
+        }
+      }
+
+      // 2. Report progress
       if (fs.existsSync(PROGRESS_FILE)) {
         try {
           const content = fs.readFileSync(PROGRESS_FILE, 'utf-8');
@@ -233,9 +260,14 @@ async function runPipeline() {
       await execPromise(ffmpegCmd);
       console.log('🎉 Local HLS transcoding completed successfully.');
 
-      // ── Upload to Supabase CDN ────────────────────────────────────────────
-      updateStatus({ status: 'uploading_segments', progress: 100, eta: 'Uploading to CDN...', speed: '0x' });
-      const supabaseStreamUrl = await uploadHlsToSupabase(fileId);
+      // ── Upload remaining segments to Supabase CDN ─────────────────────────
+      updateStatus({ status: 'uploading_segments', progress: 100, eta: 'Finishing CDN upload...', speed: '0x' });
+      
+      // Wait for any pipelined segment uploads that were started during the interval
+      await Promise.allSettled(activeUploadPromises);
+      
+      // Now finalize by rewriting the .m3u8 playlist and uploading it
+      const supabaseStreamUrl = await finalizeSupabaseUpload(fileId, allSegmentsIdentified);
 
       updateStatus({
         status: 'complete',
