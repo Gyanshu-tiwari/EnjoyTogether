@@ -85,7 +85,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
     try {
       console.log("📤 Dispatching sequential chunk network requests to backend...");
 
-      const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks to avoid proxy timeouts and OOM
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
       const newFileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
       setFileId(newFileId);
