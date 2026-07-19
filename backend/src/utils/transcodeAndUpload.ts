@@ -81,6 +81,10 @@ async function runPipeline() {
 
     const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${OUTPUT_M3U8}"`;
     
+    // ── Progress polling interval ─────────────────────────────────────────────
+    // Stored at the outer scope so the finally block can always clear it,
+    // regardless of whether ffmpeg succeeds or fails. This prevents memory
+    // leaks on Railway in failure scenarios.
     const startTime = Date.now();
     const interval = setInterval(() => {
       if (fs.existsSync(PROGRESS_FILE)) {
@@ -128,19 +132,22 @@ async function runPipeline() {
             });
           }
         } catch (e) {
-          // Ignore read collisions
+          // Ignore read collisions during concurrent write
         }
       }
     }, 1000);
 
-    await execPromise(ffmpegCmd);
-    
-    clearInterval(interval);
-    if (fs.existsSync(PROGRESS_FILE)) fs.unlinkSync(PROGRESS_FILE);
-    
-    console.log("🎉 Local HLS Master generated successfully.");
-    
-    updateStatus({ status: 'complete', progress: 100, eta: '0s', speed: '0x' });
+    try {
+      await execPromise(ffmpegCmd);
+      console.log('🎉 Local HLS Master generated successfully.');
+      updateStatus({ status: 'complete', progress: 100, eta: '0s', speed: '0x' });
+    } finally {
+      // ── Guaranteed cleanup ──────────────────────────────────────────────────
+      // Always clear the interval and delete the progress file — whether ffmpeg
+      // succeeded, failed, or was killed. This prevents Railway memory leaks.
+      clearInterval(interval);
+      if (fs.existsSync(PROGRESS_FILE)) fs.unlinkSync(PROGRESS_FILE);
+    }
 
   } catch (error: any) {
     console.error('❌ Pipeline processing failed:', error);
