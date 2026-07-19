@@ -27,6 +27,7 @@ interface UseSocketConnectionResult {
   changeRole: (userId: string, newRole: string) => void;
   kickUser: (userId: string) => void;
   currentUserId: string | null;
+  kickedReason: string | null;
 }
 
 const ACTIVE_STATES: SessionState[] = ['active_session', 'idle_host', 'knocking'];
@@ -44,6 +45,7 @@ export function useSocketConnection({
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [kickedReason, setKickedReason] = useState<string | null>(null);
 
   // Fix #3: Store sessionState in a ref so the connect callback is never stale
   const sessionStateRef = useRef(sessionState);
@@ -140,8 +142,8 @@ export function useSocketConnection({
       });
 
       socketInstance.on('room:kicked', () => {
-        window.alert('You have been removed from the watch party by the host.');
-        window.location.href = '/';
+        // Replace blocking window.alert with a state-driven overlay rendered in Room.tsx
+        setKickedReason('You have been removed from the watch party by the host.');
       });
 
       socketInstance.on('sync-state', (roomState: { streamUrl?: string }) => {
@@ -217,5 +219,5 @@ export function useSocketConnection({
     }
   }, [socket]);
 
-  return { socket, knocks, floatingEmojis, approveGuest, rejectGuest, sendEmoji, sendMessage, activeUsers, changeRole, kickUser, currentUserId };
+  return { socket, knocks, floatingEmojis, approveGuest, rejectGuest, sendEmoji, sendMessage, activeUsers, changeRole, kickUser, currentUserId, kickedReason };
 }

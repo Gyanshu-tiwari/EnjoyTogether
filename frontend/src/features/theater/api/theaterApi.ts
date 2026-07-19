@@ -48,8 +48,8 @@ export async function fetchMovieMetadata(movieName: string): Promise<MovieMetada
   }
 }
 
-export async function startUpload(): Promise<void> {
-  await apiClient.post(`/api/video/start-upload`);
+export async function startUpload(fileId?: string): Promise<void> {
+  await apiClient.post(`/api/video/start-upload`, fileId ? { fileId } : {});
 }
 
 export interface UploadChunkParams {
@@ -76,8 +76,9 @@ export async function uploadChunk({ chunk, fileName, fileId, chunkIndex, totalCh
   return response.data;
 }
 
-export async function getTranscodeStatus(): Promise<TranscodeStatus> {
-  const response = await apiClient.get(`/api/video/transcode-status`);
+export async function getTranscodeStatus(fileId?: string): Promise<TranscodeStatus> {
+  const params = fileId ? { params: { fileId } } : {};
+  const response = await apiClient.get(`/api/video/transcode-status`, params);
   return response.data;
 }
 

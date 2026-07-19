@@ -57,6 +57,8 @@ export interface TheaterContextType {
   changeRole: (userId: string, newRole: string) => void;
   kickUser: (userId: string) => void;
   currentUserId: string | null;
+  /** Non-null when the local user has been kicked — holds the reason string */
+  kickedReason: string | null;
 }
 
 export const TheaterContext = createContext<TheaterContextType | undefined>(undefined);

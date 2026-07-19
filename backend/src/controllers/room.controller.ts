@@ -88,11 +88,14 @@ export class RoomController {
 
   static async startUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const statusFile = path.join(process.cwd(), 'transcode_status.json');
-      fs.writeFileSync(
-        statusFile,
-        JSON.stringify({ status: 'uploading', progress: 0, eta: 'Uploading...', speed: '0x' }, null, 2)
-      );
+      const { fileId } = req.body;
+      // Write per-fileId status file so concurrent uploads track independently.
+      // Also write the shared file for backwards compatibility.
+      const payload = JSON.stringify({ status: 'uploading', progress: 0, eta: 'Uploading...', speed: '0x' }, null, 2);
+      if (fileId) {
+        fs.writeFileSync(path.join(process.cwd(), `transcode_status_${fileId}.json`), payload);
+      }
+      fs.writeFileSync(path.join(process.cwd(), 'transcode_status.json'), payload);
       res.status(200).json({ success: true });
     } catch (error) {
       next(new AppError('Failed to initialize upload status.', 500));
@@ -163,14 +166,25 @@ export class RoomController {
 
   static async transcodeStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const statusFile = path.join(process.cwd(), 'transcode_status.json');
-      if (fs.existsSync(statusFile)) {
-        try {
-          const data = JSON.parse(fs.readFileSync(statusFile, 'utf-8'));
-          res.json(data);
-          return;
-        } catch {
-          // Ignore parse error during write collision; fall through to default
+      const fileId = req.query.fileId as string | undefined;
+      // Prefer the per-fileId status file when a fileId is provided.
+      // This allows concurrent uploads to have independent status tracking.
+      const candidates: string[] = fileId
+        ? [
+            path.join(process.cwd(), `transcode_status_${fileId}.json`),
+            path.join(process.cwd(), 'transcode_status.json'),
+          ]
+        : [path.join(process.cwd(), 'transcode_status.json')];
+
+      for (const statusFile of candidates) {
+        if (fs.existsSync(statusFile)) {
+          try {
+            const data = JSON.parse(fs.readFileSync(statusFile, 'utf-8'));
+            res.json(data);
+            return;
+          } catch {
+            // Ignore parse error during write collision; try next candidate
+          }
         }
       }
       res.json({ status: 'idle', progress: 0, eta: 'Calculating...', speed: '0x' });
