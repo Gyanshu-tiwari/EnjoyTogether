@@ -83,19 +83,19 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
     startTimeRef.current = Date.now();
 
     try {
-      try {
-        await startUpload();
-      } catch (err) {
-        console.warn("Failed to update global status to uploading, continuing...", err);
-      }
-
       console.log("📤 Dispatching sequential chunk network requests to backend...");
 
       const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
       const newFileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
       setFileId(newFileId);
-      
+
+      try {
+        await startUpload(newFileId);
+      } catch (err) {
+        console.warn("Failed to update global status to uploading, continuing...", err);
+      }
+
       let lastResponseData: { success?: boolean; fileId?: string; streamUrl?: string } | null = null;
       let totalLoaded = 0;
 
@@ -164,10 +164,10 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
 
         pollIntervalRef.current = setInterval(async () => {
           try {
-            const statusRes = await getTranscodeStatus();
-            const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed } = statusRes;
+            const statusRes = await getTranscodeStatus(newFileId);
+            const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as any;
 
-            if (tStatus === 'encoding' || tStatus === 'starting') {
+            if (tStatus === 'encoding' || tStatus === 'starting' || tStatus === 'uploading_segments') {
               setProgress(tProgress);
               setUploadSpeed(tSpeed);
               setEta(tEta);
@@ -175,6 +175,10 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
               clearInterval(pollIntervalRef.current!);
               pollIntervalRef.current = null;
               setProgress(100);
+              // If the transcoder uploaded to Supabase CDN, switch to the persistent URL
+              if (cdnUrl) {
+                setResolvedStreamUrl(cdnUrl);
+              }
               setProcessingPhase('complete');
               setUploading(false);
               setUploadComplete(true);

@@ -46,6 +46,7 @@ export const TheaterProvider: React.FC<{
     changeRole,
     kickUser,
     currentUserId,
+    kickedReason,
   } = useSocketConnection({
     roomId,
     sessionState,
@@ -116,6 +117,7 @@ export const TheaterProvider: React.FC<{
         changeRole,
         kickUser,
         currentUserId,
+        kickedReason,
       }}
     >
       {children}

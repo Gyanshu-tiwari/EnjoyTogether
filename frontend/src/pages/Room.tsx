@@ -22,6 +22,7 @@ const RoomContent: React.FC<{
     approveGuest,
     rejectGuest,
     floatingEmojis,
+    kickedReason,
   } = useTheater();
 
   const [copied, setCopied] = useState<boolean>(false);
@@ -74,6 +75,28 @@ const RoomContent: React.FC<{
             ◀ Exit Theater
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // Handle kicked state gracefully with a styled overlay instead of window.alert
+  if (kickedReason) {
+    return (
+      <div className="w-full max-w-2xl bg-neutral-900/60 border border-red-500/20 rounded-3xl p-10 flex flex-col items-center text-center backdrop-blur-2xl shadow-2xl mt-12 animate-fade-in">
+        <div className="h-20 w-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-6 text-4xl shadow-lg shadow-red-900/20">
+          🛑
+        </div>
+        <h2 className="text-3xl font-black mb-3 text-white tracking-tight">Access Revoked</h2>
+        <p className="text-neutral-400 mb-8 text-sm leading-relaxed max-w-md">
+          {kickedReason}
+        </p>
+        <Button
+          onClick={onExit}
+          variant="secondary"
+          className="px-10 py-3.5 tracking-wide font-bold"
+        >
+          Return to Dashboard
+        </Button>
       </div>
     );
   }
@@ -412,7 +435,7 @@ export const Room: React.FC = () => {
           <main className="w-full flex flex-col items-center">
             {id ? (
               <TheaterProvider roomId={id} initialStreamUrl="">
-                <RoomContent roomId={id} onExit={() => navigate('/')} />
+                <RoomContent roomId={id} onExit={() => navigate('/', { replace: true })} />
               </TheaterProvider>
             ) : (
               <UploadDashboard onUploadSuccess={handleCreateRoom} />
