@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -88,6 +88,13 @@ export class RoomController {
 
   static async startUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      // ── Zombie Process Cleanup ─────────────────────────────────────────────
+      // If a previous upload was aborted, detached ffmpeg/transcoder processes
+      // may still be consuming 100% CPU on the Railway instance, choking the network.
+      // Force kill them before starting a new session.
+      exec('pkill -f ffmpeg', () => {});
+      exec('pkill -f transcodeAndUpload', () => {});
+
       const { fileId } = req.body;
       // Write per-fileId status file so concurrent uploads track independently.
       // Also write the shared file for backwards compatibility.
