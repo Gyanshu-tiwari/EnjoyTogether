@@ -9,7 +9,9 @@ export const getLivekitTokenSchema = z.object({
 });
 
 export const startUploadSchema = z.object({
-  body: z.object({}).optional(),
+  body: z.object({
+    fileId: z.string().uuid('fileId must be a valid UUID').optional(),
+  }).optional(),
 });
 
 export const changeVideoSrcSchema = z.object({
