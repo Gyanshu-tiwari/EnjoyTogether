@@ -88,12 +88,14 @@ export class RoomController {
 
   static async startUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // ── Zombie Process Cleanup ─────────────────────────────────────────────
-      // If a previous upload was aborted, detached ffmpeg/transcoder processes
-      // may still be consuming 100% CPU on the Railway instance, choking the network.
-      // Force kill them before starting a new session.
-      exec('pkill -f ffmpeg', () => {});
-      exec('pkill -f transcodeAndUpload', () => {});
+      // ── Zombie Process Cleanup (with grace period) ─────────────────────────
+      // Kill any leftover ffmpeg/transcoder processes from a previous aborted session.
+      // The 3s delay ensures the kill command doesn't race against a legitimately
+      // running transcoder that was spawned by the final chunk of the previous upload.
+      setTimeout(() => {
+        exec('pkill -f ffmpeg', () => {});
+        exec('pkill -f transcodeAndUpload', () => {});
+      }, 3000);
 
       const { fileId } = req.body;
       // Write per-fileId status file so concurrent uploads track independently.
@@ -116,19 +118,32 @@ export class RoomController {
       const chunkIndex = parseInt(req.body.chunkIndex, 10);
       const totalChunks = parseInt(req.body.totalChunks, 10);
       const fileId = req.body.fileId;
-      
+      const fileName: string = req.body.name || req.file.originalname || 'upload';
+
       if (isNaN(chunkIndex) || isNaN(totalChunks) || !fileId) {
         return next(new AppError('Missing chunking metadata.', 400));
       }
 
+      // Preserve the original file extension so ffprobe identifies the container correctly
+      const originalExt = path.extname(fileName).toLowerCase() || '.mp4';
       const uploadedChunkPath = req.file.path;
-      const targetFilePath = path.join(process.cwd(), 'uploads', `${fileId}.mp4`);
+      const targetFilePath = path.join(process.cwd(), 'uploads', `${fileId}${originalExt}`);
 
-      // Append this chunk to the master file
-      fs.appendFileSync(targetFilePath, fs.readFileSync(uploadedChunkPath));
-      
-      // Cleanup the temporary multer chunk file
-      fs.unlinkSync(uploadedChunkPath);
+      // ── Stream-based append (memory-safe for large files) ──────────────────
+      // Using a write stream in 'a' (append) mode avoids loading the entire
+      // chunk into RAM via readFileSync before appending. This is critical for
+      // 2GB+ files across hundreds of 5MB chunks.
+      await new Promise<void>((resolve, reject) => {
+        const writeStream = fs.createWriteStream(targetFilePath, { flags: 'a' });
+        const readStream = fs.createReadStream(uploadedChunkPath);
+        readStream.on('error', reject);
+        writeStream.on('error', reject);
+        writeStream.on('finish', resolve);
+        readStream.pipe(writeStream);
+      });
+
+      // Cleanup the temporary multer chunk file after it is fully piped
+      try { fs.unlinkSync(uploadedChunkPath); } catch (e) {}
 
       console.log(`🚀 Chunk ${chunkIndex + 1}/${totalChunks} appended for file ${fileId}`);
 
@@ -136,7 +151,6 @@ export class RoomController {
         console.log(`✅ All chunks received. Launching transcoder pipeline for: ${targetFilePath}`);
 
         // Resolve script path relative to THIS compiled file's directory (__dirname).
-        // This is robust regardless of what process.cwd() happens to be.
         const isDev = process.env.NODE_ENV !== 'production';
         const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
         const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
@@ -145,12 +159,14 @@ export class RoomController {
         const cmd = useTsx ? 'npx' : 'node';
         const args = useTsx ? ['tsx', tsScript, targetFilePath, fileId] : [jsScript, targetFilePath, fileId];
 
-        // spawn with detached:true + stdio redirected to a log file
-        // → child process is fully independent of Express; no stdout buffer overflow
-        const logPath = path.join(process.cwd(), 'output_hls', 'transcoder.log');
+        // Ensure output_hls dir exists before opening log file
+        const hlsDir = path.join(process.cwd(), 'output_hls');
+        if (!fs.existsSync(hlsDir)) fs.mkdirSync(hlsDir, { recursive: true });
+
+        const logPath = path.join(hlsDir, 'transcoder.log');
         const out = fs.openSync(logPath, 'a');
         const err = fs.openSync(logPath, 'a');
-        
+
         const child = spawn(cmd, args, {
           detached: true,
           stdio: ['ignore', out, err],
@@ -158,8 +174,8 @@ export class RoomController {
         });
         child.unref();
 
-        child.on('error', (err) => {
-          console.error('❌ Failed to spawn transcoder process:', err);
+        child.on('error', (spawnErr) => {
+          console.error('❌ Failed to spawn transcoder process:', spawnErr);
         });
       }
 

@@ -163,45 +163,57 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         setEta('Calculating...');
 
         pollIntervalRef.current = setInterval(async () => {
-          try {
-            const statusRes = await getTranscodeStatus(newFileId);
-            const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as any;
+          let consecutiveErrors = 0;
+          const MAX_CONSECUTIVE_ERRORS = 5;
+          
+          const poll = async () => {
+            try {
+              const statusRes = await getTranscodeStatus(newFileId);
+              const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as any;
+              consecutiveErrors = 0; // reset on success
 
-            if (tStatus === 'encoding' || tStatus === 'starting' || tStatus === 'uploading_segments') {
-              setProgress(tProgress);
-              setUploadSpeed(tSpeed);
-              setEta(tEta);
-            } else if (tStatus === 'complete') {
-              clearInterval(pollIntervalRef.current!);
-              pollIntervalRef.current = null;
-              setProgress(100);
-              // If the transcoder uploaded to Supabase CDN, switch to the persistent URL
-              if (cdnUrl) {
-                setResolvedStreamUrl(cdnUrl);
+              if (tStatus === 'encoding' || tStatus === 'starting' || tStatus === 'uploading_segments' || tStatus === 'uploading') {
+                setProgress(tProgress ?? 0);
+                setUploadSpeed(tSpeed ?? 'Calculating...');
+                setEta(tEta ?? 'Calculating...');
+              } else if (tStatus === 'complete') {
+                clearInterval(pollIntervalRef.current!);
+                pollIntervalRef.current = null;
+                setProgress(100);
+                // If the transcoder uploaded to Supabase CDN, switch to the persistent URL
+                if (cdnUrl) {
+                  setResolvedStreamUrl(cdnUrl);
+                }
+                setProcessingPhase('complete');
+                setUploading(false);
+                setUploadComplete(true);
+                isUploadingRef.current = false;
+              } else if (tStatus === 'failed') {
+                clearInterval(pollIntervalRef.current!);
+                pollIntervalRef.current = null;
+                setError("Transcoding pipeline failed on backend. Check ffmpeg logs.");
+                setUploading(false);
+                setProcessingPhase('idle');
+                isUploadingRef.current = false;
               }
-              setProcessingPhase('complete');
-              setUploading(false);
-              setUploadComplete(true);
-              isUploadingRef.current = false;
-            } else if (tStatus === 'failed') {
-              clearInterval(pollIntervalRef.current!);
-              pollIntervalRef.current = null;
-              setError("Transcoding pipeline failed on backend. Check ffmpeg logs.");
-              setUploading(false);
-              setProcessingPhase('idle');
-              isUploadingRef.current = false;
+              // 'idle' status means the transcoder hasn't written its status file yet — keep polling
+            } catch (err) {
+              consecutiveErrors++;
+              console.error(`Failed to poll transcode status (attempt ${consecutiveErrors}):`, err);
+              if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                clearInterval(pollIntervalRef.current!);
+                pollIntervalRef.current = null;
+                const errMsg = err instanceof Error ? err.message : "Lost connection to the transcoder backend server.";
+                setError(errMsg);
+                setUploading(false);
+                setProcessingPhase('idle');
+                isUploadingRef.current = false;
+              }
             }
-          } catch (err) {
-            console.error("Failed to poll transcode status:", err);
-            clearInterval(pollIntervalRef.current!);
-            pollIntervalRef.current = null;
-            const errMsg = err instanceof Error ? err.message : "Lost connection to the transcoder backend server.";
-            setError(errMsg);
-            setUploading(false);
-            setProcessingPhase('idle');
-            isUploadingRef.current = false;
-          }
-        }, 1000);
+          };
+          
+          poll();
+        }, 2500); // Poll every 2.5s to avoid overwhelming Railway with status requests
       }
     } catch (err) {
       console.error("🔴 Network upload pipeline transmission failed:", err);

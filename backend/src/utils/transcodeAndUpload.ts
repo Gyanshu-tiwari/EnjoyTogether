@@ -11,7 +11,21 @@ const execPromise = util.promisify(exec);
 const BACKEND_ROOT = process.cwd();
 const inputPath = process.argv[2];
 const fileId = process.argv[3] || 'master_party';
-const INPUT_MOVIE = inputPath ? path.resolve(inputPath) : path.join(BACKEND_ROOT, 'sample.mp4');
+
+// ── Resolve input file path ───────────────────────────────────────────────────
+// The frontend may upload .mkv, .avi, .mp4 etc. We search the uploads/ dir for
+// any file whose basename starts with the fileId to find the actual file.
+function resolveInputMovie(): string {
+  if (inputPath) return path.resolve(inputPath);
+  const uploadsDir = path.join(BACKEND_ROOT, 'uploads');
+  if (fs.existsSync(uploadsDir)) {
+    const found = fs.readdirSync(uploadsDir).find(f => f.startsWith(fileId));
+    if (found) return path.join(uploadsDir, found);
+  }
+  return path.join(BACKEND_ROOT, 'sample.mp4');
+}
+
+const INPUT_MOVIE = resolveInputMovie();
 const OUTPUT_DIR = path.join(BACKEND_ROOT, 'output_hls');
 const OUTPUT_M3U8 = path.join(OUTPUT_DIR, `${fileId}.m3u8`);
 const STATUS_FILE = path.join(BACKEND_ROOT, `transcode_status_${fileId}.json`);
@@ -200,15 +214,23 @@ async function runPipeline() {
         try {
           const playlistContent = fs.readFileSync(OUTPUT_M3U8, 'utf-8');
           const lines = playlistContent.split('\n');
+          // Collect all segment filenames in order
+          const segmentsInPlaylist: string[] = [];
           for (const line of lines) {
             const segFile = line.trim();
             if (segFile.length > 0 && !segFile.startsWith('#') && segFile.endsWith('.ts')) {
-              if (!uploadedSegments.has(segFile)) {
-                uploadedSegments.add(segFile);
-                allSegmentsIdentified.push(segFile);
-                const p = uploadSegment(segFile);
-                activeUploadPromises.push(p);
-              }
+              segmentsInPlaylist.push(segFile);
+            }
+          }
+          // Skip the LAST segment — ffmpeg may still be writing to it.
+          // Only upload segments that have been "sealed" (i.e. ffmpeg has moved past them).
+          const safeSegments = segmentsInPlaylist.slice(0, -1);
+          for (const segFile of safeSegments) {
+            if (!uploadedSegments.has(segFile)) {
+              uploadedSegments.add(segFile);
+              allSegmentsIdentified.push(segFile);
+              const p = uploadSegment(segFile);
+              activeUploadPromises.push(p);
             }
           }
         } catch (e) {
