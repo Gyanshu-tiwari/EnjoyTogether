@@ -285,7 +285,26 @@ async function runPipeline() {
       // ── Upload remaining segments to Supabase CDN ─────────────────────────
       updateStatus({ status: 'uploading_segments', progress: 100, eta: 'Finishing CDN upload...', speed: '0x' });
       
-      // Wait for any pipelined segment uploads that were started during the interval
+      // Final sweep: The interval poller safely ignores the LAST segment because ffmpeg
+      // might still be writing to it. Now that ffmpeg is finished, we must upload
+      // any remaining segments (including the very last one) before finalizing.
+      if (fs.existsSync(OUTPUT_M3U8)) {
+        const playlistContent = fs.readFileSync(OUTPUT_M3U8, 'utf-8');
+        const lines = playlistContent.split('\n');
+        for (const line of lines) {
+          const segFile = line.trim();
+          if (segFile.length > 0 && !segFile.startsWith('#') && segFile.endsWith('.ts')) {
+            if (!uploadedSegments.has(segFile)) {
+              uploadedSegments.add(segFile);
+              allSegmentsIdentified.push(segFile);
+              const p = uploadSegment(segFile);
+              activeUploadPromises.push(p);
+            }
+          }
+        }
+      }
+
+      // Wait for any pipelined segment uploads that were started during the interval or final sweep
       await Promise.allSettled(activeUploadPromises);
       
       // Now finalize by rewriting the .m3u8 playlist and uploading it

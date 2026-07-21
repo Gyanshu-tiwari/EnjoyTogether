@@ -106,38 +106,55 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
 
         console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks}`);
 
-        lastResponseData = await uploadChunk({
-          chunk: chunkBlob,
-          fileName: file.name,
-          fileId: newFileId,
-          chunkIndex,
-          totalChunks,
-          onProgress: (progressEvent: import('axios').AxiosProgressEvent) => {
-            const chunkLoaded = progressEvent.loaded;
-            const currentTotalLoaded = totalLoaded + chunkLoaded;
-            const percentCompleted = Math.round((currentTotalLoaded * 100) / file.size);
-            setProgress(percentCompleted);
+        let chunkSuccess = false;
+        let attempt = 0;
+        const MAX_RETRIES = 3;
 
-            const elapsedMs = Date.now() - startTimeRef.current;
-            if (elapsedMs > 1000) {
-              const elapsedSec = elapsedMs / 1000;
-              const bytesPerSec = currentTotalLoaded / elapsedSec;
-              const remainingBytes = file.size - currentTotalLoaded;
-              const remainingSec = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
+        while (!chunkSuccess && attempt < MAX_RETRIES) {
+          try {
+            lastResponseData = await uploadChunk({
+              chunk: chunkBlob,
+              fileName: file.name,
+              fileId: newFileId,
+              chunkIndex,
+              totalChunks,
+              onProgress: (progressEvent: import('axios').AxiosProgressEvent) => {
+                const chunkLoaded = progressEvent.loaded;
+                const currentTotalLoaded = totalLoaded + chunkLoaded;
+                const percentCompleted = Math.round((currentTotalLoaded * 100) / file.size);
+                setProgress(percentCompleted);
 
-              const speedMBps = bytesPerSec / (1024 * 1024);
-              setUploadSpeed(`${speedMBps.toFixed(2)} MB/s`);
+                const elapsedMs = Date.now() - startTimeRef.current;
+                if (elapsedMs > 1000) {
+                  const elapsedSec = elapsedMs / 1000;
+                  const bytesPerSec = currentTotalLoaded / elapsedSec;
+                  const remainingBytes = file.size - currentTotalLoaded;
+                  const remainingSec = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
 
-              if (remainingSec > 0) {
-                const mins = Math.floor(remainingSec / 60);
-                const secs = Math.floor(remainingSec % 60);
-                setEta(mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
-              } else {
-                setEta('Almost done...');
+                  const speedMBps = bytesPerSec / (1024 * 1024);
+                  setUploadSpeed(`${speedMBps.toFixed(2)} MB/s`);
+
+                  if (remainingSec > 0) {
+                    const mins = Math.floor(remainingSec / 60);
+                    const secs = Math.floor(remainingSec % 60);
+                    setEta(mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
+                  } else {
+                    setEta('Almost done...');
+                  }
+                }
               }
+            });
+            chunkSuccess = true;
+          } catch (chunkErr) {
+            attempt++;
+            console.warn(`⚠️ Chunk ${chunkIndex + 1} upload failed (attempt ${attempt}/${MAX_RETRIES}). Retrying...`, chunkErr);
+            if (attempt >= MAX_RETRIES) {
+              throw new Error(`Upload failed after 3 retries on chunk ${chunkIndex + 1}. Network instability detected.`);
             }
+            // Exponential backoff before retry (2s, 4s)
+            await new Promise(r => setTimeout(r, attempt * 2000));
           }
-        });
+        }
         
         totalLoaded += chunkBlob.size;
       }
