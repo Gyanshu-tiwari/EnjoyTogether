@@ -2,21 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { useTheater } from '../context/useTheater';
 import { useSocketSync } from '../hooks/useSocketSync';
-import { getTranscodeStatus } from '../api/theaterApi';
-import { Spinner } from '@/shared/components/feedback/Spinner';
+
 import { Button } from '@/shared/components/ui/Button';
 
 export const SyncVideoPlayer: React.FC = () => {
   const { currentStreamUrl, socket, roomId, userRole } = useTheater();
   const isViewer = userRole === 'viewer';
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [retryCount, setRetryCount] = useState<number>(0);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
-  const [transcodeProgress, setTranscodeProgress] = useState<number>(0);
-  const [transcodeEta, setTranscodeEta] = useState<string>('');
-  const [transcodeStatus, setTranscodeStatus] = useState<string>('');
-  const [transcodeSpeed, setTranscodeSpeed] = useState<string>('');
 
   const { isBlocked, handleManualUnlock } = useSocketSync({
     videoRef,
@@ -24,38 +18,7 @@ export const SyncVideoPlayer: React.FC = () => {
     roomId,
   });
 
-  // Unified transcode status polling — starts immediately, then polls every 2s.
-  // Runs only while isProcessing is true. Merges the old "initial check" + "interval" pattern
-  // into one effect to eliminate the double-fetch on mount.
-  useEffect(() => {
-    let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | null = null;
 
-    const fetchStatus = async () => {
-      try {
-        const data = await getTranscodeStatus();
-        if (cancelled) return;
-        if (data.status && data.status !== 'idle') {
-          setIsProcessing(data.status !== 'complete');
-          setTranscodeStatus(data.status);
-          setTranscodeProgress(data.progress);
-          setTranscodeEta(data.eta);
-          setTranscodeSpeed(data.speed);
-        }
-      } catch (err) {
-        if (!cancelled) console.error('Failed to fetch transcode status:', err);
-      }
-    };
-
-    // Fire immediately on mount, then every 2s
-    fetchStatus();
-    interval = setInterval(fetchStatus, 2000);
-
-    return () => {
-      cancelled = true;
-      if (interval) clearInterval(interval);
-    };
-  }, []);
 
   // HLS stream decoding lifecycle
   useEffect(() => {
@@ -65,7 +28,6 @@ export const SyncVideoPlayer: React.FC = () => {
     if (retryCount > 6) {
       Promise.resolve().then(() => {
         setPlaybackError("Failed to connect to the stream. Verify that your backend server finished transcoding and the stream exists.");
-        setIsProcessing(false);
       });
       return;
     }
@@ -111,7 +73,6 @@ export const SyncVideoPlayer: React.FC = () => {
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         console.log("✅ HLS Manifest loaded and parsed successfully via hls.js!");
-        setIsProcessing(false);
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -120,7 +81,6 @@ export const SyncVideoPlayer: React.FC = () => {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.warn("⚠️ HLS Network error encountered:", data);
               if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT) {
-                setIsProcessing(true);
                 console.log("🔄 Retrying to load HLS manifest in 3 seconds...");
                 hls?.destroy();
                 hls = null;
@@ -190,39 +150,9 @@ export const SyncVideoPlayer: React.FC = () => {
         </div>
       )}
 
-      {isProcessing && (
-        <div className="absolute inset-0 bg-neutral-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-40 animate-fade-in">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <Spinner size="md" />
-            <p className="text-sm font-semibold text-neutral-200">
-              {transcodeStatus === 'uploading' 
-                ? 'Uploading Video File to Server...' 
-                : transcodeStatus === 'uploading_segments' 
-                ? 'Uploading Video Segments...' 
-                : 'Transcoding Video Stream...'}
-            </p>
-            {transcodeStatus === 'encoding' && (
-              <div className="w-64">
-                <div className="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden border border-white/5 mt-1">
-                  <div
-                    className="h-full bg-linear-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-300"
-                    style={{ width: `${transcodeProgress}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-neutral-400 mt-2 font-mono">
-                  <span>{transcodeProgress}% ({transcodeSpeed})</span>
-                  <span>ETA: {transcodeEta}</span>
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-neutral-400 max-w-[280px] leading-relaxed">
-              The high-fidelity video processing pipeline is running in the background. It will start playing automatically once ready.
-            </p>
-          </div>
-        </div>
-      )}
 
-      {isBlocked && !isProcessing && !isViewer && (
+
+      {isBlocked && !isViewer && (
         <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-50">
           <div className="bg-white/5 border border-white/10 p-6 rounded-2xl max-w-sm text-center shadow-xl">
             <p className="text-sm text-neutral-300 mb-4 font-medium">
