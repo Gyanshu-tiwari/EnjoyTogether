@@ -219,5 +219,28 @@ export function useSocketConnection({
     }
   }, [socket]);
 
+  // Implement Page Visibility API lifecycle handling
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("👀 Tab became visible. Checking socket synchronization...");
+        if (socket) {
+          if (!socket.connected) {
+            console.log("🔄 Socket disconnected during background throttling. Reconnecting manually...");
+            socket.connect();
+          } else {
+            console.log("📡 Socket connected. Requesting lightweight state sync...");
+            socket.emit('room:request-sync', { roomId });
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [socket, roomId]);
+
   return { socket, knocks, floatingEmojis, approveGuest, rejectGuest, sendEmoji, sendMessage, activeUsers, changeRole, kickUser, currentUserId, kickedReason };
 }
