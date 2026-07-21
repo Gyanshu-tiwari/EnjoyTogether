@@ -149,7 +149,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             attempt++;
             console.warn(`⚠️ Chunk ${chunkIndex + 1} upload failed (attempt ${attempt}/${MAX_RETRIES}). Retrying...`, chunkErr);
             if (attempt >= MAX_RETRIES) {
-              throw new Error(`Upload failed after 3 retries on chunk ${chunkIndex + 1}. Network instability detected.`);
+              throw new Error(`Upload failed after 3 retries on chunk ${chunkIndex + 1}. Network instability detected.`, { cause: chunkErr });
             }
             // Exponential backoff before retry (2s, 4s)
             await new Promise(r => setTimeout(r, attempt * 2000));
@@ -186,7 +186,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
           const poll = async () => {
             try {
               const statusRes = await getTranscodeStatus(newFileId);
-              const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as any;
+              const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as import('../api/theaterApi').TranscodeStatus & { streamUrl?: string };
               consecutiveErrors = 0; // reset on success
 
               if (tStatus === 'encoding' || tStatus === 'starting' || tStatus === 'uploading_segments' || tStatus === 'uploading') {
