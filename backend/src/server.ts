@@ -47,10 +47,10 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
-  // Heartbeat tuning — detects dropped mobile/flaky connections faster.
-  pingInterval: 10_000,   // send ping every 10s (default: 25s)
-  pingTimeout: 5_000,     // disconnect if no pong in 5s  (default: 20s)
-  connectTimeout: 10_000,
+  // Heartbeat tuning — extremely tolerant to accommodate background tab throttling on browsers
+  pingInterval: 25_000,   // send ping every 25s
+  pingTimeout: 60_000,    // allow up to 60s for pong response (protects background tabs)
+  connectTimeout: 20_000,
   transports: ['websocket', 'polling'], // polling fallback for restricted networks
 });
 

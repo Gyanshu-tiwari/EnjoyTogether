@@ -295,7 +295,7 @@ export const setupSockets = (io: Server): void => {
       broadcastActiveUsers(io, roomId);
 
       if (isHost) {
-        console.log(`⚠️ Host ${userId} disconnected from room ${roomId}. Starting 10s grace period...`);
+        console.log(`⚠️ Host ${userId} disconnected from room ${roomId}. Starting 60s grace period...`);
         const hostSession = activeHosts.get(roomId);
         if (hostSession && hostSession.socketId === socket.id) {
           const timeout = setTimeout(async () => {
@@ -303,7 +303,7 @@ export const setupSockets = (io: Server): void => {
             activeHosts.delete(roomId);
             await RoomRepository.setSessionActiveStatus(roomId, false);
             io.to(roomId).emit('room:host_disconnected_fallback');
-          }, 10_000);
+          }, 60_000);
           hostSession.disconnectTimeout = timeout;
         }
       }
