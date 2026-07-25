@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/shared/lib/supabase';
+import { Lock } from 'lucide-react';
 
 export const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -59,13 +60,13 @@ export const ResetPassword: React.FC = () => {
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col items-center mb-8 relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-linear-to-tr from-blue-500 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300">
-            <span className="text-3xl">🔐</span>
+          <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300 text-white">
+            <Lock className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight text-white mb-2">
             Reset Password
           </h2>
-          <p className="text-neutral-400 text-xs text-center max-w-[280px] leading-relaxed">
+          <p className="text-neutral-400 text-xs text-center max-w-70 leading-relaxed">
             Enter your new password below.
           </p>
         </div>
@@ -84,7 +85,7 @@ export const ResetPassword: React.FC = () => {
               </div>
               <button
                 onClick={() => navigate('/', { replace: true })}
-                className="w-full py-3.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
+                className="w-full py-3.5 bg-blue-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
               >
                 CONTINUE TO APP
               </button>
@@ -118,7 +119,7 @@ export const ResetPassword: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95 disabled:opacity-50 mt-4"
+                className="w-full py-3.5 bg-blue-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95 disabled:opacity-50 mt-4"
               >
                 {loading ? 'UPDATING...' : 'UPDATE PASSWORD'}
               </button>

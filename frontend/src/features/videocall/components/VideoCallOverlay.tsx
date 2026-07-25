@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Track } from 'livekit-client';
 import { Spinner } from '@/shared/components/feedback/Spinner';
 import type { ParticipantInfo } from '../hooks/useLiveKitRoom';
+import { AlertTriangle, Radio, Mic, MicOff } from 'lucide-react';
 
 interface VideoCallOverlayProps {
   participants: ParticipantInfo[];
@@ -63,9 +64,9 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-red-950/20 border border-red-500/30 h-full text-center gap-3 animate-fade-in">
-        <span className="text-2xl">⚠️</span>
-        <p className="text-sm font-bold text-red-450">Video Call Failed</p>
+      <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-red-950/20 border border-red-500/30 h-full text-center gap-3 animate-fade-in text-red-400">
+        <AlertTriangle className="w-6 h-6" />
+        <p className="text-sm font-bold">Video Call Failed</p>
         <p className="text-[11px] text-neutral-400 max-w-[240px] font-mono leading-normal">
           {error}
         </p>
@@ -97,7 +98,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
       <div className="flex-1 overflow-y-auto min-h-0 pr-1">
         {displayParticipants.length === 0 ? (
           <div className="flex flex-col items-center justify-center border border-white/5 bg-neutral-900/10 rounded-2xl h-[280px] text-center gap-3 animate-fade-in">
-            <span className="text-2xl">📡</span>
+            <Radio className="w-8 h-8 text-cyan-400 mb-2 animate-pulse" />
             <p className="text-sm font-bold text-neutral-300">Connected</p>
             <p className="text-xs text-neutral-500 max-w-[220px]">
               Waiting for other peers to join voice chat.
@@ -130,12 +131,12 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
                   {/* Top Right Mic Status Badge */}
                   <div className="absolute top-2 right-2 z-20">
                     {p.isMicEnabled ? (
-                      <span className="flex h-5 w-5 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 rounded-full backdrop-blur-md text-[10px]" title="Microphone Active">
-                        🎙️
+                      <span className="flex h-5 w-5 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 rounded-full backdrop-blur-md text-emerald-450" title="Microphone Active">
+                        <Mic className="w-3 h-3" />
                       </span>
                     ) : (
-                      <span className="flex h-5 w-5 items-center justify-center bg-red-500/25 border border-red-500/35 rounded-full backdrop-blur-md text-[10px]" title="Microphone Muted">
-                        🔇
+                      <span className="flex h-5 w-5 items-center justify-center bg-red-500/25 border border-red-500/35 rounded-full backdrop-blur-md text-red-400" title="Microphone Muted">
+                        <MicOff className="w-3 h-3" />
                       </span>
                     )}
                   </div>

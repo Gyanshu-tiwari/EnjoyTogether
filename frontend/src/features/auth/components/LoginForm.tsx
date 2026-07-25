@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/shared/lib/supabase';
+import { Video, Mail } from 'lucide-react';
 
 type AuthMode = 'signin' | 'signup' | 'forgot_password';
 
@@ -103,8 +104,8 @@ export const LoginForm: React.FC = () => {
 
       {/* Brand logo & tagline */}
       <div className="flex flex-col items-center mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-linear-to-tr from-blue-500 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300">
-          <span className="text-3xl">🎥</span>
+        <div className="w-16 h-16 rounded-2xl bg-linear-to-tr from-blue-500 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300 text-white">
+          <Video className="w-8 h-8" />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
           EnjoyTogether
@@ -143,8 +144,8 @@ export const LoginForm: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-6 text-center gap-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-fade-in">
-              <span className="text-4xl">✉️</span>
+            <div className="flex flex-col items-center justify-center p-6 text-center gap-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-fade-in text-emerald-400">
+              <Mail className="w-10 h-10" />
               <div>
                 <h3 className="text-lg font-bold text-emerald-400 mb-1">Check your inbox</h3>
                 <p className="text-xs text-neutral-300">

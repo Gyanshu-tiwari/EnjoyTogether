@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/Button';
 import { useAuthSession } from '@/features/auth';
 import { Spinner } from '@/shared/components/feedback/Spinner';
+import { AlertTriangle } from 'lucide-react';
 
 export const Verified: React.FC = () => {
   const navigate = useNavigate();
@@ -25,8 +26,8 @@ export const Verified: React.FC = () => {
       <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 text-white selection:bg-red-500/30 font-sans select-none w-full relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-500/5 rounded-full blur-[100px] pointer-events-none" />
         <div className="w-full max-w-md p-10 rounded-3xl bg-neutral-900/80 border border-white/10 shadow-2xl backdrop-blur-2xl relative overflow-hidden animate-fade-in flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-red-500/20 text-4xl">
-            ⚠️
+          <div className="w-20 h-20 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-red-500/20 text-red-500">
+            <AlertTriangle className="w-10 h-10" />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight text-white mb-3">Verification Failed</h2>
           <p className="text-neutral-400 text-sm mb-8 leading-relaxed">

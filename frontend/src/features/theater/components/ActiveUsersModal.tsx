@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTheater } from '../context/useTheater';
 import type { ActiveUser } from '../context/useTheater';
+import { Users, X } from 'lucide-react';
 
 interface ActiveUsersModalProps {
   isOpen: boolean;
@@ -16,13 +17,14 @@ export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onCl
     <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 bg-neutral-900/95 border border-white/10 rounded-2xl shadow-2xl z-50 animate-slide-up backdrop-blur-md overflow-hidden">
       <div className="p-4 border-b border-white/10 flex justify-between items-center bg-neutral-800/50">
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <span>👥</span> Participants ({activeUsers.length})
+          <Users className="w-4 h-4 text-cyan-400" />
+          <span>Participants ({activeUsers.length})</span>
         </h3>
         <button 
           onClick={onClose}
-          className="text-neutral-400 hover:text-white transition-colors"
+          className="text-neutral-400 hover:text-white transition-colors p-1"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
       </div>
 

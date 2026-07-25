@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/feedback/Spinner';
 import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
+import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home } from 'lucide-react';
 
 const RoomContent: React.FC<{
   roomId: string;
@@ -38,7 +39,7 @@ const RoomContent: React.FC<{
 
   if (loading) {
     return (
-      <div className="min-h-[400px] w-full flex flex-col items-center justify-center text-neutral-400 font-medium gap-4">
+      <div className="min-h-100 w-full flex flex-col items-center justify-center text-neutral-400 font-medium gap-4">
         <Spinner size="md" />
         <span>Loading session parameters...</span>
       </div>
@@ -48,8 +49,8 @@ const RoomContent: React.FC<{
   if (dbError) {
     return (
       <div className="w-full max-w-2xl bg-red-950/40 border border-red-500/20 rounded-2xl p-8 flex flex-col items-center text-center backdrop-blur-md shadow-2xl mt-12">
-        <div className="h-16 w-16 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mb-6 text-2xl">
-          ⚠️
+        <div className="h-16 w-16 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mb-6 text-red-400">
+          <AlertTriangle className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold mb-2 text-red-400">Database Setup Required</h2>
         <p className="text-neutral-300 mb-6 text-sm leading-relaxed">
@@ -83,8 +84,8 @@ const RoomContent: React.FC<{
   if (kickedReason) {
     return (
       <div className="w-full max-w-2xl bg-neutral-900/60 border border-red-500/20 rounded-3xl p-10 flex flex-col items-center text-center backdrop-blur-2xl shadow-2xl mt-12 animate-fade-in">
-        <div className="h-20 w-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-6 text-4xl shadow-lg shadow-red-900/20">
-          🛑
+        <div className="h-20 w-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-6 text-red-400 shadow-lg shadow-red-900/20">
+          <Ban className="w-10 h-10" />
         </div>
         <h2 className="text-3xl font-black mb-3 text-white tracking-tight">Access Revoked</h2>
         <p className="text-neutral-400 mb-8 text-sm leading-relaxed max-w-md">
@@ -118,7 +119,10 @@ const RoomContent: React.FC<{
               variant={copied ? 'emerald' : 'cyan'}
               className="px-3 py-1.5 text-xs font-semibold"
             >
-              {copied ? '✓ Copied' : '🔗 Copy Invite'}
+              <span className="flex items-center gap-1.5">
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Link className="w-3.5 h-3.5" />}
+                <span>{copied ? 'Copied' : 'Copy Invite'}</span>
+              </span>
             </Button>
             {isHost && (
               <Button
@@ -126,7 +130,10 @@ const RoomContent: React.FC<{
                 variant="secondary"
                 className="px-3 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20"
               >
-                🛑 Close Room
+                <span className="flex items-center gap-1.5">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Close Room</span>
+                </span>
               </Button>
             )}
             <Button
@@ -134,7 +141,10 @@ const RoomContent: React.FC<{
               variant="secondary"
               className="px-3 py-1.5 text-xs"
             >
-              ◀ Exit
+              <span className="flex items-center gap-1.5">
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Exit</span>
+              </span>
             </Button>
           </div>
         </div>
@@ -150,7 +160,7 @@ const RoomContent: React.FC<{
                 className="bg-neutral-950/95 border border-cyan-500/30 rounded-2xl p-4 shadow-2xl backdrop-blur-md flex flex-col gap-3 animate-fade-in"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">✊</span>
+                  <Hand className="w-5 h-5 text-cyan-400" />
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-white">Join Request</span>
                     <span className="text-xs text-cyan-400 font-mono truncate max-w-[200px]" title={knock.username}>
@@ -215,8 +225,8 @@ const RoomContent: React.FC<{
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 text-center">
-            <div className="w-20 h-20 rounded-full bg-neutral-800 border border-white/10 flex items-center justify-center text-3xl">
-              👤
+            <div className="w-20 h-20 rounded-full bg-neutral-800 border border-white/10 flex items-center justify-center text-neutral-400">
+              <User className="w-10 h-10" />
             </div>
             <p className="text-sm font-semibold text-neutral-400">Camera is off</p>
           </div>
@@ -226,25 +236,25 @@ const RoomContent: React.FC<{
         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
           <button
             onClick={() => setMicOn(!micOn)}
-            className={`w-12 h-12 rounded-full border flex items-center justify-center text-xl transition-all cursor-pointer ${
+            className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
               micOn
                 ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-white/10'
                 : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30'
             }`}
             title={micOn ? 'Mute Mic' : 'Unmute Mic'}
           >
-            {micOn ? '🎙️' : '🔇'}
+            {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
           </button>
           <button
             onClick={() => setCameraOn(!cameraOn)}
-            className={`w-12 h-12 rounded-full border flex items-center justify-center text-xl transition-all cursor-pointer ${
+            className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
               cameraOn
                 ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-white/10'
                 : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30'
             }`}
             title={cameraOn ? 'Turn Camera Off' : 'Turn Camera On'}
           >
-            {cameraOn ? '📹' : '📷'}
+            {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </button>
         </div>
       </div>
@@ -263,14 +273,20 @@ const RoomContent: React.FC<{
                 variant="cyan"
                 className="w-full py-3.5 text-sm font-bold tracking-wider"
               >
-                🎬 Start Watch Party
+                <span className="flex items-center justify-center gap-2">
+                  <Play className="w-4 h-4" />
+                  <span>Start Watch Party</span>
+                </span>
               </Button>
               <Button
                 onClick={copyInviteLink}
                 variant={copied ? 'emerald' : 'secondary'}
                 className="w-full py-3 text-xs"
               >
-                {copied ? '✓ Link Copied!' : '🔗 Copy Invite Link'}
+                <span className="flex items-center justify-center gap-2">
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Link className="w-3.5 h-3.5" />}
+                  <span>{copied ? 'Link Copied!' : 'Copy Invite Link'}</span>
+                </span>
               </Button>
             </div>
           </div>
@@ -291,7 +307,10 @@ const RoomContent: React.FC<{
               variant="secondary"
               className="w-full py-3.5"
             >
-              ◀ Exit Lobby
+              <span className="flex items-center justify-center gap-2">
+                <LogOut className="w-4 h-4" />
+                <span>Exit Lobby</span>
+              </span>
             </Button>
           </div>
         )}
@@ -311,7 +330,10 @@ const RoomContent: React.FC<{
               variant="secondary"
               className="w-full py-3.5"
             >
-              ◀ Cancel & Exit
+              <span className="flex items-center justify-center gap-2">
+                <X className="w-4 h-4" />
+                <span>Cancel & Exit</span>
+              </span>
             </Button>
           </div>
         )}
@@ -327,7 +349,10 @@ const RoomContent: React.FC<{
               variant="secondary"
               className="w-full py-3.5"
             >
-              ◀ Return to Home
+              <span className="flex items-center justify-center gap-2">
+                <Home className="w-4 h-4" />
+                <span>Return to Home</span>
+              </span>
             </Button>
           </div>
         )}
@@ -388,8 +413,8 @@ export const Room: React.FC = () => {
           {/* Header Panel with Account dropdown menu */}
           <header className="w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4 relative z-40">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-              <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-blue-500 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/10">
-                <span className="text-xl">🎥</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/10 text-white">
+                <Video className="w-5 h-5" />
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight text-white">EnjoyTogether</h1>
@@ -400,7 +425,7 @@ export const Room: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500/20 to-cyan-600/30 border border-blue-500/30 flex items-center justify-center font-bold text-cyan-300 font-mono cursor-pointer hover:border-cyan-400 hover:scale-105 active:scale-95 transition-all"
+                className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center font-bold text-cyan-300 font-mono cursor-pointer hover:border-cyan-400 hover:scale-105 active:scale-95 transition-all"
               >
                 {userInitial}
               </button>
@@ -408,7 +433,7 @@ export const Room: React.FC = () => {
               {profileOpen && (
                 <div className="absolute right-0 mt-3 w-72 bg-neutral-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-slide-down backdrop-blur-xl">
                   <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/5">
-                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500/20 to-cyan-600/30 border border-blue-500/30 flex items-center justify-center font-bold text-lg text-cyan-300 font-mono">
+                    <div className="w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center font-bold text-lg text-cyan-300 font-mono">
                       {userInitial}
                     </div>
                     <div className="flex flex-col min-w-0">

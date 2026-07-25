@@ -7,6 +7,7 @@ import {
   getTranscodeStatus,
   type MovieMetadata
 } from '../api/theaterApi';
+import { AlertTriangle, Film, UploadCloud, Cpu, Zap, Play } from 'lucide-react';
 
 interface UploadDashboardProps {
   onUploadSuccess: (streamUrl: string) => void;
@@ -254,7 +255,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       {error && (
         <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-between animate-fade-in">
           <div className="flex items-center gap-3">
-            <span className="text-lg">⚠️</span>
+            <AlertTriangle className="w-5 h-5 text-red-450 shrink-0" />
             <span>{error}</span>
           </div>
           <button 
@@ -291,7 +292,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <input type="file" accept="video/*" ref={fileInputRef} onChange={(e) => e.target.files && setFile(e.target.files[0])} className="hidden" disabled={uploading} />
-            <span className="text-3xl mb-2">🎬</span>
+            <Film className="w-8 h-8 text-neutral-400 mb-2" />
             <p className="text-sm font-bold text-neutral-200">
               {file ? file.name : 'Upload movie file'}
             </p>
@@ -303,7 +304,10 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
               onClick={handleActualUpload}
               className="w-full py-3.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
             >
-              🚀 PROCESS AND TRANSCODE TRACK
+              <span className="flex items-center justify-center gap-2">
+                <UploadCloud className="w-4 h-4" />
+                <span>PROCESS AND TRANSCODE TRACK</span>
+              </span>
             </button>
           )}
 
@@ -311,10 +315,18 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
           {uploading && (
             <div className="mt-4 animate-fade-in">
               <div className="flex justify-between text-xs text-neutral-400 mb-2 font-mono">
-                <span>
-                  {processingPhase === 'transcoding' 
-                    ? '⚙️ TRANSCODING VIDEO (STREAM COPY)...' 
-                    : '⚡ UPLOADING FILE TO LOCAL SERVER...'}
+                <span className="flex items-center gap-1.5">
+                  {processingPhase === 'transcoding' ? (
+                    <>
+                      <Cpu className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                      <span>TRANSCODING VIDEO (STREAM COPY)...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                      <span>UPLOADING FILE TO LOCAL SERVER...</span>
+                    </>
+                  )}
                 </span>
                 <span className="text-cyan-400 font-bold">{progress}%</span>
               </div>
@@ -341,7 +353,8 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                 }}
                 className="w-full py-4 bg-linear-to-r from-cyan-500 via-blue-500 to-indigo-600 shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.01] active:scale-95 rounded-2xl text-xs font-black tracking-widest text-white transition-all duration-300 cursor-pointer border border-cyan-400/20 hover:border-cyan-400/50 flex items-center justify-center gap-2"
               >
-                <span>🎬 ENTER ACTIVE STREAM THEATER</span>
+                <Play className="w-4 h-4 text-white" />
+                <span>ENTER ACTIVE STREAM THEATER</span>
               </button>
             </div>
           )}
@@ -362,7 +375,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500 p-6 text-center">
-              <span className="text-4xl mb-3 opacity-30">🎬</span>
+              <Film className="w-10 h-10 mb-3 opacity-30 text-neutral-400" />
               <p className="text-sm font-semibold text-neutral-400">Metadata Display Panel</p>
               <p className="text-xs text-neutral-500 max-w-[220px] mt-1">Live TMDB details will load here as you search.</p>
             </div>

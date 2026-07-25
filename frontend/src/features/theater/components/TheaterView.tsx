@@ -4,6 +4,7 @@ import { useTheater } from '../context/useTheater';
 import { SyncVideoPlayer } from './SyncVideoPlayer';
 import { VideoCallOverlay, useLiveKitRoom } from '@/features/videocall';
 import { ActiveUsersModal } from './ActiveUsersModal';
+import { Hand, MessageSquare, Users, X, Mic, MicOff, Video, VideoOff, Smile, PhoneOff } from 'lucide-react';
 
 export const TheaterView: React.FC = () => {
   const navigate = useNavigate();
@@ -63,7 +64,9 @@ export const TheaterView: React.FC = () => {
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-auto px-4">
               {knocks.map((knock) => (
                 <div key={knock.socketId} className="bg-neutral-900/95 border border-white/20 shadow-2xl rounded-2xl p-4 flex items-center gap-4 animate-slide-down backdrop-blur-md">
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-xl">👋</div>
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <Hand className="w-5 h-5" />
+                  </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-sm font-bold text-white truncate">{knock.username}</span>
                     <span className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold">wants to join</span>
@@ -83,15 +86,25 @@ export const TheaterView: React.FC = () => {
           <aside className="w-full lg:w-[320px] bg-neutral-900/60 border border-white/10 rounded-2xl p-4 flex flex-col justify-between h-[450px] lg:h-auto backdrop-blur-xl animate-slide-left">
             {/* Header of Sidebar */}
             <div className="flex justify-between items-center border-b border-white/5 pb-2.5 mb-3">
-              <span className="text-xs font-bold text-neutral-300 tracking-wider uppercase">
-                {activeTab === 'chat' ? '💬 Live Chat' : '👥 Voice Grid'}
+              <span className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 tracking-wider uppercase">
+                {activeTab === 'chat' ? (
+                  <>
+                    <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Live Chat</span>
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Voice Grid</span>
+                  </>
+                )}
               </span>
               <button 
                 onClick={() => setSidebarOpen(false)}
-                className="text-neutral-500 hover:text-neutral-300 text-xs px-2 py-0.5 rounded cursor-pointer"
+                className="text-neutral-500 hover:text-neutral-300 p-1 rounded cursor-pointer transition-colors"
                 title="Hide Panel"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -102,7 +115,7 @@ export const TheaterView: React.FC = () => {
                   <div className="space-y-2.5 max-h-[300px] lg:max-h-[350px] overflow-y-auto pr-1 flex-1 flex flex-col justify-start">
                     {comments.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-neutral-500 font-mono text-xs select-none">
-                        <span className="text-2xl mb-2">💬</span>
+                        <MessageSquare className="w-8 h-8 text-neutral-500 mb-2" />
                         <p>chat with you friends appear here</p>
                       </div>
                     ) : (
@@ -171,7 +184,7 @@ export const TheaterView: React.FC = () => {
                   activeTab === 'chat' ? 'text-cyan-400 bg-cyan-500/10' : 'text-neutral-500 hover:text-neutral-300'
                 }`}
               >
-                <span>💬</span>
+                <MessageSquare className="w-3.5 h-3.5" />
                 <span>CHAT</span>
               </button>
               <button
@@ -180,7 +193,7 @@ export const TheaterView: React.FC = () => {
                   activeTab === 'call' ? 'text-cyan-400 bg-cyan-500/10' : 'text-neutral-500 hover:text-neutral-300'
                 }`}
               >
-                <span>👥</span>
+                <Users className="w-3.5 h-3.5" />
                 <span>VOICE</span>
               </button>
             </div>
@@ -208,38 +221,38 @@ export const TheaterView: React.FC = () => {
           <button
             onClick={livekit.toggleMic}
             disabled={livekit.loading || !!livekit.error}
-            className={`w-11 h-11 rounded-full border flex items-center justify-center text-lg transition-all cursor-pointer shadow-lg active:scale-90 ${
+            className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
               livekit.isMicEnabled
                 ? 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border-white/10'
                 : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30 shadow-red-950/25'
             }`}
             title={livekit.isMicEnabled ? 'Mute Mic' : 'Unmute Mic'}
           >
-            {livekit.isMicEnabled ? '🎙️' : '🔇'}
+            {livekit.isMicEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
           </button>
 
           {/* Camera Action */}
           <button
             onClick={livekit.toggleCamera}
             disabled={livekit.loading || !!livekit.error}
-            className={`w-11 h-11 rounded-full border flex items-center justify-center text-lg transition-all cursor-pointer shadow-lg active:scale-90 ${
+            className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
               livekit.isCameraEnabled
                 ? 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border-white/10'
                 : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30 shadow-red-950/25'
             }`}
             title={livekit.isCameraEnabled ? 'Turn Camera Off' : 'Turn Camera On'}
           >
-            {livekit.isCameraEnabled ? '📹' : '📷'}
+            {livekit.isCameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </button>
 
           {/* Emoji Popover trigger */}
           <div className="relative">
             <button
               onClick={() => setEmojiPopoverOpen(!emojiPopoverOpen)}
-              className="w-11 h-11 rounded-full bg-neutral-800 hover:bg-neutral-750 border border-white/10 flex items-center justify-center text-lg transition-all cursor-pointer shadow-lg active:scale-90 text-neutral-200"
+              className="w-11 h-11 rounded-full bg-neutral-800 hover:bg-neutral-750 border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 text-neutral-200"
               title="Send Reaction"
             >
-              😀
+              <Smile className="w-5 h-5" />
             </button>
 
             {emojiPopoverOpen && (
@@ -267,12 +280,12 @@ export const TheaterView: React.FC = () => {
                 setParticipantsModalOpen(!participantsModalOpen);
                 setEmojiPopoverOpen(false);
               }}
-              className={`w-11 h-11 rounded-full border border-white/10 flex items-center justify-center text-lg transition-all cursor-pointer shadow-lg active:scale-90 ${
+              className={`w-11 h-11 rounded-full border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
                 participantsModalOpen ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200'
               }`}
               title="Participants"
             >
-              👥
+              <Users className="w-5 h-5" />
             </button>
 
             <ActiveUsersModal 
@@ -287,7 +300,7 @@ export const TheaterView: React.FC = () => {
             className="px-6 py-2.5 rounded-full bg-red-650 hover:bg-red-550 border border-red-500/30 text-white font-bold text-xs transition-all cursor-pointer active:scale-95 flex items-center gap-2 shadow-lg shadow-red-950/30 uppercase tracking-widest"
             title={isHost ? 'End watch party' : 'Leave watch party'}
           >
-            <span>📞</span>
+            <PhoneOff className="w-4 h-4" />
             <span>{isHost ? 'End Call' : 'Leave'}</span>
           </button>
         </div>
@@ -298,14 +311,14 @@ export const TheaterView: React.FC = () => {
             onClick={() => {
               setSidebarOpen(!sidebarOpen);
             }}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm border transition-all cursor-pointer ${
+            className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
               sidebarOpen 
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' 
                 : 'bg-neutral-800 border-white/10 hover:bg-neutral-750 text-neutral-400'
             }`}
             title="Toggle Sidebar Panel"
           >
-            👥
+            <MessageSquare className="w-5 h-5" />
           </button>
         </div>
       </footer>
