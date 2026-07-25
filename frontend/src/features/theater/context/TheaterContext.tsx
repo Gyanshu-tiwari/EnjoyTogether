@@ -68,15 +68,9 @@ export const TheaterProvider: React.FC<{
     }
   }, [currentStreamUrl, roomId, socket, sessionState]);
 
-  // Sync userRole dynamically from activeUsers list so RBAC updates in real-time
-  useEffect(() => {
-    if (currentUserId && activeUsers.length > 0) {
-      const me = activeUsers.find((u) => u.userId === currentUserId);
-      if (me && me.role && me.role !== userRole) {
-        setUserRole(me.role as WatchPartyRole);
-      }
-    }
-  }, [activeUsers, currentUserId, userRole]);
+  // Derive effective role from activeUsers list, falling back to state
+  const me = activeUsers.find((u) => u.userId === currentUserId);
+  const effectiveRole = (me?.role as WatchPartyRole) || userRole;
 
   // ─── Chat ─────────────────────────────────────────────────────────────────
   const sendMessage = () => {
@@ -111,7 +105,7 @@ export const TheaterProvider: React.FC<{
         rejectGuest,
         sendEmoji,
         floatingEmojis,
-        userRole,
+        userRole: effectiveRole,
         setUserRole,
         activeUsers,
         changeRole,

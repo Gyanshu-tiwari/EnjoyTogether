@@ -56,7 +56,7 @@ export const TheaterView: React.FC = () => {
       <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch mb-6 min-h-0 justify-center">
         
         {/* Main Synced Video Player */}
-        <div className={`flex-1 max-w-[1200px] w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 relative flex items-center justify-center transition-all duration-300 ${sidebarOpen ? '' : 'mx-auto'}`}>
+        <div className={`flex-1 max-w-300 w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 relative flex items-center justify-center transition-all duration-300 ${sidebarOpen ? '' : 'mx-auto'}`}>
           <SyncVideoPlayer />
           
           {/* Host Join Requests UI overlay */}
@@ -83,7 +83,7 @@ export const TheaterView: React.FC = () => {
 
         {/* Slide-out / Collapsible Sidebar */}
         {sidebarOpen && (
-          <aside className="w-full lg:w-[320px] bg-neutral-900/60 border border-white/10 rounded-2xl p-4 flex flex-col justify-between h-[450px] lg:h-auto backdrop-blur-xl animate-slide-left">
+          <aside className="w-full lg:w-[320px] bg-neutral-900/60 border border-white/10 rounded-2xl p-4 flex flex-col justify-between h-112.5 lg:h-auto backdrop-blur-xl animate-slide-left">
             {/* Header of Sidebar */}
             <div className="flex justify-between items-center border-b border-white/5 pb-2.5 mb-3">
               <span className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 tracking-wider uppercase">
@@ -112,7 +112,7 @@ export const TheaterView: React.FC = () => {
             <div className="flex-1 overflow-y-auto min-h-0 mb-3">
               {activeTab === 'chat' ? (
                 <div className="flex flex-col h-full justify-between">
-                  <div className="space-y-2.5 max-h-[300px] lg:max-h-[350px] overflow-y-auto pr-1 flex-1 flex flex-col justify-start">
+                  <div className="space-y-2.5 max-h-75 lg:max-h-87.5 overflow-y-auto pr-1 flex-1 flex flex-col justify-start">
                     {comments.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-neutral-500 font-mono text-xs select-none">
                         <MessageSquare className="w-8 h-8 text-neutral-500 mb-2" />
@@ -206,7 +206,7 @@ export const TheaterView: React.FC = () => {
         
         {/* Left Side: Session / Room Name Details */}
         <div className="flex flex-col text-left">
-          <span className="text-sm font-black text-white tracking-tight truncate max-w-[200px]">
+          <span className="text-sm font-black text-white tracking-tight truncate max-w-50">
             EnjoyTogether Room
           </span>
           <span className="text-[10px] text-neutral-400 font-mono">

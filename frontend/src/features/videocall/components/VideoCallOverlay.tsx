@@ -67,7 +67,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
       <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-red-950/20 border border-red-500/30 h-full text-center gap-3 animate-fade-in text-red-400">
         <AlertTriangle className="w-6 h-6" />
         <p className="text-sm font-bold">Video Call Failed</p>
-        <p className="text-[11px] text-neutral-400 max-w-[240px] font-mono leading-normal">
+        <p className="text-[11px] text-neutral-400 max-w-60 font-mono leading-normal">
           {error}
         </p>
       </div>
@@ -97,10 +97,10 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
       {/* Grid of Participants */}
       <div className="flex-1 overflow-y-auto min-h-0 pr-1">
         {displayParticipants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-white/5 bg-neutral-900/10 rounded-2xl h-[280px] text-center gap-3 animate-fade-in">
+          <div className="flex flex-col items-center justify-center border border-white/5 bg-neutral-900/10 rounded-2xl h-70 text-center gap-3 animate-fade-in">
             <Radio className="w-8 h-8 text-cyan-400 mb-2 animate-pulse" />
             <p className="text-sm font-bold text-neutral-300">Connected</p>
-            <p className="text-xs text-neutral-500 max-w-[220px]">
+            <p className="text-xs text-neutral-500 max-w-55">
               Waiting for other peers to join voice chat.
             </p>
           </div>

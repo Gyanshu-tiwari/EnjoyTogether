@@ -287,7 +287,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => !uploading && fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all min-h-[180px] ${
+            className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all min-h-45 ${
               isDragging ? 'border-cyan-400 bg-cyan-500/10' : 'border-white/10 hover:border-white/20 bg-neutral-950/20'
             } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
@@ -361,7 +361,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         </div>
 
         {/* Right Preview Banner Box Card Matrix */}
-        <div className="rounded-2xl overflow-hidden border border-white/10 bg-neutral-950/40 relative flex flex-col justify-end min-h-[300px]">
+        <div className="rounded-2xl overflow-hidden border border-white/10 bg-neutral-950/40 relative flex flex-col justify-end min-h-75">
           {metadata ? (
             <>
               <img src={metadata.bannerUrl} alt="Movie Backdrop" className="absolute inset-0 w-full h-full object-cover opacity-40 animate-fade-in" />
@@ -377,7 +377,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500 p-6 text-center">
               <Film className="w-10 h-10 mb-3 opacity-30 text-neutral-400" />
               <p className="text-sm font-semibold text-neutral-400">Metadata Display Panel</p>
-              <p className="text-xs text-neutral-500 max-w-[220px] mt-1">Live TMDB details will load here as you search.</p>
+              <p className="text-xs text-neutral-500 max-w-55 mt-1">Live TMDB details will load here as you search.</p>
             </div>
           )}
         </div>

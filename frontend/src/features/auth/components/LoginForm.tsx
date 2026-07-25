@@ -110,7 +110,7 @@ export const LoginForm: React.FC = () => {
         <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
           EnjoyTogether
         </h2>
-        <p className="text-neutral-400 text-xs text-center max-w-[280px] leading-relaxed">
+        <p className="text-neutral-400 text-xs text-center max-w-70 leading-relaxed">
           Premium synchronized theater rooms with integrated peer audio & video.
         </p>
       </div>
@@ -189,7 +189,7 @@ export const LoginForm: React.FC = () => {
             )}
 
             {mode === 'signin' && (
-              <div className="flex justify-end mt-[-8px]">
+              <div className="flex justify-end -mt-2">
                 <button
                   type="button"
                   onClick={() => { setMode('forgot_password'); resetState(); }}

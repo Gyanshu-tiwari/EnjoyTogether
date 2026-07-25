@@ -163,7 +163,7 @@ const RoomContent: React.FC<{
                   <Hand className="w-5 h-5 text-cyan-400" />
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-white">Join Request</span>
-                    <span className="text-xs text-cyan-400 font-mono truncate max-w-[200px]" title={knock.username}>
+                    <span className="text-xs text-cyan-400 font-mono truncate max-w-50" title={knock.username}>
                       {knock.username}
                     </span>
                   </div>
