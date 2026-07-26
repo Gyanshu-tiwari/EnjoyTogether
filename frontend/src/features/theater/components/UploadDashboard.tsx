@@ -277,7 +277,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
               value={movieTitle}
               onChange={(e) => setMovieTitle(e.target.value)}
               placeholder="Search movie details..."
-              className="w-full px-4 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
+              className="w-full px-4 py-3 bg-bg-transparent rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
             />
           </div>
 
