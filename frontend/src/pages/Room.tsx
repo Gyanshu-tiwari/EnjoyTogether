@@ -391,7 +391,7 @@ export const Room: React.FC = () => {
   }
 
   return (
-    <div className="w-full flex flex-col">
+    <div className="w-full flex flex-col items-center">
       {id ? (
         <TheaterProvider roomId={id} initialStreamUrl="">
           <RoomContent roomId={id} onExit={() => navigate('/', { replace: true })} />

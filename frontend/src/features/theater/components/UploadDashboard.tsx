@@ -245,7 +245,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
 
   return (
     <div className="w-full max-w-4xl bg-neutral-900/60 border border-white/5 rounded-3xl p-8 backdrop-blur-2xl shadow-2xl text-white animate-fade-in">
-      <h2 className="text-2xl font-black mb-1 bg-blue-500 text-transparent tracking-tight">
+      <h2 className="text-2xl font-black mb-1 bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
         Deploy New Theater Session
       </h2>
       <p className="text-xs text-neutral-400 mb-6">
