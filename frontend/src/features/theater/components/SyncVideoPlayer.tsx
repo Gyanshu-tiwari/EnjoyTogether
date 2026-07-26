@@ -4,6 +4,7 @@ import { useTheater } from '../context/useTheater';
 import { useSocketSync } from '../hooks/useSocketSync';
 
 import { Button } from '@/shared/components/ui/Button';
+import { Eye, AlertTriangle, RefreshCw, Zap } from 'lucide-react';
 
 export const SyncVideoPlayer: React.FC = () => {
   const { currentStreamUrl, socket, roomId, userRole } = useTheater();
@@ -125,16 +126,19 @@ export const SyncVideoPlayer: React.FC = () => {
 
       {/* Viewer-only overlay: no controls exposed */}
       {isViewer && (
-        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10 pointer-events-none select-none">
-          <span className="text-[10px] text-purple-300 font-semibold tracking-widest uppercase">👁 View Only</span>
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-full border border-white/10 pointer-events-none select-none text-indigo-400">
+          <Eye className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-bold tracking-wider uppercase">View Only</span>
         </div>
       )}
 
       {playbackError && (
-        <div className="absolute inset-0 bg-neutral-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-50 animate-fade-in">
-          <span className="text-3xl mb-3">⚠️</span>
+        <div className="absolute inset-0 bg-bg-card border border-white/5 rounded-2xl flex flex-col items-center justify-center p-6 text-center z-50 animate-fade-in">
+          <div className="h-14 w-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-4 text-red-400">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
           <p className="text-sm font-bold text-red-400 mb-2">Stream Offline or Unreachable</p>
-          <p className="text-xs text-neutral-300 max-w-[320px] leading-relaxed mb-4">
+          <p className="text-xs text-text-secondary max-w-[320px] leading-relaxed mb-5 font-medium font-sans">
             {playbackError}
           </p>
           <Button
@@ -142,10 +146,11 @@ export const SyncVideoPlayer: React.FC = () => {
               setPlaybackError(null);
               setRetryCount(0);
             }}
-            variant="primary"
-            className="px-6 py-2"
+            variant="brand"
+            className="px-6 py-2 flex items-center justify-center gap-1.5 font-bold"
           >
-            🔄 Retry Loading Stream
+            <RefreshCw className="w-4 h-4" />
+            <span>Retry Loading Stream</span>
           </Button>
         </div>
       )}
@@ -153,17 +158,18 @@ export const SyncVideoPlayer: React.FC = () => {
 
 
       {isBlocked && !isViewer && (
-        <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-50">
-          <div className="bg-white/5 border border-white/10 p-6 rounded-2xl max-w-sm text-center shadow-xl">
-            <p className="text-sm text-neutral-300 mb-4 font-medium">
+        <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-50 animate-fade-in">
+          <div className="bg-bg-card border border-white/5 p-6 rounded-2xl max-w-sm text-center shadow-xl">
+            <p className="text-sm text-text-secondary mb-4 font-medium font-sans">
               Your browser has paused the synchronized stream track to protect connection overhead.
             </p>
             <Button
               onClick={handleManualUnlock}
-              variant="primary"
-              className="w-full py-2.5"
+              variant="brand"
+              className="w-full py-2.5 flex items-center justify-center gap-1.5 font-bold"
             >
-              ⚡ Sync & Play Stream
+              <Zap className="w-4 h-4" />
+              <span>Sync & Play Stream</span>
             </Button>
           </div>
         </div>

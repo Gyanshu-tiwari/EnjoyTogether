@@ -66,7 +66,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
       <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-red-950/20 border border-red-500/30 h-full text-center gap-3 animate-fade-in text-red-400">
         <AlertTriangle className="w-6 h-6" />
         <p className="text-sm font-bold">Video Call Failed</p>
-        <p className="text-[11px] text-neutral-400 max-w-60 font-mono leading-normal">
+        <p className="text-[11px] text-text-secondary max-w-60 font-mono leading-normal">
           {error}
         </p>
       </div>
@@ -76,16 +76,16 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
   if (loading) {
     return (
       <div className="flex-1 flex flex-col gap-2 w-full">
-        <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1 animate-pulse">Connecting to voice mesh...</p>
+        <p className="text-[10px] text-text-secondary font-bold uppercase tracking-wider mb-1 animate-pulse">Connecting to voice mesh...</p>
         <div className="grid grid-cols-2 gap-2 w-full">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="relative aspect-video rounded-2xl bg-neutral-900 border border-white/5 overflow-hidden flex flex-col items-center justify-center"
+              className="relative aspect-video rounded-2xl bg-bg-primary border border-white/5 overflow-hidden flex flex-col items-center justify-center"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
-              <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center animate-pulse" />
-              <div className="w-16 h-3 bg-neutral-800 rounded-md mt-2 animate-pulse" />
+              <div className="w-10 h-10 rounded-full bg-bg-card flex items-center justify-center animate-pulse" />
+              <div className="w-16 h-3 bg-bg-card rounded-md mt-2 animate-pulse" />
             </div>
           ))}
         </div>
@@ -107,10 +107,10 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
       {/* Grid of Participants */}
       <div className="flex-1 overflow-y-auto min-h-0 pr-1">
         {displayParticipants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-white/5 bg-neutral-900/10 rounded-2xl h-70 text-center gap-3 animate-fade-in">
-            <Radio className="w-8 h-8 text-cyan-400 mb-2 animate-pulse" />
+          <div className="flex flex-col items-center justify-center border border-white/5 bg-bg-primary/10 rounded-2xl h-70 text-center gap-3 animate-fade-in">
+            <Radio className="w-8 h-8 text-indigo-400 mb-2 animate-pulse" />
             <p className="text-sm font-bold text-neutral-300">Connected</p>
-            <p className="text-xs text-neutral-500 max-w-55">
+            <p className="text-xs text-text-secondary max-w-55">
               Waiting for other peers to join voice chat.
             </p>
           </div>
@@ -121,7 +121,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
               return (
                 <div
                   key={p.identity}
-                  className="relative aspect-video rounded-2xl bg-neutral-950 border border-white/5 hover:border-cyan-500/20 transition-all duration-300 group overflow-hidden flex flex-col items-center justify-center"
+                  className="relative aspect-video rounded-2xl bg-bg-primary border border-white/5 hover:border-brand-border/40 transition-all duration-300 group overflow-hidden flex flex-col items-center justify-center"
                 >
                   {/* Camera Video Stream vs Placeholder Avatar */}
                   {p.isCameraEnabled && p.videoTrack ? (
@@ -130,8 +130,8 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-2 text-center z-10 select-none animate-fade-in">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-inner">
-                        <span className="text-xs font-bold text-cyan-300 font-mono">
+                      <div className="w-10 h-10 rounded-full bg-brand-muted border border-brand-border flex items-center justify-center shadow-inner">
+                        <span className="text-xs font-bold text-indigo-400 font-mono">
                           {initial}
                         </span>
                       </div>
@@ -141,7 +141,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
                   {/* Top Right Mic Status Badge */}
                   <div className="absolute top-2 right-2 z-20">
                     {p.isMicEnabled ? (
-                      <span className="flex h-5 w-5 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 rounded-full backdrop-blur-md text-emerald-450" title="Microphone Active">
+                      <span className="flex h-5 w-5 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 rounded-full backdrop-blur-md text-emerald-400" title="Microphone Active">
                         <Mic className="w-3 h-3" />
                       </span>
                     ) : (

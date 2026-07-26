@@ -97,20 +97,20 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-md p-8 rounded-3xl bg-neutral-900/80 border border-white/5 shadow-2xl backdrop-blur-2xl relative overflow-hidden animate-fade-in">
+    <div className="w-full max-w-md p-8 rounded-3xl bg-bg-card border border-white/5 shadow-2xl relative overflow-hidden animate-fade-in">
       {/* Decorative light glows */}
-      <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -left-24 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Brand logo & tagline */}
       <div className="flex flex-col items-center mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300 text-white">
+        <div className="w-16 h-16 rounded-2xl bg-brand flex items-center justify-center shadow-lg shadow-brand/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300 text-white">
           <Video className="w-8 h-8" />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
           EnjoyTogether
         </h2>
-        <p className="text-neutral-400 text-xs text-center max-w-70 leading-relaxed">
+        <p className="text-text-secondary text-xs text-center max-w-70 leading-relaxed font-medium">
           Premium synchronized theater rooms with integrated peer audio & video.
         </p>
       </div>
@@ -130,15 +130,15 @@ export const LoginForm: React.FC = () => {
 
         {mode === 'signup' && successMsg ? (
           crossTabVerified ? (
-            <div className="flex flex-col items-center justify-center p-6 text-center gap-4 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl animate-fade-in">
-              <div className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/40 rounded-full flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <svg className="w-8 h-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <div className="flex flex-col items-center justify-center p-6 text-center gap-4 bg-brand/10 border border-brand-border rounded-2xl animate-fade-in">
+              <div className="w-16 h-16 bg-brand-muted border border-brand-border rounded-full flex items-center justify-center shadow-lg shadow-brand/10">
+                <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-cyan-400 mb-1">Verification Successful!</h3>
-                <p className="text-xs text-neutral-300">
+                <h3 className="text-lg font-bold text-indigo-400 mb-1">Verification Successful!</h3>
+                <p className="text-xs text-text-secondary">
                   You are now signed in. Redirecting to your dashboard...
                 </p>
               </div>
@@ -148,13 +148,13 @@ export const LoginForm: React.FC = () => {
               <Mail className="w-10 h-10" />
               <div>
                 <h3 className="text-lg font-bold text-emerald-400 mb-1">Check your inbox</h3>
-                <p className="text-xs text-neutral-300">
+                <p className="text-xs text-text-secondary">
                   We've sent a verification link to <span className="font-bold text-white">{email}</span>.
                 </p>
               </div>
               <button
                 onClick={() => { resetState(); setMode('signin'); }}
-                className="mt-2 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="mt-2 text-xs font-bold text-brand hover:text-indigo-400 transition-colors cursor-pointer"
               >
                 Return to Sign In
               </button>
@@ -163,27 +163,27 @@ export const LoginForm: React.FC = () => {
         ) : (
           <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase ml-1">Email</label>
+              <label className="text-[10px] font-bold text-text-secondary tracking-wider uppercase ml-1">Email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full px-4 py-3 bg-neutral-950/50 rounded-2xl border border-white/10 focus:outline-none focus:border-cyan-500/50 text-sm transition-all text-neutral-200 placeholder-neutral-500"
+                className="w-full px-4 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
               />
             </div>
 
             {mode !== 'forgot_password' && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase ml-1">Password</label>
+                <label className="text-[10px] font-bold text-text-secondary tracking-wider uppercase ml-1">Password</label>
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 bg-neutral-950/50 rounded-2xl border border-white/10 focus:outline-none focus:border-cyan-500/50 text-sm transition-all text-neutral-200 placeholder-neutral-500"
+                  className="w-full px-4 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
                 />
               </div>
             )}
@@ -193,7 +193,7 @@ export const LoginForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => { setMode('forgot_password'); resetState(); }}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                  className="text-xs text-brand hover:text-indigo-400 transition-colors cursor-pointer"
                 >
                   Forgot password?
                 </button>
@@ -203,31 +203,31 @@ export const LoginForm: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-blue-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95 disabled:opacity-50 mt-2"
+              className="w-full py-3.5 bg-brand hover:bg-brand-hover rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-brand/10 active:scale-95 disabled:opacity-50 mt-2"
             >
               {loading ? 'PROCESSING...' : mode === 'signin' ? 'SIGN IN' : mode === 'signup' ? 'CREATE ACCOUNT' : 'SEND RESET LINK'}
             </button>
           </form>
         )}
 
-        <div className="flex items-center justify-center gap-2 text-xs text-neutral-400">
+        <div className="flex items-center justify-center gap-2 text-xs text-text-secondary">
           {mode === 'signin' ? (
             <>
               <span>Don't have an account?</span>
-              <button type="button" onClick={() => { setMode('signup'); resetState(); }} className="text-cyan-400 font-bold hover:text-cyan-300">Sign Up</button>
+              <button type="button" onClick={() => { setMode('signup'); resetState(); }} className="text-brand font-bold hover:text-indigo-400 cursor-pointer">Sign Up</button>
             </>
           ) : (
             <>
               <span>Already have an account?</span>
-              <button type="button" onClick={() => { setMode('signin'); resetState(); }} className="text-cyan-400 font-bold hover:text-cyan-300">Sign In</button>
+              <button type="button" onClick={() => { setMode('signin'); resetState(); }} className="text-brand font-bold hover:text-indigo-400 cursor-pointer">Sign In</button>
             </>
           )}
         </div>
 
         <div className="relative flex items-center py-2">
-          <div className="grow border-t border-white/10"></div>
-          <span className="shrink-0 px-4 text-xs text-neutral-500 uppercase tracking-widest font-semibold">Or continue with</span>
-          <div className="grow border-t border-white/10"></div>
+          <div className="grow border-t border-white/5"></div>
+          <span className="shrink-0 px-4 text-xs text-text-secondary uppercase tracking-widest font-semibold">Or continue with</span>
+          <div className="grow border-t border-white/5"></div>
         </div>
 
         <button
@@ -256,7 +256,7 @@ export const LoginForm: React.FC = () => {
           Google
         </button>
 
-        <div className="flex items-center justify-between text-[11px] text-neutral-500 font-mono tracking-wider pt-2 border-t border-white/5">
+        <div className="flex items-center justify-between text-[11px] text-text-secondary font-mono tracking-wider pt-2 border-t border-white/5">
           <span>SECURE SECRETS MESH</span>
           <span>v1.2.1</span>
         </div>

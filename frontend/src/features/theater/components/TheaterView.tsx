@@ -50,7 +50,7 @@ export const TheaterView: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col min-h-[75vh] justify-between relative bg-neutral-950/40 rounded-3xl border border-white/5 p-4 animate-fade-in font-sans">
+    <div className="w-full flex flex-col min-h-[75vh] justify-between relative bg-bg-card rounded-3xl border border-white/5 p-4 animate-fade-in font-sans">
       
       {/* Main body area: Video + Sidebar */}
       <div className="flex-1 flex flex-col lg:flex-row gap-6 items-stretch mb-6 min-h-0 justify-center">
@@ -63,17 +63,17 @@ export const TheaterView: React.FC = () => {
           {isHost && knocks.length > 0 && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-auto px-4">
               {knocks.map((knock) => (
-                <div key={knock.socketId} className="bg-neutral-900/95 border border-white/20 shadow-2xl rounded-2xl p-4 flex items-center gap-4 animate-slide-down backdrop-blur-md">
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <div key={knock.socketId} className="bg-bg-card border border-brand-border shadow-2xl rounded-2xl p-4 flex items-center gap-4 animate-slide-down backdrop-blur-md">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-brand-muted border border-brand-border flex items-center justify-center text-indigo-400">
                     <Hand className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-sm font-bold text-white truncate">{knock.username}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold">wants to join</span>
+                    <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold">wants to join</span>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => rejectGuest(knock.socketId)} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 border border-red-500/20 cursor-pointer transition-all active:scale-95">Deny</button>
-                    <button onClick={() => approveGuest(knock.socketId)} className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-bold hover:bg-cyan-500/20 border border-cyan-500/30 cursor-pointer transition-all active:scale-95">Admit</button>
+                    <button onClick={() => approveGuest(knock.socketId)} className="px-3 py-1.5 rounded-lg bg-brand-muted text-indigo-400 text-xs font-bold hover:bg-brand/20 border border-brand-border cursor-pointer transition-all active:scale-95">Admit</button>
                   </div>
                 </div>
               ))}
@@ -83,18 +83,18 @@ export const TheaterView: React.FC = () => {
 
         {/* Slide-out / Collapsible Sidebar */}
         {sidebarOpen && (
-          <aside className="w-full lg:w-[320px] bg-neutral-900/60 border border-white/10 rounded-2xl p-4 flex flex-col justify-between h-112.5 lg:h-auto backdrop-blur-xl animate-slide-left">
+          <aside className="w-full lg:w-[320px] bg-bg-primary/50 border border-white/5 rounded-2xl p-4 flex flex-col justify-between h-112.5 lg:h-auto backdrop-blur-xl animate-slide-left">
             {/* Header of Sidebar */}
             <div className="flex justify-between items-center border-b border-white/5 pb-2.5 mb-3">
               <span className="flex items-center gap-1.5 text-xs font-bold text-neutral-300 tracking-wider uppercase">
                 {activeTab === 'chat' ? (
                   <>
-                    <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                    <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Live Chat</span>
                   </>
                 ) : (
                   <>
-                    <Users className="w-3.5 h-3.5 text-cyan-400" />
+                    <Users className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Voice Grid</span>
                   </>
                 )}
@@ -114,9 +114,9 @@ export const TheaterView: React.FC = () => {
                 <div className="flex flex-col h-full justify-between">
                   <div className="space-y-2.5 max-h-75 lg:max-h-87.5 overflow-y-auto pr-1 flex-1 flex flex-col justify-start">
                     {comments.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-neutral-500 font-mono text-xs select-none">
-                        <MessageSquare className="w-8 h-8 text-neutral-500 mb-2" />
-                        <p>chat with you friends appear here</p>
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-text-secondary font-mono text-xs select-none">
+                        <MessageSquare className="w-8 h-8 text-text-secondary mb-2" />
+                        <p>chat with your friends appears here</p>
                       </div>
                     ) : (
                       comments.map((msg, index) => {
@@ -125,12 +125,12 @@ export const TheaterView: React.FC = () => {
                           <div key={index} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} animate-slide-up mb-2`}>
                             {!isMe && (
                               <div className="flex flex-col items-start max-w-[80%]">
-                                <span className="text-[10px] text-neutral-400 font-bold ml-1 mb-0.5">{msg.user}</span>
+                                <span className="text-[10px] text-text-secondary font-bold ml-1 mb-0.5">{msg.user}</span>
                                 <div className="flex items-end gap-1.5">
-                                  <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-md">
+                                  <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-md">
                                     {msg.user.charAt(0).toUpperCase()}
                                   </div>
-                                  <div className="bg-neutral-800 border border-white/5 px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-neutral-200 shadow-sm">
+                                  <div className="bg-bg-primary border border-white/5 px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-neutral-200 shadow-sm">
                                     {msg.text}
                                   </div>
                                 </div>
@@ -138,7 +138,7 @@ export const TheaterView: React.FC = () => {
                             )}
                             {isMe && (
                               <div className="flex flex-col items-end max-w-[80%]">
-                                <div className="bg-blue-600 px-3 py-2 rounded-2xl rounded-br-sm text-xs text-white shadow-md">
+                                <div className="bg-brand px-3 py-2 rounded-2xl rounded-br-sm text-xs text-white shadow-md">
                                   {msg.text}
                                 </div>
                               </div>
@@ -157,11 +157,11 @@ export const TheaterView: React.FC = () => {
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                       placeholder="Type message..."
-                      className="w-full px-3 py-2 bg-neutral-950 border border-white/15 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-cyan-500/50 transition-all placeholder-neutral-500"
+                      className="w-full px-3 py-2 bg-bg-primary border border-white/5 rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-brand/40 transition-all placeholder-neutral-500"
                     />
                     <button
                       onClick={sendMessage}
-                      className="px-3 bg-blue-500 text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer text-white"
+                      className="px-3 bg-brand hover:bg-brand-hover text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer text-white"
                     >
                       Send
                     </button>
@@ -181,7 +181,7 @@ export const TheaterView: React.FC = () => {
               <button
                 onClick={() => setActiveTab('chat')}
                 className={`flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer px-3 py-1 rounded-xl ${
-                  activeTab === 'chat' ? 'text-cyan-400 bg-cyan-500/10' : 'text-neutral-500 hover:text-neutral-300'
+                  activeTab === 'chat' ? 'text-indigo-400 bg-brand-muted border border-brand-border/20' : 'text-neutral-500 hover:text-neutral-300'
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -190,7 +190,7 @@ export const TheaterView: React.FC = () => {
               <button
                 onClick={() => setActiveTab('call')}
                 className={`flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer px-3 py-1 rounded-xl ${
-                  activeTab === 'call' ? 'text-cyan-400 bg-cyan-500/10' : 'text-neutral-500 hover:text-neutral-300'
+                  activeTab === 'call' ? 'text-indigo-400 bg-brand-muted border border-brand-border/20' : 'text-neutral-500 hover:text-neutral-300'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
@@ -202,14 +202,14 @@ export const TheaterView: React.FC = () => {
       </div>
 
       {/* Google Meet inspired Bottom Bar Control Dock */}
-      <footer className="w-full bg-neutral-900 border border-white/10 rounded-2xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 relative z-30">
+      <footer className="w-full bg-bg-card border border-white/5 rounded-2xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 relative z-30">
         
         {/* Left Side: Session / Room Name Details */}
         <div className="flex flex-col text-left">
           <span className="text-sm font-black text-white tracking-tight truncate max-w-50">
             EnjoyTogether Room
           </span>
-          <span className="text-[10px] text-neutral-400 font-mono">
+          <span className="text-[10px] text-text-secondary font-mono">
             {roomId}
           </span>
         </div>
@@ -223,8 +223,8 @@ export const TheaterView: React.FC = () => {
             disabled={livekit.loading || !!livekit.error}
             className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
               livekit.isMicEnabled
-                ? 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border-white/10'
-                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30 shadow-red-950/25'
+                ? 'bg-bg-primary hover:bg-neutral-800 text-neutral-200 border-white/5'
+                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/20'
             }`}
             title={livekit.isMicEnabled ? 'Mute Mic' : 'Unmute Mic'}
           >
@@ -237,8 +237,8 @@ export const TheaterView: React.FC = () => {
             disabled={livekit.loading || !!livekit.error}
             className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
               livekit.isCameraEnabled
-                ? 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border-white/10'
-                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30 shadow-red-950/25'
+                ? 'bg-bg-primary hover:bg-neutral-800 text-neutral-200 border-white/5'
+                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/20'
             }`}
             title={livekit.isCameraEnabled ? 'Turn Camera Off' : 'Turn Camera On'}
           >
@@ -249,14 +249,14 @@ export const TheaterView: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setEmojiPopoverOpen(!emojiPopoverOpen)}
-              className="w-11 h-11 rounded-full bg-neutral-800 hover:bg-neutral-750 border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 text-neutral-200"
+              className="w-11 h-11 rounded-full bg-bg-primary hover:bg-neutral-800 border border-white/5 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 text-neutral-200"
               title="Send Reaction"
             >
               <Smile className="w-5 h-5" />
             </button>
 
             {emojiPopoverOpen && (
-              <div className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-neutral-900/95 border border-white/10 p-3 rounded-2xl shadow-2xl flex gap-2.5 z-50 animate-slide-up backdrop-blur-md">
+              <div className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-bg-card border border-white/5 p-3 rounded-2xl shadow-2xl flex gap-2.5 z-50 animate-slide-up backdrop-blur-md">
                 {['❤️', '😂', '😮', '😢', '👏', '🔥', '🎉', '🚀'].map((emoji) => (
                   <button
                     key={emoji}
@@ -280,8 +280,8 @@ export const TheaterView: React.FC = () => {
                 setParticipantsModalOpen(!participantsModalOpen);
                 setEmojiPopoverOpen(false);
               }}
-              className={`w-11 h-11 rounded-full border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
-                participantsModalOpen ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-neutral-800 hover:bg-neutral-750 text-neutral-200'
+              className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-90 ${
+                participantsModalOpen ? 'bg-brand-muted text-indigo-400 border-brand-border' : 'bg-bg-primary hover:bg-neutral-800 text-neutral-200 border-white/5'
               }`}
               title="Participants"
             >
@@ -297,7 +297,7 @@ export const TheaterView: React.FC = () => {
           {/* Red leave / close meeting button */}
           <button
             onClick={handleLeaveOrClose}
-            className="px-6 py-2.5 rounded-full bg-red-650 hover:bg-red-550 border border-red-500/30 text-white font-bold text-xs transition-all cursor-pointer active:scale-95 flex items-center gap-2 shadow-lg shadow-red-950/30 uppercase tracking-widest"
+            className="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-550 border border-red-500/20 text-white font-bold text-xs transition-all cursor-pointer active:scale-95 flex items-center gap-2 shadow-lg shadow-red-950/20 uppercase tracking-widest"
             title={isHost ? 'End watch party' : 'Leave watch party'}
           >
             <PhoneOff className="w-4 h-4" />
@@ -313,8 +313,8 @@ export const TheaterView: React.FC = () => {
             }}
             className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
               sidebarOpen 
-                ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' 
-                : 'bg-neutral-800 border-white/10 hover:bg-neutral-750 text-neutral-400'
+                ? 'bg-brand-muted border border-brand-border text-indigo-400' 
+                : 'bg-bg-primary border border-white/5 hover:bg-neutral-800 text-neutral-400'
             }`}
             title="Toggle Sidebar Panel"
           >

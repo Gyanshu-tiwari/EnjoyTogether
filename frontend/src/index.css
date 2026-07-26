@@ -1,13 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&family=Quicksand:wght@300..700&display=swap');
 @import "tailwindcss";
 
 /* ─── CSS Design Tokens ─────────────────────────────────────────────────────── */
 :root {
-  --color-bg-primary:    #0F0F1A;   /* Dark Obsidian  — dominant bg     */
-  --color-bg-card:       #1E1E30;   /* Deep Indigo    — cards/panels    */
-  --color-accent:        #8B5CF6;   /* Electric Purple— CTA buttons     */
-  --color-interactive:   #06B6D4;   /* Bright Turquoise— links/outline  */
-  --color-text-primary:  #FFFFFF;   /* Crisp White    — headings        */
-  --color-text-secondary:#9CA3AF;  /* Soft Silver    — body copy       */
+  --font-heading: 'Quicksand', 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Nunito', Arial, Helvetica, sans-serif;
+
+  --color-brand:         #4F46E5;   /* Premium Solid Indigo-600 (Brand) */
+  --color-brand-hover:   #4338CA;   /* Indigo-700                       */
+  --color-brand-muted:   rgba(79, 70, 229, 0.1);
+  --color-brand-border:  rgba(79, 70, 229, 0.2);
+
+  --color-bg-primary:    #09090B;   /* Solid Zinc-950 (Minimal Neutral) */
+  --color-bg-card:       #18181B;   /* Solid Zinc-900                   */
+  --color-bg-tertiary:   #27272A;   /* Solid Zinc-800                   */
+  
+  --color-text-primary:  #FAFAFA;   /* Crisp Off-white                  */
+  --color-text-secondary:#A1A1AA;   /* Soft Grey (Zinc-400)             */
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading) !important;
 }
 
 @keyframes fadeIn {

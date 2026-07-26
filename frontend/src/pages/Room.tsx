@@ -5,7 +5,7 @@ import { supabase } from '@/shared/lib/supabase';
 import { Button } from '@/shared/components/ui/Button';
 import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
-import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home } from 'lucide-react';
+import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft } from 'lucide-react';
 import { TheaterSkeleton, DashboardSkeleton } from '@/shared/components/feedback/Skeletons';
 
 const RoomContent: React.FC<{
@@ -43,32 +43,34 @@ const RoomContent: React.FC<{
 
   if (dbError) {
     return (
-      <div className="w-full max-w-2xl bg-red-950/40 border border-red-500/20 rounded-2xl p-8 flex flex-col items-center text-center backdrop-blur-md shadow-2xl mt-12">
-        <div className="h-16 w-16 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center mb-6 text-red-400">
+      <div className="w-full max-w-2xl bg-bg-card border border-white/5 rounded-2xl p-8 flex flex-col items-center text-center backdrop-blur-md shadow-2xl mt-12">
+        <div className="h-16 w-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-6 text-red-400">
           <AlertTriangle className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold mb-2 text-red-400">Database Setup Required</h2>
-        <p className="text-neutral-300 mb-6 text-sm leading-relaxed">
+        <p className="text-text-secondary mb-6 text-sm leading-relaxed font-medium">
           {dbError}
         </p>
-        <div className="text-left bg-black/40 border border-white/5 rounded-xl p-4 w-full font-mono text-xs text-neutral-400 select-all overflow-x-auto mb-6">
+        <div className="text-left bg-black/40 border border-white/5 rounded-xl p-4 w-full font-mono text-xs text-text-secondary select-all overflow-x-auto mb-6">
           <span className="text-neutral-500"># You can find the SQL schema file in the root of the project:</span><br/>
-          <span className="text-cyan-400 font-semibold">watch_stream_together/supabase_schema.sql</span>
+          <span className="text-indigo-400 font-semibold">watch_stream_together/supabase_schema.sql</span>
         </div>
         <div className="flex gap-4">
           <Button
             onClick={() => window.location.reload()}
-            variant="cyan"
+            variant="brand"
             className="px-6 py-2"
           >
-            🔄 Retry Connection
+            <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+            <span>Retry Connection</span>
           </Button>
           <Button
             onClick={onExit}
             variant="secondary"
             className="px-6 py-2"
           >
-            ◀ Exit Theater
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            <span>Exit Theater</span>
           </Button>
         </div>
       </div>
@@ -78,12 +80,12 @@ const RoomContent: React.FC<{
   // Handle kicked state gracefully with a styled overlay instead of window.alert
   if (kickedReason) {
     return (
-      <div className="w-full max-w-2xl bg-neutral-900/60 border border-red-500/20 rounded-3xl p-10 flex flex-col items-center text-center backdrop-blur-2xl shadow-2xl mt-12 animate-fade-in">
-        <div className="h-20 w-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-6 text-red-400 shadow-lg shadow-red-900/20">
+      <div className="w-full max-w-2xl bg-bg-card border border-red-500/10 rounded-3xl p-10 flex flex-col items-center text-center shadow-2xl mt-12 animate-fade-in">
+        <div className="h-20 w-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mb-6 text-red-400 shadow-lg shadow-red-900/10">
           <Ban className="w-10 h-10" />
         </div>
         <h2 className="text-3xl font-black mb-3 text-white tracking-tight">Access Revoked</h2>
-        <p className="text-neutral-400 mb-8 text-sm leading-relaxed max-w-md">
+        <p className="text-text-secondary mb-8 text-sm leading-relaxed max-w-md font-medium">
           {kickedReason}
         </p>
         <Button
@@ -104,14 +106,14 @@ const RoomContent: React.FC<{
         {/* Small context indicator bar in theater mode */}
         <div className="w-full flex justify-between items-center mb-4 px-4 bg-white/5 py-3 rounded-2xl border border-white/5">
           <div className="flex items-center gap-3">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="flex h-2.5 w-2.5 rounded-full bg-brand animate-pulse" />
             <span className="text-xs font-bold text-neutral-200 tracking-wider">LIVE THEATER SESSION</span>
             <span className="text-xs text-neutral-500 font-mono">| Room: {roomId}</span>
           </div>
           <div className="flex gap-3">
             <Button
               onClick={copyInviteLink}
-              variant={copied ? 'emerald' : 'cyan'}
+              variant={copied ? 'emerald' : 'brand'}
               className="px-3 py-1.5 text-xs font-semibold"
             >
               <span className="flex items-center gap-1.5">
@@ -152,18 +154,18 @@ const RoomContent: React.FC<{
             {knocks.map((knock) => (
               <div
                 key={knock.socketId}
-                className="bg-neutral-950/95 border border-cyan-500/30 rounded-2xl p-4 shadow-2xl backdrop-blur-md flex flex-col gap-3 animate-fade-in"
+                className="bg-bg-card border border-brand-border rounded-2xl p-4 shadow-2xl backdrop-blur-md flex flex-col gap-3 animate-fade-in"
               >
                 <div className="flex items-center gap-2">
-                  <Hand className="w-5 h-5 text-cyan-400" />
+                  <Hand className="w-5 h-5 text-indigo-400" />
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-white">Join Request</span>
-                    <span className="text-xs text-cyan-400 font-mono truncate max-w-50" title={knock.username}>
+                    <span className="text-xs text-indigo-400 font-mono truncate max-w-50" title={knock.username}>
                       {knock.username}
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-neutral-300">
+                <p className="text-xs text-text-secondary">
                   wants to join party
                 </p>
                 <div className="flex gap-2 justify-end">
@@ -176,7 +178,7 @@ const RoomContent: React.FC<{
                   </Button>
                   <Button
                     onClick={() => approveGuest(knock.socketId)}
-                    variant="cyan"
+                    variant="brand"
                     className="px-3 py-1 text-xs"
                   >
                     Accept
@@ -213,17 +215,17 @@ const RoomContent: React.FC<{
   return (
     <div className="w-full flex flex-col lg:flex-row gap-12 items-center justify-center max-w-5xl mx-auto py-8 px-4 animate-fade-in">
       {/* Left side: Simulated Local Video Preview Card */}
-      <div className="w-full lg:w-3/5 bg-neutral-900 border border-white/5 rounded-3xl overflow-hidden aspect-video relative flex flex-col items-center justify-center shadow-2xl">
+      <div className="w-full lg:w-3/5 bg-bg-card border border-white/5 rounded-3xl overflow-hidden aspect-video relative flex flex-col items-center justify-center shadow-2xl">
         {cameraOn ? (
-          <div className="absolute inset-0 bg-neutral-800 flex items-center justify-center">
-            <span className="text-xs text-neutral-400">[Camera Feed Mock]</span>
+          <div className="absolute inset-0 bg-bg-primary flex items-center justify-center">
+            <span className="text-xs text-text-secondary">[Camera Feed Mock]</span>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 text-center">
-            <div className="w-20 h-20 rounded-full bg-neutral-800 border border-white/10 flex items-center justify-center text-neutral-400">
+            <div className="w-20 h-20 rounded-full bg-bg-primary border border-white/5 flex items-center justify-center text-text-secondary">
               <User className="w-10 h-10" />
             </div>
-            <p className="text-sm font-semibold text-neutral-400">Camera is off</p>
+            <p className="text-sm font-semibold text-text-secondary">Camera is off</p>
           </div>
         )}
 
@@ -233,8 +235,8 @@ const RoomContent: React.FC<{
             onClick={() => setMicOn(!micOn)}
             className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
               micOn
-                ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-white/10'
-                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30'
+                ? 'bg-bg-primary hover:bg-neutral-800 text-white border-white/5'
+                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/20'
             }`}
             title={micOn ? 'Mute Mic' : 'Unmute Mic'}
           >
@@ -244,8 +246,8 @@ const RoomContent: React.FC<{
             onClick={() => setCameraOn(!cameraOn)}
             className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
               cameraOn
-                ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-white/10'
-                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30'
+                ? 'bg-bg-primary hover:bg-neutral-800 text-white border-white/5'
+                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/20'
             }`}
             title={cameraOn ? 'Turn Camera Off' : 'Turn Camera On'}
           >
@@ -259,13 +261,13 @@ const RoomContent: React.FC<{
         {sessionState === 'idle_host' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight text-white">Ready to host?</h2>
-            <p className="text-sm text-neutral-400 leading-relaxed">
+            <p className="text-sm text-text-secondary leading-relaxed font-medium">
               No one else is in this theater yet. Click Start to initialize the room session, and send the link to friends to let them join.
             </p>
             <div className="pt-2 flex flex-col gap-3">
               <Button
                 onClick={startSession}
-                variant="cyan"
+                variant="primary"
                 className="w-full py-3.5 text-sm font-bold tracking-wider"
               >
                 <span className="flex items-center justify-center gap-2">
@@ -290,12 +292,12 @@ const RoomContent: React.FC<{
         {sessionState === 'idle_guest' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight text-white font-sans">Lobby Standby</h2>
-            <p className="text-sm text-neutral-400 leading-relaxed">
+            <p className="text-sm text-text-secondary leading-relaxed font-medium">
               The room session is inactive. The host is currently preparing the media stream. Please stay on this screen to automatically enter when they go live.
             </p>
-            <div className="flex items-center gap-3 text-xs text-neutral-350 py-2.5 px-4 bg-white/5 border border-white/10 rounded-2xl w-full max-w-sm relative overflow-hidden">
+            <div className="flex items-center gap-3 text-xs text-text-secondary py-2.5 px-4 bg-white/5 border border-white/5 rounded-2xl w-full max-w-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
-              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+              <div className="w-2.5 h-2.5 rounded-full bg-brand animate-pulse shrink-0" />
               <span className="font-mono">Waiting for session start...</span>
             </div>
             <Button
@@ -314,12 +316,12 @@ const RoomContent: React.FC<{
         {sessionState === 'knocking' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight text-white">Ask to join?</h2>
-            <p className="text-sm text-neutral-400 leading-relaxed">
+            <p className="text-sm text-text-secondary leading-relaxed font-medium">
               An active session is running in this room. You must knock to request permission to join the party.
             </p>
-            <div className="flex items-center gap-3 text-xs text-neutral-350 py-2.5 px-4 bg-white/5 border border-white/10 rounded-2xl w-full max-w-sm relative overflow-hidden">
+            <div className="flex items-center gap-3 text-xs text-text-secondary py-2.5 px-4 bg-white/5 border border-white/5 rounded-2xl w-full max-w-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
-              <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0" />
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shrink-0" />
               <span className="font-mono">Waiting for host's approval...</span>
             </div>
             <Button
@@ -338,7 +340,7 @@ const RoomContent: React.FC<{
         {sessionState === 'rejected' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight text-red-400">Entry Denied</h2>
-            <p className="text-sm text-neutral-400 leading-relaxed">
+            <p className="text-sm text-text-secondary leading-relaxed font-medium">
               The host of this session rejected your join request. You cannot join this room.
             </p>
             <Button

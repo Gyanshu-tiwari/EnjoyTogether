@@ -37,13 +37,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 relative overflow-hidden">
+      <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
-        <div className="w-12 h-12 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center relative">
-          <div className="absolute inset-0 rounded-full bg-cyan-400 animate-ping opacity-75" />
-          <div className="relative w-4 h-4 rounded-full bg-cyan-400" />
+        <div className="w-12 h-12 rounded-full bg-brand/10 border border-brand-border flex items-center justify-center relative">
+          <div className="absolute inset-0 rounded-full bg-brand animate-ping opacity-75" />
+          <div className="relative w-4 h-4 rounded-full bg-brand" />
         </div>
-        <span className="font-mono text-xs tracking-widest text-cyan-400 animate-pulse uppercase">EnjoyTogether</span>
+        <span className="font-mono text-xs tracking-widest text-brand animate-pulse uppercase">EnjoyTogether</span>
       </div>
     );
   }

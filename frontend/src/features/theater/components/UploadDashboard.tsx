@@ -244,11 +244,11 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
   };
 
   return (
-    <div className="w-full max-w-4xl bg-neutral-900/60 border border-white/5 rounded-3xl p-8 backdrop-blur-2xl shadow-2xl text-white animate-fade-in">
-      <h2 className="text-2xl font-black mb-1 bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
+    <div className="w-full max-w-4xl bg-bg-card border border-white/5 rounded-3xl p-8 shadow-2xl text-white animate-fade-in">
+      <h2 className="text-2xl font-black mb-1 text-indigo-400 tracking-tight">
         Deploy New Theater Session
       </h2>
-      <p className="text-xs text-neutral-400 mb-6">
+      <p className="text-xs text-text-secondary mb-6">
         Select a movie track and search for its details to begin.
       </p>
 
@@ -271,13 +271,13 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         {/* Left Input Matrix Controls */}
         <div className="flex flex-col gap-5">
           <div>
-            <label className="block text-[10px] font-bold text-neutral-400 mb-2 tracking-wider uppercase">Movie Title Lookup</label>
+            <label className="block text-[10px] font-bold text-text-secondary mb-2 tracking-wider uppercase">Movie Title Lookup</label>
             <input
               type="text"
               value={movieTitle}
               onChange={(e) => setMovieTitle(e.target.value)}
               placeholder="Search movie details..."
-              className="w-full px-4 py-3 bg-neutral-950/50 rounded-2xl border border-white/10 focus:outline-none focus:border-cyan-500/50 text-sm transition-all text-neutral-200 placeholder-neutral-500"
+              className="w-full px-4 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
             />
           </div>
 
@@ -288,21 +288,21 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             onDrop={handleDrop}
             onClick={() => !uploading && fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all min-h-45 ${
-              isDragging ? 'border-cyan-400 bg-cyan-500/10' : 'border-white/10 hover:border-white/20 bg-neutral-950/20'
+              isDragging ? 'border-brand bg-brand-muted' : 'border-white/5 hover:border-white/10 bg-bg-primary/50'
             } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <input type="file" accept="video/*" ref={fileInputRef} onChange={(e) => e.target.files && setFile(e.target.files[0])} className="hidden" disabled={uploading} />
-            <Film className="w-8 h-8 text-neutral-400 mb-2" />
+            <Film className="w-8 h-8 text-text-secondary mb-2" />
             <p className="text-sm font-bold text-neutral-200">
               {file ? file.name : 'Upload movie file'}
             </p>
-            <p className="text-xs text-neutral-500 mt-1">Drag & drop or browse locally</p>
+            <p className="text-xs text-text-secondary mt-1">Drag & drop or browse locally</p>
           </div>
 
           {file && !uploading && !uploadComplete && (
             <button
               onClick={handleActualUpload}
-              className="w-full py-3.5 bg-blue-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
+              className="w-full py-3.5 bg-brand hover:bg-brand-hover rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-brand/10 active:scale-95"
             >
               <span className="flex items-center justify-center gap-2">
                 <UploadCloud className="w-4 h-4" />
@@ -314,31 +314,31 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
           {/* Progress Bar Loader */}
           {uploading && (
             <div className="mt-4 animate-fade-in">
-              <div className="flex justify-between text-xs text-neutral-400 mb-2 font-mono">
+              <div className="flex justify-between text-xs text-text-secondary mb-2 font-mono">
                 <span className="flex items-center gap-1.5">
                   {processingPhase === 'transcoding' ? (
                     <>
-                      <Cpu className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                      <Cpu className="w-3.5 h-3.5 animate-spin text-indigo-400" />
                       <span>TRANSCODING VIDEO (STREAM COPY)...</span>
                     </>
                   ) : (
                     <>
-                      <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                      <Zap className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
                       <span>UPLOADING FILE TO LOCAL SERVER...</span>
                     </>
                   )}
                 </span>
-                <span className="text-cyan-400 font-bold">{progress}%</span>
+                <span className="text-indigo-400 font-bold">{progress}%</span>
               </div>
-              <div className="w-full h-2 bg-neutral-950 rounded-full overflow-hidden border border-white/5">
+              <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-150 shadow-[0_0_12px_rgba(34,211,238,0.4)]"
+                  className="h-full bg-brand rounded-full transition-all duration-150 shadow-[0_0_12px_rgba(79,70,229,0.3)]"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-neutral-400 mt-2 font-mono">
+              <div className="flex justify-between text-[10px] text-text-secondary mt-2 font-mono">
                 <span>Speed: <span className="text-neutral-300 font-semibold">{uploadSpeed || 'Calculating...'}</span></span>
-                <span>ETA: <span className="text-cyan-400 font-semibold">{eta || 'Calculating...'}</span></span>
+                <span>ETA: <span className="text-indigo-400 font-semibold">{eta || 'Calculating...'}</span></span>
               </div>
             </div>
           )}
@@ -351,7 +351,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                   const finalUrl = resolvedStreamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/${fileId}.m3u8`;
                   onUploadSuccess(finalUrl);
                 }}
-                className="w-full py-4 bg-blue-500 shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.01] active:scale-95 rounded-2xl text-xs font-black tracking-widest text-white transition-all duration-300 cursor-pointer border border-cyan-400/20 hover:border-cyan-400/50 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-brand hover:bg-brand-hover shadow-[0_0_20px_rgba(79,70,229,0.15)] hover:shadow-[0_0_30px_rgba(79,70,229,0.3)] hover:scale-[1.01] active:scale-95 rounded-2xl text-xs font-black tracking-widest text-white transition-all duration-300 cursor-pointer border border-brand-border flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 text-white" />
                 <span>ENTER ACTIVE STREAM THEATER</span>
@@ -361,23 +361,23 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         </div>
 
         {/* Right Preview Banner Box Card Matrix */}
-        <div className="rounded-2xl overflow-hidden border border-white/10 bg-neutral-950/40 relative flex flex-col justify-end min-h-75">
+        <div className="rounded-2xl overflow-hidden border border-white/5 bg-bg-primary/30 relative flex flex-col justify-end min-h-75">
           {metadata ? (
             <>
               <img src={metadata.bannerUrl} alt="Movie Backdrop" className="absolute inset-0 w-full h-full object-cover opacity-40 animate-fade-in" />
-              <div className="absolute inset-0 bg-neutral-950" />
+              <div className="absolute inset-0 bg-bg-primary" />
               <div className="relative p-6 z-10">
                 <h3 className="text-lg font-black mb-2 tracking-tight text-white">{metadata.title}</h3>
-                <p className="text-xs text-neutral-400 leading-relaxed max-h-24 overflow-y-auto pr-2 custom-scrollbar">
+                <p className="text-xs text-text-secondary leading-relaxed max-h-24 overflow-y-auto pr-2 custom-scrollbar">
                   {metadata.overview}
                 </p>
               </div>
             </>
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500 p-6 text-center">
-              <Film className="w-10 h-10 mb-3 opacity-30 text-neutral-400" />
-              <p className="text-sm font-semibold text-neutral-400">Metadata Display Panel</p>
-              <p className="text-xs text-neutral-500 max-w-55 mt-1">Live TMDB details will load here as you search.</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-text-secondary p-6 text-center">
+              <Film className="w-10 h-10 mb-3 opacity-30 text-text-secondary" />
+              <p className="text-sm font-semibold text-text-secondary">Metadata Display Panel</p>
+              <p className="text-xs text-text-secondary max-w-55 mt-1">Live TMDB details will load here as you search.</p>
             </div>
           )}
         </div>
