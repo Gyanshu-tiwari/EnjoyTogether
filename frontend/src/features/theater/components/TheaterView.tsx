@@ -127,7 +127,7 @@ export const TheaterView: React.FC = () => {
                               <div className="flex flex-col items-start max-w-[80%]">
                                 <span className="text-[10px] text-neutral-400 font-bold ml-1 mb-0.5">{msg.user}</span>
                                 <div className="flex items-end gap-1.5">
-                                  <div className="w-6 h-6 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-md">
+                                  <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-md">
                                     {msg.user.charAt(0).toUpperCase()}
                                   </div>
                                   <div className="bg-neutral-800 border border-white/5 px-3 py-2 rounded-2xl rounded-bl-sm text-xs text-neutral-200 shadow-sm">
@@ -161,7 +161,7 @@ export const TheaterView: React.FC = () => {
                     />
                     <button
                       onClick={sendMessage}
-                      className="px-3 bg-linear-to-r from-blue-500 to-cyan-500 text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer text-white"
+                      className="px-3 bg-blue-500 text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer text-white"
                     >
                       Send
                     </button>

@@ -6,6 +6,7 @@ import Room from '@/pages/Room';
 import ResetPassword from '@/pages/ResetPassword';
 import Verified from '@/pages/Verified';
 import { Spinner } from '@/shared/components/feedback/Spinner';
+import { MainLayout } from '@/shared/components/layout';
 
 // ── Auth state listener — handles cross-tab sign-in sync ────────────────────
 const AuthListener = () => {
@@ -59,15 +60,17 @@ export const AppRoutes = () => {
     <>
       <AuthListener />
       <Routes>
-        <Route path="/" element={<Room />} />
-        <Route
-          path="/room/:id"
-          element={
-            <ProtectedRoute>
-              <Room />
-            </ProtectedRoute>
-          }
-        />
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Room />} />
+          <Route
+            path="/room/:id"
+            element={
+              <ProtectedRoute>
+                <Room />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verified" element={<Verified />} />
       </Routes>

@@ -120,7 +120,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-2 text-center z-10 select-none animate-fade-in">
-                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500/10 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center shadow-inner">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-inner">
                         <span className="text-xs font-bold text-cyan-300 font-mono">
                           {initial}
                         </span>

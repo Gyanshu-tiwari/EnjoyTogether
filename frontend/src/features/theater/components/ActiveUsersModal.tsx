@@ -34,7 +34,7 @@ export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onCl
           return (
             <div key={user.socketId} className="flex items-center justify-between p-2 hover:bg-white/5 rounded-xl transition-colors group">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-md">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex flex-col">

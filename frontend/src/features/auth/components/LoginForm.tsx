@@ -104,7 +104,7 @@ export const LoginForm: React.FC = () => {
 
       {/* Brand logo & tagline */}
       <div className="flex flex-col items-center mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-linear-to-tr from-blue-500 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300 text-white">
+        <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 scale-95 hover:scale-100 transition-transform duration-300 text-white">
           <Video className="w-8 h-8" />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
@@ -203,7 +203,7 @@ export const LoginForm: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95 disabled:opacity-50 mt-2"
+              className="w-full py-3.5 bg-blue-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95 disabled:opacity-50 mt-2"
             >
               {loading ? 'PROCESSING...' : mode === 'signin' ? 'SIGN IN' : mode === 'signup' ? 'CREATE ACCOUNT' : 'SEND RESET LINK'}
             </button>

@@ -245,7 +245,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
 
   return (
     <div className="w-full max-w-4xl bg-neutral-900/60 border border-white/5 rounded-3xl p-8 backdrop-blur-2xl shadow-2xl text-white animate-fade-in">
-      <h2 className="text-2xl font-black mb-1 bg-linear-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
+      <h2 className="text-2xl font-black mb-1 bg-blue-500 text-transparent tracking-tight">
         Deploy New Theater Session
       </h2>
       <p className="text-xs text-neutral-400 mb-6">
@@ -302,7 +302,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
           {file && !uploading && !uploadComplete && (
             <button
               onClick={handleActualUpload}
-              className="w-full py-3.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
+              className="w-full py-3.5 bg-blue-500 hover:opacity-95 rounded-2xl text-xs font-black tracking-wider transition-all cursor-pointer text-white shadow-lg shadow-indigo-500/10 active:scale-95"
             >
               <span className="flex items-center justify-center gap-2">
                 <UploadCloud className="w-4 h-4" />
@@ -332,7 +332,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
               </div>
               <div className="w-full h-2 bg-neutral-950 rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="h-full bg-linear-to-r from-blue-400 via-cyan-400 to-indigo-500 rounded-full transition-all duration-150 shadow-[0_0_12px_rgba(34,211,238,0.4)]"
+                  className="h-full bg-blue-500 rounded-full transition-all duration-150 shadow-[0_0_12px_rgba(34,211,238,0.4)]"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -351,7 +351,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                   const finalUrl = resolvedStreamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/${fileId}.m3u8`;
                   onUploadSuccess(finalUrl);
                 }}
-                className="w-full py-4 bg-linear-to-r from-cyan-500 via-blue-500 to-indigo-600 shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.01] active:scale-95 rounded-2xl text-xs font-black tracking-widest text-white transition-all duration-300 cursor-pointer border border-cyan-400/20 hover:border-cyan-400/50 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-blue-500 shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.01] active:scale-95 rounded-2xl text-xs font-black tracking-widest text-white transition-all duration-300 cursor-pointer border border-cyan-400/20 hover:border-cyan-400/50 flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 text-white" />
                 <span>ENTER ACTIVE STREAM THEATER</span>
@@ -365,7 +365,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
           {metadata ? (
             <>
               <img src={metadata.bannerUrl} alt="Movie Backdrop" className="absolute inset-0 w-full h-full object-cover opacity-40 animate-fade-in" />
-              <div className="absolute inset-0 bg-linear-to-t from-neutral-950 via-neutral-950/50 to-transparent" />
+              <div className="absolute inset-0 bg-neutral-950" />
               <div className="relative p-6 z-10">
                 <h3 className="text-lg font-black mb-2 tracking-tight text-white">{metadata.title}</h3>
                 <p className="text-xs text-neutral-400 leading-relaxed max-h-24 overflow-y-auto pr-2 custom-scrollbar">
