@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { Track } from 'livekit-client';
-import { Spinner } from '@/shared/components/feedback/Spinner';
 import type { ParticipantInfo } from '../hooks/useLiveKitRoom';
 import { AlertTriangle, Radio, Mic, MicOff } from 'lucide-react';
 
@@ -76,9 +75,20 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-neutral-900/40 border border-white/5 h-full text-center gap-4 animate-pulse">
-        <Spinner size="sm" />
-        <p className="text-sm font-semibold text-neutral-300">Connecting to voice mesh...</p>
+      <div className="flex-1 flex flex-col gap-2 w-full">
+        <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-1 animate-pulse">Connecting to voice mesh...</p>
+        <div className="grid grid-cols-2 gap-2 w-full">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="relative aspect-video rounded-2xl bg-neutral-900 border border-white/5 overflow-hidden flex flex-col items-center justify-center"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+              <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center animate-pulse" />
+              <div className="w-16 h-3 bg-neutral-800 rounded-md mt-2 animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

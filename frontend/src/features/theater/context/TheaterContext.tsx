@@ -56,17 +56,17 @@ export const TheaterProvider: React.FC<{
     setComments,
   });
 
-  // Emit change-video-src ONLY after mount (not on initial render)
+  // Emit change-video-src ONLY after mount (not on initial render) and ONLY if host
   const hasMountedStreamRef = useRef(false);
   useEffect(() => {
     if (!hasMountedStreamRef.current) {
       hasMountedStreamRef.current = true;
       return;
     }
-    if (socket && currentStreamUrl && sessionState === 'active_session') {
+    if (isHost && socket && currentStreamUrl && sessionState === 'active_session') {
       socket.emit('change-video-src', { roomId, streamUrl: currentStreamUrl });
     }
-  }, [currentStreamUrl, roomId, socket, sessionState]);
+  }, [currentStreamUrl, roomId, socket, sessionState, isHost]);
 
   // Derive effective role from activeUsers list, falling back to state
   const me = activeUsers.find((u) => u.userId === currentUserId);

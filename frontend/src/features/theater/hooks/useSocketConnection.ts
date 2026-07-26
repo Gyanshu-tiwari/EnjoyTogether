@@ -47,7 +47,7 @@ export function useSocketConnection({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [kickedReason, setKickedReason] = useState<string | null>(null);
 
-  // Fix #3: Store sessionState in a ref so the connect callback is never stale
+  // Store sessionState in a ref so the connect callback is never stale
   const sessionStateRef = useRef(sessionState);
   const isHostRef = useRef(isHost);
   useEffect(() => { sessionStateRef.current = sessionState; }, [sessionState]);
@@ -55,10 +55,29 @@ export function useSocketConnection({
 
   const hasLobbyAccess = ACTIVE_STATES.includes(sessionState);
 
+  const emojiTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   useEffect(() => {
     if (!hasLobbyAccess) return;
 
     let socketInstance: Socket | null = null;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("👀 Tab became visible. Checking socket synchronization...");
+        if (socketInstance) {
+          if (!socketInstance.connected) {
+            console.log("🔄 Socket disconnected during background throttling. Reconnecting manually...");
+            socketInstance.connect();
+          } else {
+            console.log("📡 Socket connected. Requesting lightweight state sync...");
+            socketInstance.emit('room:request-sync', { roomId });
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const connectSocket = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -124,9 +143,11 @@ export function useSocketConnection({
       socketInstance.on('room:receive-emoji', (data: { emoji: string }) => {
         const emojiId = Math.random().toString(36).substring(2, 9);
         setFloatingEmojis((prev) => [...prev, { id: emojiId, emoji: data.emoji }]);
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           setFloatingEmojis((prev) => prev.filter((item) => item.id !== emojiId));
+          emojiTimeoutsRef.current = emojiTimeoutsRef.current.filter((t) => t !== timer);
         }, 3000);
+        emojiTimeoutsRef.current.push(timer);
       });
 
       socketInstance.on('update-video-src', (newUrl: string) => {
@@ -162,10 +183,13 @@ export function useSocketConnection({
     });
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (socketInstance) {
         socketInstance.disconnect();
       }
       setSocket(null);
+      emojiTimeoutsRef.current.forEach((t) => clearTimeout(t));
+      emojiTimeoutsRef.current = [];
     };
   }, [hasLobbyAccess, roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -218,29 +242,6 @@ export function useSocketConnection({
       socket.emit('room:kick-user', { targetUserId });
     }
   }, [socket]);
-
-  // Implement Page Visibility API lifecycle handling
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log("👀 Tab became visible. Checking socket synchronization...");
-        if (socket) {
-          if (!socket.connected) {
-            console.log("🔄 Socket disconnected during background throttling. Reconnecting manually...");
-            socket.connect();
-          } else {
-            console.log("📡 Socket connected. Requesting lightweight state sync...");
-            socket.emit('room:request-sync', { roomId });
-          }
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [socket, roomId]);
 
   return { socket, knocks, floatingEmojis, approveGuest, rejectGuest, sendEmoji, sendMessage, activeUsers, changeRole, kickUser, currentUserId, kickedReason };
 }

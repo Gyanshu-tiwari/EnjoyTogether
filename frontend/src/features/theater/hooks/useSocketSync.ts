@@ -19,6 +19,9 @@ export function useSocketSync({ videoRef, socket, roomId }: UseSocketSyncParams)
   const lastSyncedRef = useRef<SyncState | null>(null);
   const [isBlocked, setIsBlocked] = useState<boolean>(false);
 
+  const playbackRateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !socket) return;
@@ -45,8 +48,9 @@ export function useSocketSync({ videoRef, socket, roomId }: UseSocketSyncParams)
         // Soft sync: nudge playback rate to converge smoothly over ~3s
         const nudge = video.currentTime < latencyCompensatedPosition ? 1.05 : 0.95;
         video.playbackRate = nudge;
-        setTimeout(() => {
-          if (video) video.playbackRate = 1.0;
+        if (playbackRateTimeoutRef.current) clearTimeout(playbackRateTimeoutRef.current);
+        playbackRateTimeoutRef.current = setTimeout(() => {
+          if (videoRef.current) videoRef.current.playbackRate = 1.0;
         }, 3000);
       }
       // < 0.3s: within acceptable tolerance, no correction needed
@@ -57,13 +61,15 @@ export function useSocketSync({ videoRef, socket, roomId }: UseSocketSyncParams)
           .then(() => setIsBlocked(false))
           .catch(() => setIsBlocked(true))
           .finally(() => {
-            setTimeout(() => { isSyncingRef.current = false; }, 200);
+            if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+            syncTimeoutRef.current = setTimeout(() => { isSyncingRef.current = false; }, 200);
           });
       } else {
         if (!state.isPlaying && !video.paused) {
           video.pause();
         }
-        setTimeout(() => { isSyncingRef.current = false; }, 200);
+        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = setTimeout(() => { isSyncingRef.current = false; }, 200);
       }
     };
 
@@ -111,6 +117,8 @@ export function useSocketSync({ videoRef, socket, roomId }: UseSocketSyncParams)
       video.removeEventListener('pause', emitMediaAction);
       video.removeEventListener('seeked', emitMediaAction);
       socket.off('sync-state', handleSyncState);
+      if (playbackRateTimeoutRef.current) clearTimeout(playbackRateTimeoutRef.current);
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
   }, [socket, roomId, videoRef]);
 

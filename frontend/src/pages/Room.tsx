@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/shared/api/apiClient';
 import { supabase } from '@/shared/lib/supabase';
 import { Button } from '@/shared/components/ui/Button';
-import { Spinner } from '@/shared/components/feedback/Spinner';
 import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
 import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home } from 'lucide-react';
@@ -294,9 +293,10 @@ const RoomContent: React.FC<{
             <p className="text-sm text-neutral-400 leading-relaxed">
               The room session is inactive. The host is currently preparing the media stream. Please stay on this screen to automatically enter when they go live.
             </p>
-            <div className="flex items-center gap-3 text-xs text-neutral-500 font-mono py-2 bg-white/5 px-4 rounded-xl border border-white/5 w-fit">
-              <Spinner size="sm" />
-              <span>Waiting for session start...</span>
+            <div className="flex items-center gap-3 text-xs text-neutral-350 py-2.5 px-4 bg-white/5 border border-white/10 rounded-2xl w-full max-w-sm relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+              <span className="font-mono">Waiting for session start...</span>
             </div>
             <Button
               onClick={onExit}
@@ -317,9 +317,10 @@ const RoomContent: React.FC<{
             <p className="text-sm text-neutral-400 leading-relaxed">
               An active session is running in this room. You must knock to request permission to join the party.
             </p>
-            <div className="flex items-center gap-3 text-xs text-neutral-500 font-mono py-2 bg-white/5 px-4 rounded-xl border border-white/5 w-fit">
-              <Spinner size="sm" />
-              <span>Waiting for host's admission approval...</span>
+            <div className="flex items-center gap-3 text-xs text-neutral-350 py-2.5 px-4 bg-white/5 border border-white/10 rounded-2xl w-full max-w-sm relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+              <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0" />
+              <span className="font-mono">Waiting for host's approval...</span>
             </div>
             <Button
               onClick={onExit}

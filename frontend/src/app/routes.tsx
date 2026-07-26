@@ -5,7 +5,6 @@ import { useAuthSession } from '@/features/auth';
 import Room from '@/pages/Room';
 import ResetPassword from '@/pages/ResetPassword';
 import Verified from '@/pages/Verified';
-import { Spinner } from '@/shared/components/feedback/Spinner';
 import { MainLayout } from '@/shared/components/layout';
 
 // ── Auth state listener — handles cross-tab sign-in sync ────────────────────
@@ -33,17 +32,18 @@ const AuthListener = () => {
   return null;
 };
 
-// ── Protected Route — guards /room/:id from unauthenticated access ──────────
-// If the session is still resolving, render a full-page spinner to prevent
-// the login wall flash. Once resolved, if no session exists, redirect to root.
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuthSession();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-400 font-medium gap-4">
-        <Spinner size="md" />
-        <span>Loading EnjoyTogether...</span>
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+        <div className="w-12 h-12 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center relative">
+          <div className="absolute inset-0 rounded-full bg-cyan-400 animate-ping opacity-75" />
+          <div className="relative w-4 h-4 rounded-full bg-cyan-400" />
+        </div>
+        <span className="font-mono text-xs tracking-widest text-cyan-400 animate-pulse uppercase">EnjoyTogether</span>
       </div>
     );
   }

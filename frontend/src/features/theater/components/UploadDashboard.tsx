@@ -180,10 +180,10 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         setUploadSpeed('Calculating...');
         setEta('Calculating...');
 
+        let consecutiveErrors = 0;
+        const MAX_CONSECUTIVE_ERRORS = 5;
+
         pollIntervalRef.current = setInterval(async () => {
-          let consecutiveErrors = 0;
-          const MAX_CONSECUTIVE_ERRORS = 5;
-          
           const poll = async () => {
             try {
               const statusRes = await getTranscodeStatus(newFileId);
