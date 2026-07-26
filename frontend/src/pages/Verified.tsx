@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/Button';
 import { useAuthSession } from '@/features/auth';
-import { Spinner } from '@/shared/components/feedback/Spinner';
 import { AlertTriangle } from 'lucide-react';
+import { CardSkeleton } from '@/shared/components/feedback/Skeletons';
 
 export const Verified: React.FC = () => {
   const navigate = useNavigate();
@@ -14,9 +14,8 @@ export const Verified: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 w-full">
-        <Spinner size="md" />
-        <span>Verifying your session...</span>
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 text-white selection:bg-cyan-500/30 font-sans select-none w-full relative overflow-hidden">
+        <CardSkeleton />
       </div>
     );
   }

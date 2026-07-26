@@ -7,6 +7,7 @@ import { Spinner } from '@/shared/components/feedback/Spinner';
 import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
 import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home } from 'lucide-react';
+import { TheaterSkeleton, DashboardSkeleton } from '@/shared/components/feedback/Skeletons';
 
 const RoomContent: React.FC<{
   roomId: string;
@@ -38,12 +39,7 @@ const RoomContent: React.FC<{
   };
 
   if (loading) {
-    return (
-      <div className="min-h-100 w-full flex flex-col items-center justify-center text-neutral-400 font-medium gap-4">
-        <Spinner size="md" />
-        <span>Loading session parameters...</span>
-      </div>
-    );
+    return <TheaterSkeleton />;
   }
 
   if (dbError) {
@@ -368,12 +364,7 @@ export const Room: React.FC = () => {
   const bypassLogin = false;
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-400 font-medium gap-4">
-        <Spinner size="md" />
-        <span>Loading EnjoyTogether...</span>
-      </div>
-    );
+    return id ? <TheaterSkeleton /> : <DashboardSkeleton />;
   }
 
   const handleCreateRoom = async (movieUrl: string) => {
