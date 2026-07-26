@@ -1,22 +1,50 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&family=Quicksand:wght@300..700&display=swap');
 @import "tailwindcss";
 
-/* ─── CSS Design Tokens ─────────────────────────────────────────────────────── */
-:root {
-  --font-heading: 'Quicksand', 'Segoe UI', Roboto, sans-serif;
+@theme {
   --font-sans: 'Nunito', Arial, Helvetica, sans-serif;
+  --font-heading: 'Quicksand', 'Segoe UI', Roboto, sans-serif;
 
-  --color-brand:         #4F46E5;   /* Premium Solid Indigo-600 (Brand) */
-  --color-brand-hover:   #4338CA;   /* Indigo-700                       */
-  --color-brand-muted:   rgba(79, 70, 229, 0.1);
-  --color-brand-border:  rgba(79, 70, 229, 0.2);
+  --color-brand: #4F46E5;
+  --color-brand-hover: #4338CA;
+  --color-brand-muted: rgba(79, 70, 229, 0.1);
+  --color-brand-border: rgba(79, 70, 229, 0.2);
+  --color-brand-glow: rgba(79, 70, 229, 0.15);
 
-  --color-bg-primary:    #09090B;   /* Solid Zinc-950 (Minimal Neutral) */
-  --color-bg-card:       #18181B;   /* Solid Zinc-900                   */
-  --color-bg-tertiary:   #27272A;   /* Solid Zinc-800                   */
-  
-  --color-text-primary:  #FAFAFA;   /* Crisp Off-white                  */
-  --color-text-secondary:#A1A1AA;   /* Soft Grey (Zinc-400)             */
+  --color-bg-primary: #09090B;
+  --color-bg-card: #18181B;
+  --color-bg-tertiary: #27272A;
+
+  --color-text-primary: #FAFAFA;
+  --color-text-secondary: #A1A1AA;
+  --color-text-muted: #71717A;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-border-medium: rgba(255, 255, 255, 0.1);
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
 }
 
 body {
@@ -95,8 +123,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   /* Custom scrollbar utility */
   .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.25); border-radius: 9999px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.45); }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-brand-border); border-radius: 9999px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-brand); }
 
   /* ─── GPU Layer Promotion ───────────────────────────────────────────────────── */
   /* Apply to glassmorphism panels so they composite on the GPU.                   */
