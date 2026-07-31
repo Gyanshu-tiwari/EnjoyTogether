@@ -33,3 +33,17 @@ CREATE POLICY "Allow public select chats" ON chats FOR SELECT USING (true);
 CREATE POLICY "Allow public insert chats" ON chats FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update chats" ON chats FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete chats" ON chats FOR DELETE USING (true);
+
+-- 5. Create the profiles table
+CREATE TABLE IF NOT EXISTS profiles (
+    id TEXT PRIMARY KEY,
+    avatar_url TEXT DEFAULT '',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public select profiles" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Allow public insert profiles" ON profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update profiles" ON profiles FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete profiles" ON profiles FOR DELETE USING (true);

@@ -5,6 +5,7 @@ import { useAuthSession } from '@/features/auth';
 import Room from '@/pages/Room';
 import ResetPassword from '@/pages/ResetPassword';
 import Verified from '@/pages/Verified';
+import Profile from '@/pages/Profile';
 import { MainLayout } from '@/shared/components/layout';
 
 // ── Auth state listener — handles cross-tab sign-in sync ────────────────────
@@ -67,6 +68,14 @@ export const AppRoutes = () => {
             element={
               <ProtectedRoute>
                 <Room />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             }
           />
