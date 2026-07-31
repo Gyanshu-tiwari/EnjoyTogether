@@ -22,11 +22,11 @@ function decodeSupabaseJwt(token: string): { sub: string; email: string; name?: 
     const parts = token.split('.');
     if (parts.length !== 3 || !parts[1]) return null;
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as {
-      sub?: string; email?: string; exp?: number; user_metadata?: { full_name?: string; name?: string };
+      sub?: string; email?: string; exp?: number; user_metadata?: { username?: string; full_name?: string; name?: string };
     };
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
     if (!payload.sub) return null;
-    const name = payload.user_metadata?.full_name || payload.user_metadata?.name;
+    const name = payload.user_metadata?.username || payload.user_metadata?.full_name || payload.user_metadata?.name;
     return { sub: payload.sub, email: payload.email || payload.sub, name };
   } catch {
     return null;
@@ -82,7 +82,13 @@ export const setupSockets = (io: Server): void => {
       const isHost   = cleanUserId === metadata.host_id;
 
       const role = await RoomRepository.getUserRoomRole(cleanRoomId, cleanUserId);
-      const name = (socket as any).user?.name || cleanUserId;
+      let name = (socket as any).user?.name;
+      if (!name && (socket as any).user?.email) {
+        name = (socket as any).user.email.split('@')[0];
+      }
+      if (!name) {
+        name = cleanUserId;
+      }
 
       socketInfo.set(socket.id, { roomId: cleanRoomId, userId: cleanUserId, name, isHost, role });
 

@@ -108,7 +108,16 @@ export function useLiveKitRoom(roomId: string, sessionState: string) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id || getAnonymousUserId();
-        const userName = session?.user?.user_metadata?.username || session?.user?.email || userId;
+        const rawUserName = session?.user?.user_metadata?.username || 
+                            session?.user?.user_metadata?.full_name || 
+                            session?.user?.user_metadata?.name;
+        let userName = rawUserName;
+        if (!userName && session?.user?.email) {
+          userName = session.user.email.split('@')[0];
+        }
+        if (!userName) {
+          userName = userId;
+        }
 
         const res = await apiClient.get(`/api/livekit/token?room_id=${roomId}&user_id=${encodeURIComponent(userId)}&user_name=${encodeURIComponent(userName)}`);
         const { token, serverUrl, role } = res.data as {

@@ -117,7 +117,16 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
         ) : (
           <div className="grid grid-cols-2 gap-2 w-full">
             {displayParticipants.map((p) => {
-              const initial = p.identity ? p.identity.charAt(0).toUpperCase() : '?';
+              const cleanName = (name: string): string => {
+                if (!name) return '';
+                const isLocal = name.endsWith(' (You)');
+                const baseName = isLocal ? name.slice(0, -6) : name;
+                const cleanBase = baseName.includes('@') ? baseName.split('@')[0] : baseName;
+                return isLocal ? `${cleanBase} (You)` : cleanBase;
+              };
+
+              const displayName = cleanName(p.identity);
+              const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
               return (
                 <div
                   key={p.identity}
@@ -154,7 +163,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
                   {/* Bottom Identity Label Overlay */}
                   <div className="absolute bottom-2 left-2 right-2 flex justify-center z-20">
                     <span className="text-[9px] font-medium text-neutral-300 font-mono truncate max-w-full px-1.5 py-0.5 text-center bg-black/60 rounded-md backdrop-blur-md border border-white/5">
-                      {p.identity}
+                      {displayName}
                     </span>
                   </div>
                 </div>

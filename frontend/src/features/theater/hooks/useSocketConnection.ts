@@ -84,7 +84,16 @@ export function useSocketConnection({
       const token = session?.access_token;
       const userId = session?.user?.id || getAnonymousUserId();
       setCurrentUserId(userId);
-      const username = session?.user?.user_metadata?.username || session?.user?.email || `Guest_${userId.slice(0, 5)}`;
+      const rawUsername = session?.user?.user_metadata?.username || 
+                          session?.user?.user_metadata?.full_name || 
+                          session?.user?.user_metadata?.name;
+      let username = rawUsername;
+      if (!username && session?.user?.email) {
+        username = session.user.email.split('@')[0];
+      }
+      if (!username) {
+        username = `Guest_${userId.slice(0, 5)}`;
+      }
       const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
 
       socketInstance = io(backendUrl, {
