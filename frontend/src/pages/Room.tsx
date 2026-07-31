@@ -7,6 +7,8 @@ import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
 import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft } from 'lucide-react';
 import { TheaterSkeleton, DashboardSkeleton, LobbySkeleton } from '@/shared/components/feedback/Skeletons';
+import { getRoomMetadata } from '@/features/theater/api/theaterApi';
+import { getAnonymousUserId } from '@/features/theater/hooks/useRoomSession';
 
 const RoomContent: React.FC<{
   roomId: string;
@@ -364,13 +366,54 @@ const RoomContent: React.FC<{
 };
 
 export const Room: React.FC = () => {
-  const { session, loading } = useAuthSession();
+  const { session, loading: authLoading } = useAuthSession();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const bypassLogin = false;
 
-  if (loading) {
-    return id ? <LobbySkeleton /> : <DashboardSkeleton />;
+  const [roomActive, setRoomActive] = useState<boolean | null>(null);
+  const [isHost, setIsHost] = useState<boolean | null>(null);
+  const [roomLoading, setRoomLoading] = useState<boolean>(true);
+
+  React.useEffect(() => {
+    if (!id) {
+      setRoomLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const checkRoom = async () => {
+      try {
+        setRoomLoading(true);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const userId = currentSession?.user?.id || getAnonymousUserId();
+
+        const response = await getRoomMetadata(id);
+        const room = response.metadata;
+
+        if (!cancelled && room) {
+          setRoomActive(room.is_active || false);
+          setIsHost(room.host_id === userId);
+        }
+      } catch (err) {
+        console.error('❌ Failed quick room lookup:', err);
+      } finally {
+        if (!cancelled) {
+          setRoomLoading(false);
+        }
+      }
+    };
+
+    checkRoom();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, session]);
+
+  if (authLoading || (id && roomLoading)) {
+    if (!id) return <DashboardSkeleton />;
+    return roomActive ? <TheaterSkeleton /> : <LobbySkeleton />;
   }
 
   const handleCreateRoom = async (movieUrl: string) => {
@@ -398,7 +441,12 @@ export const Room: React.FC = () => {
   return (
     <div className="w-full flex flex-col items-center">
       {id ? (
-        <TheaterProvider roomId={id} initialStreamUrl="">
+        <TheaterProvider 
+          roomId={id} 
+          initialStreamUrl=""
+          initialActive={roomActive ?? false}
+          initialIsHost={isHost ?? false}
+        >
           <RoomContent roomId={id} onExit={() => navigate('/', { replace: true })} />
         </TheaterProvider>
       ) : (

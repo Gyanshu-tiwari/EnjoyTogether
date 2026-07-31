@@ -20,11 +20,27 @@ interface RoomSessionResult {
 }
 
 
-export function useRoomSession(roomId: string, isHostProp?: boolean, initialStreamUrl?: string): RoomSessionResult {
+export function useRoomSession(
+  roomId: string,
+  isHostProp?: boolean,
+  initialStreamUrl?: string,
+  initialActive?: boolean
+): RoomSessionResult {
 
-  const [sessionState, setSessionState] = useState<SessionState>('idle_guest');
-  const [isHost, setIsHost] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const getInitialState = (): SessionState => {
+    if (initialActive !== undefined && isHostProp !== undefined) {
+      if (initialActive) {
+        return isHostProp ? 'active_session' : 'knocking';
+      } else {
+        return isHostProp ? 'idle_host' : 'idle_guest';
+      }
+    }
+    return 'idle_guest';
+  };
+
+  const [sessionState, setSessionState] = useState<SessionState>(getInitialState());
+  const [isHost, setIsHost] = useState(isHostProp || false);
+  const [loading, setLoading] = useState(initialActive === undefined || isHostProp === undefined);
   const [dbError, setDbError] = useState<string | null>(null);
   const [currentStreamUrl, setCurrentStreamUrl] = useState(initialStreamUrl || '');
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -45,7 +61,9 @@ export function useRoomSession(roomId: string, isHostProp?: boolean, initialStre
     let cancelled = false;
     const checkRoomStatus = async () => {
       try {
-        setLoading(true);
+        if (initialActive === undefined || isHostProp === undefined) {
+          setLoading(true);
+        }
         setDbError(null);
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id || getAnonymousUserId();
@@ -76,7 +94,7 @@ export function useRoomSession(roomId: string, isHostProp?: boolean, initialStre
 
     checkRoomStatus();
     return () => { cancelled = true; };
-  }, [roomId, isHostProp]);
+  }, [roomId, isHostProp, initialActive]);
 
   // 2. Polling for idle guests — increased to 3s to reduce server load
   useEffect(() => {
@@ -116,9 +134,10 @@ export function useRoomSession(roomId: string, isHostProp?: boolean, initialStre
   const startSession = useCallback(async () => {
     try {
       setLoading(true);
-      await toggleRoomActive(roomId, true);
       setSessionState('active_session');
+      await toggleRoomActive(roomId, true);
     } catch (err) {
+      setSessionState('idle_host');
       console.error('❌ Failed to start room session:', err);
     } finally {
       setLoading(false);
@@ -128,9 +147,10 @@ export function useRoomSession(roomId: string, isHostProp?: boolean, initialStre
   const endSession = useCallback(async () => {
     try {
       setLoading(true);
-      await toggleRoomActive(roomId, false);
       setSessionState('idle_host');
+      await toggleRoomActive(roomId, false);
     } catch (err) {
+      setSessionState('active_session');
       console.error('❌ Failed to end room session:', err);
     } finally {
       setLoading(false);

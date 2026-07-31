@@ -9,8 +9,10 @@ export const TheaterProvider: React.FC<{
   roomId?: string;
   initialStreamUrl: string;
   isHost?: boolean;
+  initialActive?: boolean;
+  initialIsHost?: boolean;
   children: React.ReactNode;
-}> = ({ roomId: propRoomId, initialStreamUrl, isHost: isHostProp, children }) => {
+}> = ({ roomId: propRoomId, initialStreamUrl, isHost: isHostProp, initialActive, initialIsHost, children }) => {
   const { id } = useParams<{ id: string }>();
   const roomId = propRoomId || id || 'enjoy-together-main';
 
@@ -31,7 +33,12 @@ export const TheaterProvider: React.FC<{
     currentStreamUrl,
     startSession,
     endSession,
-  } = useRoomSession(roomId, isHostProp, initialStreamUrl);
+  } = useRoomSession(
+    roomId,
+    isHostProp !== undefined ? isHostProp : initialIsHost,
+    initialStreamUrl,
+    initialActive
+  );
 
   // ─── Socket connection ─────────────────────────────────────────────────────
   const {
