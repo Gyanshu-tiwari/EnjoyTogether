@@ -44,7 +44,7 @@ export const TheaterSkeleton: React.FC = () => {
         </div>
 
         {/* Right Sidebar panel */}
-        <div className="w-full lg:w-[320px] h-[450px] lg:h-auto">
+        <div className="w-full lg:w-[320px] h-112.5 lg:h-auto">
           <ShimmerBlock className="w-full h-full rounded-2xl" />
         </div>
       </div>

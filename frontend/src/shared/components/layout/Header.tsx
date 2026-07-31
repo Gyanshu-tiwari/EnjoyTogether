@@ -16,8 +16,10 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
     supabase.auth.signOut();
   };
 
+  const username = session?.user?.user_metadata?.username || '';
   const userEmail = session?.user?.email || '';
-  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
+  const displayName = username || userEmail || 'User';
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <header className="w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4 relative z-45">
@@ -35,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="w-10 h-10 rounded-full bg-brand-muted border border-brand-border flex items-center justify-center font-bold text-indigo-400 font-mono cursor-pointer hover:border-indigo-400 hover:scale-105 active:scale-95 transition-all"
+            className="w-10 h-10 rounded-full bg-brand border border-brand-border flex items-center justify-center font-bold text-indigo-400 font-mono cursor-pointer hover:border-indigo-400 hover:scale-105 active:scale-95 transition-all"
           >
             {userInitial}
           </button>
@@ -47,7 +49,9 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
                   {userInitial}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-semibold text-text-secondary font-mono uppercase tracking-wider">Account Connected</span>
+                  <span className="text-[10px] font-semibold text-text-secondary font-mono uppercase tracking-wider">
+                    {username ? `@${username}` : 'Account Connected'}
+                  </span>
                   <span className="text-sm font-bold text-white truncate" title={userEmail}>
                     {userEmail}
                   </span>

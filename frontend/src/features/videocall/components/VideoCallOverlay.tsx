@@ -83,7 +83,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
               key={i}
               className="relative aspect-video rounded-2xl bg-bg-primary border border-white/5 overflow-hidden flex flex-col items-center justify-center"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
               <div className="w-10 h-10 rounded-full bg-bg-card flex items-center justify-center animate-pulse" />
               <div className="w-16 h-3 bg-bg-card rounded-md mt-2 animate-pulse" />
             </div>

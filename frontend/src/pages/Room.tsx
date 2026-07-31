@@ -296,7 +296,7 @@ const RoomContent: React.FC<{
               The room session is inactive. The host is currently preparing the media stream. Please stay on this screen to automatically enter when they go live.
             </p>
             <div className="flex items-center gap-3 text-xs text-text-secondary py-2.5 px-4 bg-white/5 border border-white/5 rounded-2xl w-full max-w-sm relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
               <div className="w-2.5 h-2.5 rounded-full bg-brand animate-pulse shrink-0" />
               <span className="font-mono">Waiting for session start...</span>
             </div>
@@ -320,7 +320,7 @@ const RoomContent: React.FC<{
               An active session is running in this room. You must knock to request permission to join the party.
             </p>
             <div className="flex items-center gap-3 text-xs text-text-secondary py-2.5 px-4 bg-white/5 border border-white/5 rounded-2xl w-full max-w-sm relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shrink-0" />
               <span className="font-mono">Waiting for host's approval...</span>
             </div>

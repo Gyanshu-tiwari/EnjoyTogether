@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+        <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
         <div className="w-12 h-12 rounded-full bg-brand/10 border border-brand-border flex items-center justify-center relative">
           <div className="absolute inset-0 rounded-full bg-brand animate-ping opacity-75" />
           <div className="relative w-4 h-4 rounded-full bg-brand" />

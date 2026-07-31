@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/shared/lib/supabase';
-import { Video, Mail } from 'lucide-react';
+import { Video, Mail, Eye, EyeOff } from 'lucide-react';
 
 type AuthMode = 'signin' | 'signup' | 'forgot_password';
 
@@ -12,6 +12,8 @@ export const LoginForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [crossTabVerified, setCrossTabVerified] = useState(false);
+  const [username, setUsername] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export const LoginForm: React.FC = () => {
     setError(null);
     setSuccessMsg(null);
     setLoading(false);
+    setUsername('');
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -46,6 +49,11 @@ export const LoginForm: React.FC = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              username: username.trim() || undefined,
+            },
+          },
         });
         if (error) throw error;
         if (mounted.current) {
@@ -162,6 +170,20 @@ export const LoginForm: React.FC = () => {
           )
         ) : (
           <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
+            {mode === 'signup' && (
+              <div className="flex flex-col gap-1.5 animate-fade-in">
+                <label className="text-[10px] font-bold text-text-secondary tracking-wider uppercase ml-1">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. movie_buff"
+                  className="w-full px-4 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold text-text-secondary tracking-wider uppercase ml-1">Email</label>
               <input
@@ -177,14 +199,24 @@ export const LoginForm: React.FC = () => {
             {mode !== 'forgot_password' && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-text-secondary tracking-wider uppercase ml-1">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
-                />
+                <div className="relative w-full">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-4 pr-11 py-3 bg-bg-primary rounded-2xl border border-white/5 focus:outline-none focus:border-brand/40 text-sm transition-all text-neutral-200 placeholder-neutral-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors cursor-pointer p-1"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                  </button>
+                </div>
               </div>
             )}
 

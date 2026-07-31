@@ -84,7 +84,7 @@ export function useSocketConnection({
       const token = session?.access_token;
       const userId = session?.user?.id || getAnonymousUserId();
       setCurrentUserId(userId);
-      const username = session?.user?.email || `Guest_${userId.slice(0, 5)}`;
+      const username = session?.user?.user_metadata?.username || session?.user?.email || `Guest_${userId.slice(0, 5)}`;
       const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
 
       socketInstance = io(backendUrl, {
