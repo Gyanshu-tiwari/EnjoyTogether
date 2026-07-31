@@ -2,13 +2,13 @@ import React from 'react';
 
 export const ShimmerBlock: React.FC<{ className?: string }> = ({ className = '' }) => {
   return (
-    <div className={`animate-shimmer rounded-xl bg-neutral-900 border border-white/5 ${className}`} />
+    <div className={`animate-shimmer rounded-xl ${className}`} />
   );
 };
 
 export const DashboardSkeleton: React.FC = () => {
   return (
-    <div className="w-full max-w-4xl bg-neutral-900/40 border border-white/5 rounded-3xl p-8 backdrop-blur-2xl shadow-2xl animate-fade-in flex flex-col gap-6">
+    <div className="w-full max-w-4xl bg-bg-card border border-white/5 rounded-3xl p-8 shadow-2xl animate-fade-in flex flex-col gap-6">
       {/* Title & Subtitle skeleton */}
       <div className="flex flex-col gap-2">
         <ShimmerBlock className="h-8 w-64" />
@@ -24,6 +24,8 @@ export const DashboardSkeleton: React.FC = () => {
             <ShimmerBlock className="h-11 w-full rounded-2xl" />
           </div>
           <ShimmerBlock className="h-45 w-full rounded-2xl" />
+          {/* Upload button placeholder */}
+          <ShimmerBlock className="h-12 w-full rounded-2xl" />
         </div>
 
         {/* Right Preview Banner panel */}
@@ -50,7 +52,7 @@ export const TheaterSkeleton: React.FC = () => {
       </div>
 
       {/* Bottom control dock bar */}
-      <div className="w-full bg-neutral-900/60 border border-white/10 rounded-2xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="w-full bg-bg-card border border-white/5 rounded-2xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
         {/* Left session details info */}
         <div className="flex flex-col gap-2">
           <ShimmerBlock className="h-4 w-36" />
@@ -75,7 +77,7 @@ export const TheaterSkeleton: React.FC = () => {
 
 export const CardSkeleton: React.FC = () => {
   return (
-    <div className="w-full max-w-md p-10 rounded-3xl bg-neutral-900/80 border border-white/10 shadow-2xl backdrop-blur-2xl relative overflow-hidden animate-fade-in flex flex-col items-center text-center gap-6">
+    <div className="w-full max-w-md p-10 rounded-3xl bg-bg-card border border-white/5 shadow-2xl relative overflow-hidden animate-fade-in flex flex-col items-center text-center gap-6">
       <ShimmerBlock className="w-20 h-20 rounded-2xl" />
       <ShimmerBlock className="h-8 w-48" />
       <div className="flex flex-col gap-2 w-full items-center">

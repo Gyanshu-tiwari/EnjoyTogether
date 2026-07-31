@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 @import "tailwindcss";
 
+
 @theme {
-  --font-sans: 'Lora', Arial, Helvetica, sans-serif;
+  --font-sans: 'Inter', Arial, Helvetica, sans-serif;
   --font-heading: 'Nunito', 'Segoe UI', Roboto, sans-serif;
 
   --color-brand: #4F46E5;
@@ -92,12 +93,14 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   .animate-shimmer {
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.02) 25%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.02) 75%
+      #27272A 0%,
+      #27272A 30%,
+      #3F3F46 50%,
+      #27272A 70%,
+      #27272A 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
+    animation: shimmer 1.6s infinite linear;
   }
 
   .animate-fade-in {

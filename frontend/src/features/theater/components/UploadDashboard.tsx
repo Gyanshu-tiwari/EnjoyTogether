@@ -163,7 +163,13 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       if (lastResponseData?.success) {
         console.log("Uploaded successfully! File Identifier Map reference:", lastResponseData.fileId);
         
-        let streamUrl = lastResponseData.streamUrl || `http://${window.location.hostname}:5000/api/video/hls-local/${newFileId}.m3u8`;
+        let streamUrl = lastResponseData.streamUrl || '';
+        if (!streamUrl) {
+          const backendBase = import.meta.env.VITE_BACKEND_URL
+            ? (import.meta.env.VITE_BACKEND_URL.startsWith('http') ? import.meta.env.VITE_BACKEND_URL : `https://${import.meta.env.VITE_BACKEND_URL}`)
+            : `http://${window.location.hostname}:5000`;
+          streamUrl = `${backendBase}/api/video/hls-local/${newFileId}.m3u8`;
+        }
         if (streamUrl.startsWith('/')) {
           let backendUrl = import.meta.env.VITE_BACKEND_URL || '';
           if (backendUrl && !backendUrl.startsWith('http')) {
@@ -190,10 +196,14 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
               const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as import('../api/theaterApi').TranscodeStatus & { streamUrl?: string };
               consecutiveErrors = 0; // reset on success
 
-              if (tStatus === 'encoding' || tStatus === 'starting' || tStatus === 'uploading_segments' || tStatus === 'uploading') {
+              if (tStatus === 'encoding' || tStatus === 'starting') {
                 setProgress(tProgress ?? 0);
                 setUploadSpeed(tSpeed ?? 'Calculating...');
                 setEta(tEta ?? 'Calculating...');
+              } else if (tStatus === 'uploading_segments' || tStatus === 'uploading') {
+                setProgress(100);
+                setUploadSpeed('Uploading to CDN...');
+                setEta(tEta ?? 'Almost done...');
               } else if (tStatus === 'complete') {
                 clearInterval(pollIntervalRef.current!);
                 pollIntervalRef.current = null;
@@ -231,7 +241,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
           };
           
           poll();
-        }, 2500); // Poll every 2.5s to avoid overwhelming Railway with status requests
+        }, 1500); // Poll every 1.5s for snappy completion detection
       }
     } catch (err) {
       console.error("🔴 Network upload pipeline transmission failed:", err);
@@ -318,8 +328,17 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                 <span className="flex items-center gap-1.5">
                   {processingPhase === 'transcoding' ? (
                     <>
-                      <Cpu className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                      <span>TRANSCODING VIDEO (STREAM COPY)...</span>
+                      {uploadSpeed === 'Uploading to CDN...' ? (
+                        <>
+                          <UploadCloud className="w-3.5 h-3.5 animate-pulse text-indigo-400" />
+                          <span>UPLOADING TO CDN...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                          <span>TRANSCODING VIDEO (STREAM COPY)...</span>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>

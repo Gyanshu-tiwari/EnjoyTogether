@@ -269,7 +269,7 @@ async function runPipeline() {
             const progressRatio = outTimeSec / duration;
             let etaVal = 'Calculating...';
             const elapsedSec = (Date.now() - startTime) / 1000;
-            if (progressPercent >= 2 && progressPercent < 100 && elapsedSec > 5 && progressRatio > 0) {
+            if (progressPercent >= 1 && progressPercent < 100 && elapsedSec > 2 && progressRatio > 0) {
               const remainingSec = (elapsedSec / progressRatio) - elapsedSec;
               if (remainingSec > 0) {
                 const mins = Math.floor(remainingSec / 60);
@@ -316,6 +316,15 @@ async function runPipeline() {
       // Wait for any pipelined segment uploads that were started during the interval or final sweep
       await Promise.allSettled(activeUploadPromises);
       
+      // Verify that all expected segments actually exist locally before finalizing CDN upload
+      const missingSegments = allSegmentsIdentified.filter(
+        seg => fs.existsSync(path.join(OUTPUT_DIR, seg)) === false &&
+               !uploadedSegments.has(seg)
+      );
+      if (missingSegments.length > 0) {
+        console.warn(`⚠️ ${missingSegments.length} segment(s) may not have uploaded successfully: ${missingSegments.join(', ')}`);
+      }
+
       // Now finalize by rewriting the .m3u8 playlist and uploading it
       const supabaseStreamUrl = await finalizeSupabaseUpload(fileId, allSegmentsIdentified);
 
@@ -328,6 +337,13 @@ async function runPipeline() {
         // If not, the player will fall back to the Railway local URL it already has.
         streamUrl: supabaseStreamUrl || null,
       });
+
+      // Cleanup the per-fileId status file after a delay to allow the frontend to read completion
+      setTimeout(() => {
+        try {
+          if (fs.existsSync(STATUS_FILE)) fs.unlinkSync(STATUS_FILE);
+        } catch (e) {}
+      }, 30_000); // 30s grace period
 
     } finally {
       // ── Guaranteed interval cleanup ───────────────────────────────────────

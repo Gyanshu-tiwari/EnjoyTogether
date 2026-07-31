@@ -4,7 +4,7 @@ import { useTheater } from '../context/useTheater';
 import { useSocketSync } from '../hooks/useSocketSync';
 
 import { Button } from '@/shared/components/ui/Button';
-import { Eye, AlertTriangle, RefreshCw, Zap } from 'lucide-react';
+import { Eye, AlertTriangle, RefreshCw, Zap, Loader2 } from 'lucide-react';
 
 export const SyncVideoPlayer: React.FC = () => {
   const { currentStreamUrl, socket, roomId, userRole } = useTheater();
@@ -12,6 +12,7 @@ export const SyncVideoPlayer: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const { isBlocked, handleManualUnlock } = useSocketSync({
     videoRef,
@@ -19,16 +20,23 @@ export const SyncVideoPlayer: React.FC = () => {
     roomId,
   });
 
-
+  // Reset retry count and loading state when the stream URL changes
+  // (e.g. when the CDN URL replaces the local fallback URL after transcoding)
+  useEffect(() => {
+    setRetryCount(0);
+    setPlaybackError(null);
+    setIsLoading(true);
+  }, [currentStreamUrl]);
 
   // HLS stream decoding lifecycle
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !currentStreamUrl || playbackError) return;
 
-    if (retryCount > 6) {
+    if (retryCount > 8) {
       Promise.resolve().then(() => {
         setPlaybackError("Failed to connect to the stream. Verify that your backend server finished transcoding and the stream exists.");
+        setIsLoading(false);
       });
       return;
     }
@@ -48,6 +56,7 @@ export const SyncVideoPlayer: React.FC = () => {
     }
 
     console.log("🎬 Loading stream asset source target:", targetUrl);
+    setIsLoading(true);
 
     if (Hls.isSupported() && targetUrl.includes('.m3u8')) {
       hls = new Hls({
@@ -74,6 +83,7 @@ export const SyncVideoPlayer: React.FC = () => {
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         console.log("✅ HLS Manifest loaded and parsed successfully via hls.js!");
+        setIsLoading(false);
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -82,12 +92,14 @@ export const SyncVideoPlayer: React.FC = () => {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.warn("⚠️ HLS Network error encountered:", data);
               if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT) {
-                console.log("🔄 Retrying to load HLS manifest in 3 seconds...");
+                // Exponential backoff: 3s, 5s, 8s, 13s...
+                const delay = Math.min(3000 + retryCount * 2500, 15000);
+                console.log(`🔄 Retrying HLS manifest in ${delay / 1000}s... (attempt ${retryCount + 1})`);
                 hls?.destroy();
                 hls = null;
                 retryTimeout = setTimeout(() => {
                   setRetryCount((prev) => prev + 1);
-                }, 3000);
+                }, delay);
               } else {
                 hls?.startLoad();
               }
@@ -107,6 +119,8 @@ export const SyncVideoPlayer: React.FC = () => {
     } else {
       video.src = targetUrl;
       video.load();
+      video.onloadedmetadata = () => setIsLoading(false);
+      video.onerror = () => setIsLoading(false);
     }
 
     return () => {
@@ -124,8 +138,20 @@ export const SyncVideoPlayer: React.FC = () => {
         playsInline
       />
 
+      {/* Loading overlay: shown while HLS manifest is being fetched */}
+      {isLoading && !playbackError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 gap-3 z-10">
+          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+          {retryCount > 0 && (
+            <p className="text-xs text-text-secondary font-mono">
+              Retrying connection... ({retryCount}/8)
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Viewer-only overlay: no controls exposed */}
-      {isViewer && (
+      {isViewer && !isLoading && (
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-full border border-white/10 pointer-events-none select-none text-indigo-400">
           <Eye className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold tracking-wider uppercase">View Only</span>
@@ -155,8 +181,6 @@ export const SyncVideoPlayer: React.FC = () => {
         </div>
       )}
 
-
-
       {isBlocked && !isViewer && (
         <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-50 animate-fade-in">
           <div className="bg-bg-card border border-white/5 p-6 rounded-2xl max-w-sm text-center shadow-xl">
@@ -169,7 +193,7 @@ export const SyncVideoPlayer: React.FC = () => {
               className="w-full py-2.5 flex items-center justify-center gap-1.5 font-bold"
             >
               <Zap className="w-4 h-4" />
-              <span>Sync & Play Stream</span>
+              <span>Sync &amp; Play Stream</span>
             </Button>
           </div>
         </div>
@@ -177,3 +201,4 @@ export const SyncVideoPlayer: React.FC = () => {
     </div>
   );
 };
+
