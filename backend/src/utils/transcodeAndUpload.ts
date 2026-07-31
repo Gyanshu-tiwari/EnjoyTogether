@@ -171,16 +171,12 @@ async function runPipeline() {
     const audioSupported = SUPPORTED_AUDIO_CODECS.includes(audioCodec.toLowerCase());
 
     const videoFlag = videoSupported ? '-c:v copy' : '-c:v libx264 -preset ultrafast -threads 0';
-    const hasAudio = audioCodec && audioCodec.trim().length > 0;
-    const audioFlag = hasAudio
-      ? (audioSupported ? '-c:a copy' : '-c:a aac -ac 2 -ar 48000 -aac_coder fast')
-      : '';
-    const audioMap = hasAudio ? '-map 0:a:0' : '';
+    const audioFlag = audioSupported ? '-c:a copy' : '-c:a aac -ac 2 -ar 48000 -aac_coder fast';
 
-    console.log(`🎬 Configured mapping -> Video: ${videoFlag}, Audio: ${audioFlag || 'none'}`);
+    console.log(`🎬 Configured mapping -> Video: ${videoFlag}, Audio: ${audioFlag}`);
     console.log('🎬 Starting adaptive keyframe-aligned HLS stream copy/transcode pipeline...');
 
-    const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 ${audioMap} -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${OUTPUT_M3U8}"`;
+    const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0 -map 0:a:0 -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${OUTPUT_M3U8}"`;
 
     // ── Pipelined Background Segment Uploader ────────────────────────────────
     // Uploads segments to Supabase as soon as FFMPEG finishes writing them to the playlist
@@ -188,40 +184,24 @@ async function runPipeline() {
     const activeUploadPromises: Promise<void>[] = [];
     let allSegmentsIdentified: string[] = [];
 
-    const uploadSegment = async (segFile: string, retries = 3) => {
+    const uploadSegment = async (segFile: string) => {
       if (!supabase) return;
       const localPath = path.join(OUTPUT_DIR, segFile);
       if (!fs.existsSync(localPath)) return;
       
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          const data = fs.readFileSync(localPath);
-          const storagePath = `${fileId}/${segFile}`;
-          const { error } = await supabase.storage
-            .from(STORAGE_BUCKET)
-            .upload(storagePath, data, {
-              contentType: 'video/MP2T',
-              upsert: true,
-            });
-          if (error) throw error;
-          console.log(`  ✓ Pipelined upload: ${segFile}`);
-          
-          // Immediately delete local segment to prevent disk bloat during large encodes
-          try {
-            fs.unlinkSync(localPath);
-          } catch (unlinkErr) {
-            // non-fatal
-          }
-          return; // Success
-        } catch (e: any) {
-          console.error(`⚠️ Upload attempt ${attempt}/${retries} failed for segment ${segFile}:`, e.message);
-          if (attempt === retries) {
-            console.error(`❌ Failed to pipeline upload segment ${segFile} after all attempts.`);
-          } else {
-            // Exponential backoff before retry (1s, 2s)
-            await new Promise(resolve => setTimeout(resolve, attempt * 1000));
-          }
-        }
+      try {
+        const data = fs.readFileSync(localPath);
+        const storagePath = `${fileId}/${segFile}`;
+        const { error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(storagePath, data, {
+            contentType: 'video/MP2T',
+            upsert: true,
+          });
+        if (error) throw error;
+        console.log(`  ✓ Pipelined upload: ${segFile}`);
+      } catch (e: any) {
+        console.error(`❌ Failed to pipeline upload segment ${segFile}:`, e.message);
       }
     };
 
