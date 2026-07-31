@@ -88,3 +88,36 @@ export const CardSkeleton: React.FC = () => {
     </div>
   );
 };
+
+export const LobbySkeleton: React.FC = () => {
+  return (
+    <div className="w-full flex flex-col lg:flex-row gap-12 items-center justify-center max-w-5xl mx-auto py-8 px-4 animate-fade-in">
+      {/* Left side: Simulated Local Video Preview Card */}
+      <div className="w-full lg:w-3/5 bg-bg-card border border-white/5 rounded-3xl aspect-video relative flex flex-col items-center justify-center shadow-2xl">
+        {/* User profile avatar shape placeholder */}
+        <div className="w-20 h-20 rounded-full bg-neutral-850 flex items-center justify-center border border-white/5 animate-pulse" />
+        
+        {/* Bottom controls buttons */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+          <ShimmerBlock className="w-12 h-12 rounded-full" />
+          <ShimmerBlock className="w-12 h-12 rounded-full" />
+        </div>
+      </div>
+
+      {/* Right side: Action card */}
+      <div className="w-full lg:w-2/5 flex flex-col gap-6 text-left">
+        <ShimmerBlock className="h-9 w-64" />
+        <div className="flex flex-col gap-2.5">
+          <ShimmerBlock className="h-4 w-full" />
+          <ShimmerBlock className="h-4 w-11/12" />
+          <ShimmerBlock className="h-4 w-5/6" />
+        </div>
+        <div className="pt-2 flex flex-col gap-3">
+          <ShimmerBlock className="h-12 w-full rounded-2xl" />
+          <ShimmerBlock className="h-10 w-full rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  );
+};
+

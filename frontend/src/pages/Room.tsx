@@ -6,7 +6,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
 import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft } from 'lucide-react';
-import { TheaterSkeleton, DashboardSkeleton } from '@/shared/components/feedback/Skeletons';
+import { TheaterSkeleton, DashboardSkeleton, LobbySkeleton } from '@/shared/components/feedback/Skeletons';
 
 const RoomContent: React.FC<{
   roomId: string;
@@ -38,7 +38,10 @@ const RoomContent: React.FC<{
   };
 
   if (loading) {
-    return <TheaterSkeleton />;
+    if (sessionState === 'active_session') {
+      return <TheaterSkeleton />;
+    }
+    return <LobbySkeleton />;
   }
 
   if (dbError) {
@@ -367,7 +370,7 @@ export const Room: React.FC = () => {
   const bypassLogin = false;
 
   if (loading) {
-    return id ? <TheaterSkeleton /> : <DashboardSkeleton />;
+    return id ? <LobbySkeleton /> : <DashboardSkeleton />;
   }
 
   const handleCreateRoom = async (movieUrl: string) => {
