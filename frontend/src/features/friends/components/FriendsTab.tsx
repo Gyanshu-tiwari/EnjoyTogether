@@ -56,8 +56,13 @@ export const FriendsTab: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'friends') loadFriends();
-    if (activeTab === 'pending') loadPending();
+    let ignore = false;
+    Promise.resolve().then(() => {
+      if (ignore) return;
+      if (activeTab === 'friends') loadFriends();
+      if (activeTab === 'pending') loadPending();
+    });
+    return () => { ignore = true; };
   }, [activeTab, loadFriends, loadPending]);
 
   // Debounced search

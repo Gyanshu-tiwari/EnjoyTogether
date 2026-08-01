@@ -28,21 +28,26 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   };
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setSearch('');
     setInvitedIds(new Set());
     setLinkCopied(false);
     onClose();
-  };
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    setLoadingFriends(true);
-    getFriends()
-      .then((data) => { setFriends(data); })
-      .catch(() => { setFriends([]); })
-      .finally(() => setLoadingFriends(false));
+    let ignore = false;
+    Promise.resolve().then(() => {
+      if (ignore) return;
+      setLoadingFriends(true);
+      getFriends()
+        .then((data) => { if (!ignore) setFriends(data); })
+        .catch(() => { if (!ignore) setFriends([]); })
+        .finally(() => { if (!ignore) setLoadingFriends(false); });
+    });
+    return () => { ignore = true; };
   }, [isOpen]);
 
   const q = search.toLowerCase().trim();
@@ -54,7 +59,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(roomUrl);
