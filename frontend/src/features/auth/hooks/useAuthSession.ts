@@ -8,40 +8,47 @@ export function useAuthSession() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    const syncProfile = (session: Session) => {
+      if (!session?.user) return;
+      const meta = session.user.user_metadata;
+      const existingUsername = meta?.username;
+      const googleName: string | undefined = meta?.full_name || meta?.name;
+      
+      let targetUsername = existingUsername;
+      
+      if (!targetUsername && googleName) {
+        targetUsername = googleName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_|_$/g, '')
+          .substring(0, 30) || 'user';
+      }
+
+      if (targetUsername) {
+        const targetAvatar: string | undefined = meta?.avatar_url || meta?.picture;
+        syncGoogleProfile(targetUsername, targetAvatar).then(() => {
+          if (!existingUsername) {
+            return supabase.auth.updateUser({ data: { username: targetUsername } });
+          }
+        }).catch(err => console.warn('[useAuthSession] profile sync failed:', err));
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
+      if (session) syncProfile(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' && session) {
         // Proactively wake up the Railway backend so sockets/streams initialize faster
         const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
         if (backendUrl) {
           fetch(`${backendUrl}/health`).catch(err => console.error('Backend wake handshake failed:', err));
         }
 
-        // Seed Google profile: if user signed in with Google and has no username yet, sync it
-        if (session?.user) {
-          const meta = session.user.user_metadata;
-          const hasUsername = Boolean(meta?.username);
-          // Google OAuth provides full_name or name; normal signup sets username
-          const googleName: string | undefined = meta?.full_name || meta?.name;
-          if (!hasUsername && googleName) {
-            // Derive a clean username from the Google display name (lowercase, underscored)
-            const derivedUsername = googleName
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, '_')
-              .replace(/^_|_$/g, '')
-              .substring(0, 30) || 'user';
-
-            const googleAvatar: string | undefined = meta?.avatar_url || meta?.picture;
-            syncGoogleProfile(derivedUsername, googleAvatar).then(() => {
-              // Also persist to supabase auth metadata so Header shows username immediately
-              return supabase.auth.updateUser({ data: { username: derivedUsername } });
-            }).catch(err => console.warn('[useAuthSession] Google profile sync failed:', err));
-          }
-        }
+        syncProfile(session);
 
         const win = window as Window & { isCrossTabPending?: boolean };
         if (win.isCrossTabPending) {
