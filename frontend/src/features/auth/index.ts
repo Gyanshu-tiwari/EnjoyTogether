@@ -1,2 +1,2 @@
 export { LoginForm } from './components/LoginForm';
-export { useAuthSession } from './hooks/useAuthSession';
+export { useAuthSession, AuthProvider } from './hooks/useAuthSession';

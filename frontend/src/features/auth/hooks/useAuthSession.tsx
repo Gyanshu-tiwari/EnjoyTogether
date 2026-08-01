@@ -1,9 +1,16 @@
-import { useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/shared/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { syncGoogleProfile } from '@/features/friends/api/friendApi';
 
-export function useAuthSession() {
+interface AuthContextType {
+  session: Session | null;
+  loading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType>({ session: null, loading: true });
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -66,6 +73,9 @@ export function useAuthSession() {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { session, loading };
-}
+  return <AuthContext.Provider value={{ session, loading }}>{children}</AuthContext.Provider>;
+};
 
+export function useAuthSession() {
+  return useContext(AuthContext);
+}
