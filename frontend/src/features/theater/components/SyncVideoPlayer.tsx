@@ -20,13 +20,18 @@ export const SyncVideoPlayer: React.FC = () => {
     roomId,
   });
 
-  // Reset retry count and loading state when the stream URL changes
-  // (e.g. when the CDN URL replaces the local fallback URL after transcoding)
-  useEffect(() => {
+  const [prevStreamUrl, setPrevStreamUrl] = useState(currentStreamUrl);
+  const [prevRetryCount, setPrevRetryCount] = useState(retryCount);
+
+  if (currentStreamUrl !== prevStreamUrl) {
+    setPrevStreamUrl(currentStreamUrl);
     setRetryCount(0);
     setPlaybackError(null);
     setIsLoading(true);
-  }, [currentStreamUrl]);
+  } else if (retryCount !== prevRetryCount) {
+    setPrevRetryCount(retryCount);
+    setIsLoading(true);
+  }
 
   // HLS stream decoding lifecycle
   useEffect(() => {
@@ -56,7 +61,6 @@ export const SyncVideoPlayer: React.FC = () => {
     }
 
     console.log("🎬 Loading stream asset source target:", targetUrl);
-    setIsLoading(true);
 
     if (Hls.isSupported() && targetUrl.includes('.m3u8')) {
       hls = new Hls({

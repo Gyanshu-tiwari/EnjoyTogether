@@ -27,6 +27,6 @@ export async function compressAvatar(file: File): Promise<File> {
     return compressedFile;
   } catch (error) {
     console.error('[compressAvatar] Compression failed:', error);
-    throw new Error('Image compression failed. Please try a different image.');
+    throw new Error('Image compression failed. Please try a different image.', { cause: error });
   }
 }

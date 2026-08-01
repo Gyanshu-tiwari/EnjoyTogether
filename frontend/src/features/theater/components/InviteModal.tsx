@@ -13,7 +13,6 @@ interface InviteModalProps {
 export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClose }) => {
   const [linkCopied, setLinkCopied] = useState(false);
   const [friends, setFriends] = useState<FriendEntry[]>([]);
-  const [filteredFriends, setFilteredFriends] = useState<FriendEntry[]>([]);
   const [search, setSearch] = useState('');
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
@@ -29,31 +28,33 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   };
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const handleClose = () => {
     setSearch('');
     setInvitedIds(new Set());
     setLinkCopied(false);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     setLoadingFriends(true);
     getFriends()
-      .then((data) => { setFriends(data); setFilteredFriends(data); })
-      .catch(() => { setFriends([]); setFilteredFriends([]); })
+      .then((data) => { setFriends(data); })
+      .catch(() => { setFriends([]); })
       .finally(() => setLoadingFriends(false));
   }, [isOpen]);
 
-  useEffect(() => {
-    const q = search.toLowerCase().trim();
-    setFilteredFriends(q ? friends.filter((f) => f.username.toLowerCase().includes(q)) : friends);
-  }, [search, friends]);
+  const q = search.toLowerCase().trim();
+  const filteredFriends = q ? friends.filter((f) => f.username.toLowerCase().includes(q)) : friends;
 
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(roomUrl);
@@ -73,9 +74,9 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[9000] flex items-center justify-center p-4"
+      className="fixed inset-0 z-9000 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
-      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      onClick={(e) => { if (e.target === overlayRef.current) handleClose(); }}
     >
       <div className="w-full max-w-md bg-bg-card border border-neutral-800 rounded-2xl shadow-2xl animate-slide-up overflow-hidden">
         {/* Header */}
@@ -85,7 +86,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
             <p className="text-[10px] text-text-secondary mt-0.5 font-mono">Room: {roomId}</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-800 transition-all cursor-pointer"
           >
             <X className="w-4 h-4" />

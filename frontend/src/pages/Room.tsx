@@ -409,13 +409,10 @@ export const Room: React.FC = () => {
 
   const [roomActive, setRoomActive] = useState<boolean | null>(null);
   const [isHost, setIsHost] = useState<boolean | null>(null);
-  const [roomLoading, setRoomLoading] = useState<boolean>(true);
+  const [roomLoading, setRoomLoading] = useState<boolean>(!!id);
 
   React.useEffect(() => {
-    if (!id) {
-      setRoomLoading(false);
-      return;
-    }
+    if (!id) return;
 
     let cancelled = false;
 

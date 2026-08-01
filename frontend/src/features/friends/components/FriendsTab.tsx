@@ -58,17 +58,12 @@ export const FriendsTab: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'friends') loadFriends();
     if (activeTab === 'pending') loadPending();
-    if (activeTab === 'find') {
-      setSearchResults([]);
-      setSearchQuery('');
-    }
   }, [activeTab, loadFriends, loadPending]);
 
   // Debounced search
   useEffect(() => {
     if (activeTab !== 'find') return;
     if (!searchQuery.trim()) {
-      setSearchResults([]);
       return;
     }
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -95,8 +90,14 @@ export const FriendsTab: React.FC = () => {
       setSearchResults((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: 'PENDING' } : u))
       );
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to send request.');
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message);
+      } else if (typeof e === 'object' && e !== null && 'response' in e) {
+        setError((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to send request.');
+      } else {
+        setError('Failed to send request.');
+      }
     } finally {
       setActionLoading(null);
     }
@@ -154,7 +155,14 @@ export const FriendsTab: React.FC = () => {
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setError(null); }}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setError(null);
+              if (tab.key === 'find') {
+                setSearchResults([]);
+                setSearchQuery('');
+              }
+            }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
               activeTab === tab.key
                 ? 'bg-bg-card text-white border border-neutral-800 shadow-sm'
