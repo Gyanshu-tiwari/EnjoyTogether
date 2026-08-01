@@ -25,7 +25,7 @@ const inMemoryFriendships: Map<string, Friendship> = new Map();
 export class FriendRepository {
 
   static async searchUsers(query: string, requesterId: string): Promise<UserSearchResult[]> {
-    const cleanQuery = query.trim().toLowerCase();
+    const cleanQuery = query.trim().toLowerCase().replace(/^@/, '');
     if (!cleanQuery) return [];
 
     if (supabase && !isSupabaseDisabled()) {
