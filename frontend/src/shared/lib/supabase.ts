@@ -14,19 +14,4 @@ const cookieOptions = {
   path: '/',
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: {
-      getItem: (key) => Cookies.get(key) || null,
-      setItem: (key, value) => {
-        Cookies.set(key, value, { ...cookieOptions, expires: 365 });
-      },
-      removeItem: (key) => {
-        Cookies.remove(key, cookieOptions);
-      },
-    },
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-});
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
