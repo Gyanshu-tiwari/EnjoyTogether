@@ -5,10 +5,11 @@ import { supabase } from '@/shared/lib/supabase';
 import { Button } from '@/shared/components/ui/Button';
 import { LoginForm, useAuthSession } from '@/features/auth';
 import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
-import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft, UserPlus } from 'lucide-react';
 import { TheaterSkeleton, DashboardSkeleton, LobbySkeleton } from '@/shared/components/feedback/Skeletons';
 import { getRoomMetadata } from '@/features/theater/api/theaterApi';
 import { getAnonymousUserId } from '@/features/theater/hooks/useRoomSession';
+import { InviteModal } from '@/features/theater/components/InviteModal';
 
 const RoomContent: React.FC<{
   roomId: string;
@@ -31,6 +32,7 @@ const RoomContent: React.FC<{
   const [copied, setCopied] = useState<boolean>(false);
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const copyInviteLink = () => {
     const inviteUrl = `${window.location.origin}/room/${roomId}`;
@@ -117,13 +119,23 @@ const RoomContent: React.FC<{
           </div>
           <div className="flex gap-3">
             <Button
+              onClick={() => setInviteOpen(true)}
+              variant="brand"
+              className="px-3 py-1.5 text-xs font-semibold"
+            >
+              <span className="flex items-center gap-1.5">
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Invite</span>
+              </span>
+            </Button>
+            <Button
               onClick={copyInviteLink}
-              variant={copied ? 'emerald' : 'brand'}
+              variant={copied ? 'emerald' : 'secondary'}
               className="px-3 py-1.5 text-xs font-semibold"
             >
               <span className="flex items-center gap-1.5">
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Link className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied' : 'Copy Invite'}</span>
+                <span>{copied ? 'Copied' : 'Link'}</span>
               </span>
             </Button>
             {isHost && (
@@ -152,6 +164,13 @@ const RoomContent: React.FC<{
         </div>
 
         <TheaterView />
+
+        {/* InviteModal */}
+        <InviteModal
+          roomId={roomId}
+          isOpen={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+        />
 
         {/* Host Admission Alerts */}
         {isHost && knocks.length > 0 && (
@@ -281,9 +300,19 @@ const RoomContent: React.FC<{
                 </span>
               </Button>
               <Button
+                onClick={() => setInviteOpen(true)}
+                variant="brand"
+                className="w-full py-3 text-xs"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Invite Friends</span>
+                </span>
+              </Button>
+              <Button
                 onClick={copyInviteLink}
                 variant={copied ? 'emerald' : 'secondary'}
-                className="w-full py-3 text-xs"
+                className="w-full py-2.5 text-xs"
               >
                 <span className="flex items-center justify-center gap-2">
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Link className="w-3.5 h-3.5" />}
@@ -293,6 +322,13 @@ const RoomContent: React.FC<{
             </div>
           </div>
         )}
+
+        {/* InviteModal for lobby state */}
+        <InviteModal
+          roomId={roomId}
+          isOpen={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+        />
 
         {sessionState === 'idle_guest' && (
           <div className="space-y-4">
