@@ -1,173 +1,186 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Link as LinkIcon, Globe, Monitor, Smartphone } from 'lucide-react';
+import { Clock, MessageSquare, ShieldCheck, Video, Mic, Lock } from 'lucide-react';
 
 export const FeatureShowcase: React.FC = () => {
   return (
     <section id="features" className="w-full py-24 md:py-32 px-6 flex flex-col items-center">
       <div className="max-w-[1200px] w-full">
         {/* Header Area */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-16 gap-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+          className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8"
+        >
           <div>
-            <span className="text-[#C0C0C0] font-semibold tracking-widest text-xs uppercase mb-3 block">
-              The Advantage
+            <span className="text-brand font-bold tracking-widest text-xs uppercase mb-4 block">
+              The Ultimate Toolkit
             </span>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black font-heading text-white tracking-tight uppercase leading-none">
-              Built For<br />Watch Parties
+              Everything you need<br />for movie night.
             </h2>
           </div>
-          <p className="text-text-secondary max-w-sm text-sm md:text-base leading-relaxed md:pt-6">
-            Experience the difference with powerful tools and features designed to optimize your remote movie nights.
+          <p className="text-text-secondary max-w-sm text-sm md:text-base leading-relaxed mb-2">
+            Experience the difference with powerful tools and features designed specifically to optimize your remote watch parties.
           </p>
-        </div>
+        </motion.div>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-6">
           
-          {/* Card 1: Synced Playback (Col span 2) */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5 }}
-            className="md:col-span-2 lg:col-span-2 relative rounded-3xl overflow-hidden group min-h-[450px] flex flex-col justify-end p-8 md:p-10 border border-white/5 bg-[#1A1A1D]"
-          >
-            <img src="/hero.avif" alt="Synced Playback" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-60" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+          {/* Top Row: 2 columns on lg (2/3 and 1/3) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <div className="relative z-10 flex flex-col items-start">
-              <h3 className="text-3xl md:text-4xl font-bold text-white mb-3 uppercase font-heading tracking-tight">Expand Your Reach</h3>
-              <p className="text-gray-300 max-w-sm mb-8 text-sm md:text-base">
-                When anyone pauses or seeks, it happens for everyone instantly. Perfect synchronization in local markets.
+            {/* Card 1: Synced Playback (Large) */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5 }}
+              className="lg:col-span-2 relative rounded-3xl overflow-hidden group min-h-[400px] flex flex-col justify-between p-8 md:p-10 bg-bg-card border border-white/5 hover:border-white/10 transition-colors shadow-2xl"
+            >
+              {/* Graphic Background */}
+              <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity duration-700">
+                <img src="/hero.avif" alt="Synced Playback" className="w-full h-full object-cover mix-blend-luminosity" />
+                <div className="absolute inset-0 bg-gradient-to-t from-bg-card via-bg-card/80 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-bg-card via-bg-card/50 to-transparent" />
+              </div>
+              
+              <div className="relative z-10 max-w-md mt-auto">
+                <div className="w-12 h-12 rounded-2xl bg-brand/20 flex items-center justify-center mb-6 text-brand">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <h3 className="text-3xl md:text-4xl font-bold text-white mb-3 font-heading tracking-tight">Synced Playback</h3>
+                <p className="text-text-secondary text-base md:text-lg leading-relaxed">
+                  When anyone pauses or seeks, it happens for everyone instantly. Perfect synchronization with no countdowns needed.
+                </p>
+              </div>
+
+              {/* Decorative Sync UI */}
+              <div className="absolute top-8 right-8 flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-y-4 group-hover:translate-y-0">
+                 <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-lg p-3 flex items-center gap-3 shadow-xl">
+                    <div className="w-8 h-8 rounded-full bg-brand/20 flex items-center justify-center text-brand"><Clock className="w-4 h-4" /></div>
+                    <div>
+                      <div className="text-xs text-white font-bold">Host paused</div>
+                      <div className="text-[10px] text-text-secondary">Syncing all peers...</div>
+                    </div>
+                 </div>
+              </div>
+            </motion.div>
+
+            {/* Card 2: Floating Reactions */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="lg:col-span-1 rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 flex flex-col relative overflow-hidden min-h-[400px]"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-pink-500/20 flex items-center justify-center mb-6 text-pink-500 relative z-10">
+                <MessageSquare className="w-6 h-6" />
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 font-heading tracking-tight relative z-10">Floating Reactions</h3>
+              <p className="text-text-secondary text-sm md:text-base leading-relaxed relative z-10">
+                Spam emojis that float across the screen to react to crazy moments without talking over the movie.
               </p>
-              <button className="bg-white text-black font-bold py-3 px-8 rounded-full text-sm hover:scale-105 transition-transform uppercase tracking-wider">
-                Start Now
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Card 2: Real-time Audio (Teal) */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="rounded-3xl bg-[#094F45] p-8 flex flex-col relative overflow-hidden min-h-[450px]"
-          >
-            <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 uppercase font-heading tracking-tight">Maximize ROI</h3>
-            <p className="text-[#A2CFC6] text-sm md:text-base leading-relaxed">
-              Leverage real-time voice chat to continuously improve your movie experience.
-            </p>
-            
-            <div className="mt-auto flex justify-center items-end pt-12 relative z-10">
-               {/* Faux Chart */}
-               <div className="flex items-end gap-1.5 md:gap-2 h-40 w-full justify-between opacity-90">
-                 {[4,5,6,9,10,7,8,4,2].map((h, i) => (
-                   <motion.div 
-                     key={i} 
-                     initial={{ height: 0 }}
-                     whileInView={{ height: `${h * 10}%` }}
-                     transition={{ duration: 0.8, delay: 0.2 + (i * 0.05) }}
-                     className="w-full bg-[#F47B62] rounded-t-full" 
-                   />
-                 ))}
-               </div>
-            </div>
-          </motion.div>
-
-          {/* Card 3: Floating Reactions (Mint) */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="rounded-3xl bg-[#76F6D6] p-8 flex flex-col relative overflow-hidden min-h-[450px]"
-          >
-            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 uppercase font-heading tracking-tight">Save Time</h3>
-            <p className="text-gray-800 text-sm md:text-base leading-relaxed">
-              Automate floating emoji reactions and focus on enjoying the movie.
-            </p>
-            
-            <div className="mt-auto w-full flex flex-col items-center pt-8">
-               <div className="bg-white/80 rounded-2xl p-4 w-full shadow-xl shadow-black/5">
-                 <div className="flex items-center justify-between mb-4">
-                   <span className="text-xs font-bold text-gray-500 uppercase">Clicks</span>
-                   <span className="text-sm font-black text-gray-900">306</span>
+              
+              {/* Graphic */}
+              <div className="mt-auto flex justify-center items-end pt-12 pb-4">
+                 <div className="relative w-full h-32">
+                    <motion.div animate={{ y: [0, -40, 0], opacity: [0, 1, 0] }} transition={{ duration: 2, repeat: Infinity, delay: 0.2 }} className="absolute bottom-0 left-[20%] text-4xl">😂</motion.div>
+                    <motion.div animate={{ y: [0, -60, 0], opacity: [0, 1, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }} className="absolute bottom-4 left-[50%] text-5xl">🔥</motion.div>
+                    <motion.div animate={{ y: [0, -30, 0], opacity: [0, 1, 0] }} transition={{ duration: 1.8, repeat: Infinity, delay: 0.8 }} className="absolute bottom-2 right-[20%] text-3xl">❤️</motion.div>
                  </div>
-                 <div className="flex items-center justify-between mb-4">
-                   <span className="text-xs font-bold text-gray-500 uppercase">Impressions</span>
-                   <span className="text-sm font-black text-gray-900">59,382</span>
-                 </div>
-                 <div className="flex items-center justify-between mb-2">
-                   <span className="text-xs font-bold text-gray-500 uppercase">CTR</span>
-                   <span className="text-sm font-black text-gray-900">0.40%</span>
-                 </div>
-               </div>
-               <div className="bg-[#094F45] text-white text-xs font-bold uppercase tracking-wider py-2.5 px-6 rounded-full -mt-4 shadow-lg hover:scale-105 transition-transform cursor-pointer">
-                 Create Now
-               </div>
-            </div>
-          </motion.div>
+              </div>
+              
+              {/* Subtle background glow */}
+              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-pink-500/10 blur-3xl rounded-full pointer-events-none" />
+            </motion.div>
+          </div>
 
-          {/* Card 4: Secure Rooms (Yellow) */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="rounded-3xl bg-[#F4F878] p-8 flex flex-col relative overflow-hidden min-h-[450px]"
-          >
-            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 uppercase font-heading tracking-tight">Channel Flexibility</h3>
-            <p className="text-gray-800 text-sm md:text-base leading-relaxed">
-              Recognized by major partners, to increase your visibility and attract new friends.
-            </p>
+          {/* Bottom Row: 2 columns on lg (1/2 and 1/2) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            <div className="mt-auto flex justify-center items-center py-10 relative">
-               <div className="absolute inset-0 rounded-full border border-yellow-400/30 scale-75" />
-               <div className="absolute inset-0 rounded-full border border-yellow-400/20 scale-100" />
-               <div className="relative w-full aspect-square max-w-[200px]">
-                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-500"><Globe className="w-6 h-6" /></div>
-                 <div className="absolute bottom-4 left-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-600"><Monitor className="w-6 h-6" /></div>
-                 <div className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-400"><Smartphone className="w-6 h-6" /></div>
-                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-pink-500 font-black text-xl">♥</div>
-               </div>
-            </div>
-          </motion.div>
+            {/* Card 3: Real-time Audio & Video */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 md:p-10 flex flex-col sm:flex-row gap-8 relative overflow-hidden min-h-[300px] items-center"
+            >
+              <div className="flex-1 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-6 text-emerald-400">
+                  <Video className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 font-heading tracking-tight">Real-time A/V</h3>
+                <p className="text-text-secondary text-sm md:text-base leading-relaxed">
+                  Keep your camera on or just use your mic. Talk through the movie naturally like you are sitting on the same couch.
+                </p>
+              </div>
 
-          {/* Card 5: No Downloads (Purple) */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="rounded-3xl bg-[#D4ACFF] p-8 flex flex-col relative overflow-hidden min-h-[450px]"
-          >
-            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 uppercase font-heading tracking-tight">Dedicated Support</h3>
-            <p className="text-gray-800 text-sm md:text-base leading-relaxed">
-              24/7 host controls, dedicated room links, and more - whenever you need it.
-            </p>
-            
-            <div className="mt-auto flex flex-col items-center pt-8 relative">
-               <div className="w-16 h-16 bg-[#A855F7] rounded-full z-10 flex items-center justify-center shadow-xl shadow-purple-500/30 text-white mb-8">
-                 <ShieldCheck className="w-8 h-8" />
-               </div>
-               
-               {/* Connecting lines */}
-               <svg className="absolute bottom-12 w-full h-24 pointer-events-none" preserveAspectRatio="none">
-                 <path d="M50 0 C 50 40, 20 60, 20 100" stroke="#A855F7" strokeWidth="1" fill="none" opacity="0.4"/>
-                 <path d="M50 0 C 50 40, 50 60, 50 100" stroke="#A855F7" strokeWidth="1" fill="none" opacity="0.4"/>
-                 <path d="M50 0 C 50 40, 80 60, 80 100" stroke="#A855F7" strokeWidth="1" fill="none" opacity="0.4"/>
-               </svg>
-               
-               <div className="w-full flex justify-center gap-2 relative z-10">
-                 <div className="w-12 h-12 bg-white rounded-full border-2 border-white shadow-md overflow-hidden"><img src="https://i.pravatar.cc/150?img=68" alt="User" /></div>
-                 <div className="w-12 h-12 bg-white rounded-full border-2 border-white shadow-md overflow-hidden"><img src="https://i.pravatar.cc/150?img=11" alt="User" /></div>
-                 <div className="w-12 h-12 bg-white rounded-full border-2 border-white shadow-md overflow-hidden"><img src="https://i.pravatar.cc/150?img=5" alt="User" /></div>
-                 <div className="w-12 h-12 bg-white rounded-full border-2 border-white shadow-md overflow-hidden"><img src="https://i.pravatar.cc/150?img=9" alt="User" /></div>
-               </div>
-            </div>
-          </motion.div>
+              {/* Graphic */}
+              <div className="w-full sm:w-48 h-48 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0">
+                 {/* Audio Visualizer Faux */}
+                 <div className="flex items-center gap-1.5 h-16 opacity-80">
+                   {[3,5,8,4,9,6,3].map((h, i) => (
+                     <motion.div 
+                       key={i} 
+                       animate={{ height: [`${h*10}%`, `${(h%3 + 2)*10}%`, `${h*10}%`] }}
+                       transition={{ duration: 0.5 + (i * 0.1), repeat: Infinity }}
+                       className="w-2 bg-emerald-400 rounded-full" 
+                     />
+                   ))}
+                 </div>
+                 <div className="absolute bottom-4 flex gap-2">
+                   <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white backdrop-blur-md"><Mic className="w-4 h-4" /></div>
+                   <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white backdrop-blur-md"><Video className="w-4 h-4" /></div>
+                 </div>
+              </div>
+              
+              {/* Subtle background glow */}
+              <div className="absolute -left-20 top-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
+            </motion.div>
 
+            {/* Card 4: Secure Rooms */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 md:p-10 flex flex-col sm:flex-row-reverse gap-8 relative overflow-hidden min-h-[300px] items-center"
+            >
+              <div className="flex-1 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 text-indigo-400">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 font-heading tracking-tight">Secure Rooms</h3>
+                <p className="text-text-secondary text-sm md:text-base leading-relaxed">
+                  Private rooms with host-approval workflows. Nobody gets in unless you let them in.
+                </p>
+              </div>
+
+              {/* Graphic */}
+              <div className="w-full sm:w-48 h-48 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0">
+                 <div className="relative w-24 h-24 flex items-center justify-center">
+                   <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-full animate-ping" />
+                   <div className="absolute inset-2 border-2 border-indigo-500/40 rounded-full" />
+                   <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 backdrop-blur-md shadow-lg border border-indigo-500/30">
+                     <Lock className="w-5 h-5" />
+                   </div>
+                 </div>
+                 <div className="absolute bottom-4 bg-indigo-500/20 text-indigo-300 text-[10px] uppercase font-bold tracking-wider px-3 py-1 rounded-full border border-indigo-500/20">
+                   End-to-end Encrypted
+                 </div>
+              </div>
+              
+              {/* Subtle background glow */}
+              <div className="absolute -right-20 top-0 w-64 h-64 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
+            </motion.div>
+
+          </div>
         </div>
       </div>
     </section>
