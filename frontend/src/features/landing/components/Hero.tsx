@@ -14,8 +14,8 @@ export const Hero: React.FC = () => {
   return (
     <section className="relative isolate w-full min-h-screen flex flex-col items-center pt-32 pb-20 px-6 overflow-hidden">
       {/* Background Gradients */}
-      <div className="absolute inset-0 -z-10 w-full h-full flex items-center justify-center pointer-events-none">
-        <div style={{ width: '1080px', height: '1080px', position: 'relative' }}>
+      <div className="absolute inset-0 -z-10 w-full h-full pointer-events-none">
+        <div className="w-full h-full">
           <Plasma
             color="#5e53eb"
             speed={1}
