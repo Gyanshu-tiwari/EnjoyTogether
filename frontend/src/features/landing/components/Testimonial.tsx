@@ -51,7 +51,7 @@ export const Testimonial: React.FC = () => {
 
   return (
     <section className="w-full py-24 md:py-32 px-6 flex flex-col items-center bg-bg-primary border-t border-white/5">
-      <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 items-center">
+      <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 items-start">
         
         {/* Left: Heading */}
         <motion.div 
@@ -61,8 +61,11 @@ export const Testimonial: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="flex flex-col"
         >
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.1]">
-            Loved by movie lovers & teams
+          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-6 block">
+            // Testimonial
+          </span>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-normal text-white tracking-tight leading-[1.1]">
+            Loved by movie buffs, friends
           </h2>
         </motion.div>
 
