@@ -16,12 +16,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isTheaterPage = location.pathname.includes('/room/');
   const isLandingPage = location.pathname === '/';
   const paddingClass = isLandingPage ? '' : 'p-6';
+  const maxWidthClass = isLandingPage ? 'w-full' : 'w-full max-w-7xl';
 
   if (loading) {
     return (
       <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
         <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
-        <div className="w-full max-w-7xl flex flex-col relative z-10">
+        <div className={`${maxWidthClass} flex flex-col relative z-10`}>
           {!isTheaterPage && (
             <header className="w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4">
               <div className="flex items-center gap-3">
@@ -46,7 +47,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return (
       <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
         <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
-        <div className="w-full max-w-7xl flex flex-col relative z-10">
+        <div className={`${maxWidthClass} flex flex-col relative z-10`}>
           {!isTheaterPage && <Header session={session} />}
           <main className="w-full flex flex-col items-center">
             {content}
@@ -60,7 +61,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
       {/* Background decorations */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
-      <div className="w-full max-w-7xl flex flex-col relative z-10">
+      <div className={`${maxWidthClass} flex flex-col relative z-10`}>
         {!isTheaterPage && <Header session={session} />}
         <main className="w-full flex flex-col items-center">
           {content}
