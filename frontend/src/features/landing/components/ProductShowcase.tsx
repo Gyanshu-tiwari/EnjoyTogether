@@ -14,7 +14,7 @@ export const ProductShowcase: React.FC = () => {
            // Why EnjoyTogether
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-normal font-heading text-white tracking-tight">
-            Built for a perfect<br />viewing experience.
+            Built for a perfect viewing <br />experience.
           </h2>
         </div>
 
