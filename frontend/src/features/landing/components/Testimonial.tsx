@@ -50,7 +50,7 @@ export const Testimonial: React.FC = () => {
   }, []);
 
   return (
-    <section className="w-full py-24 md:py-32 px-6 flex flex-col items-center bg-bg-primary border-t border-white/5">
+    <section id="testimonial" className="w-full py-24 md:py-32 px-6 flex flex-col items-center bg-bg-primary border-t border-white/5">
       <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 items-start">
         
         {/* Left: Heading */}

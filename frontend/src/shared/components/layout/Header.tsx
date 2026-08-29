@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
   const userInitial = displayName.charAt(0).toUpperCase();
 
   const headerClass = isLandingPage
-    ? 'absolute top-0 left-0 right-0 w-full flex justify-between items-center z-50 px-6 pt-6'
+    ? 'fixed top-0 left-0 right-0 w-full flex justify-between items-center z-50 px-6 pt-6 pb-4 border-b border-white/5 backdrop-blur-md bg-[#0a0a0a]/80'
     : 'w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4 relative z-45';
 
   return (
@@ -43,9 +43,11 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
       </div>
 
       {isLandingPage && (
-        <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2 mt-1">
           <a href="#how-it-works" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">How it works</a>
+          <a href="#why-enjoytogether" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Why us</a>
           <a href="#features" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Features</a>
+          <a href="#testimonial" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Testimonials</a>
           <a href="#faq" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">FAQ</a>
         </nav>
       )}
