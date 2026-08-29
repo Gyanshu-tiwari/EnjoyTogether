@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Video, LayoutGrid, Github, Twitter, Instagram, User } from 'lucide-react';
+import { Video, LayoutGrid, Globe, MessageCircle, Camera, User } from 'lucide-react';
 import { supabase } from '@/shared/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { Avatar } from '../ui/Avatar';
@@ -46,14 +46,14 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
           </button>
           
           <div className="flex items-center gap-2 px-3">
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-8 h-8 flex items-center justify-center text-black hover:scale-110 transition-transform">
-              <Instagram className="w-4 h-4" />
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-8 h-8 flex items-center justify-center text-black hover:scale-110 transition-transform" title="Instagram">
+              <Camera className="w-4 h-4" />
             </a>
-            <a href="https://twitter.com" target="_blank" rel="noreferrer" className="w-8 h-8 flex items-center justify-center text-black hover:scale-110 transition-transform">
-              <Twitter className="w-4 h-4" />
+            <a href="https://twitter.com" target="_blank" rel="noreferrer" className="w-8 h-8 flex items-center justify-center text-black hover:scale-110 transition-transform" title="Twitter">
+              <MessageCircle className="w-4 h-4" />
             </a>
-            <a href="https://github.com/Gyanshu-tiwari/EnjoyTogether" target="_blank" rel="noreferrer" className="w-8 h-8 flex items-center justify-center text-black hover:scale-110 transition-transform">
-              <Github className="w-4 h-4" />
+            <a href="https://github.com/Gyanshu-tiwari/EnjoyTogether" target="_blank" rel="noreferrer" className="w-8 h-8 flex items-center justify-center text-black hover:scale-110 transition-transform" title="Github">
+              <Globe className="w-4 h-4" />
             </a>
           </div>
 
