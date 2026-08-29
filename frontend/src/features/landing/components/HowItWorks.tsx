@@ -32,8 +32,8 @@ export const HowItWorks: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="flex flex-col"
         >
-          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-4 block">
-            How It Works
+          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-8 block">
+            // How It Works
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-normal font-heading text-white tracking-tight mb-12 lg:mb-16">
             From link to watch party in seconds.
