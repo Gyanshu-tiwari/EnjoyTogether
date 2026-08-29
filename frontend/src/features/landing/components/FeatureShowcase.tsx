@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Link as LinkIcon, Chrome, Safari, Edge } from 'lucide-react';
+import { ShieldCheck, Link as LinkIcon, Globe, Monitor, Smartphone } from 'lucide-react';
 
 export const FeatureShowcase: React.FC = () => {
   return (
@@ -126,9 +126,9 @@ export const FeatureShowcase: React.FC = () => {
                <div className="absolute inset-0 rounded-full border border-yellow-400/30 scale-75" />
                <div className="absolute inset-0 rounded-full border border-yellow-400/20 scale-100" />
                <div className="relative w-full aspect-square max-w-[200px]">
-                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-500"><Chrome className="w-6 h-6" /></div>
-                 <div className="absolute bottom-4 left-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-600"><Edge className="w-6 h-6" /></div>
-                 <div className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-400"><Safari className="w-6 h-6" /></div>
+                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-500"><Globe className="w-6 h-6" /></div>
+                 <div className="absolute bottom-4 left-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-600"><Monitor className="w-6 h-6" /></div>
+                 <div className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-blue-400"><Smartphone className="w-6 h-6" /></div>
                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-pink-500 font-black text-xl">♥</div>
                </div>
             </div>
