@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Video } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Video, ChevronRight } from 'lucide-react';
 import { supabase } from '@/shared/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/Button';
 
 interface HeaderProps {
   session: Session | null;
@@ -11,7 +12,9 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ session }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const isLandingPage = location.pathname === '/';
 
   const handleSignOut = () => {
     supabase.auth.signOut();
@@ -31,11 +34,20 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight text-white">EnjoyTogether</h1>
-          <p className="text-[10px] text-text-secondary">Google Meet style movie streaming room</p>
+          {!isLandingPage && <p className="text-[10px] text-text-secondary hidden sm:block">Google Meet style movie streaming room</p>}
         </div>
       </div>
 
-      {session && (
+      {isLandingPage && (
+        <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+          <a href="#how-it-works" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">How it works</a>
+          <a href="#features" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Features</a>
+          <a href="#faq" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">FAQ</a>
+        </nav>
+      )}
+
+      <div className="flex items-center gap-4 relative">
+      {session ? (
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
@@ -78,7 +90,24 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
             </div>
           )}
         </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/login')}
+            className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-bold text-white hover:text-brand-hover transition-colors cursor-pointer"
+          >
+            Log in
+          </button>
+          <Button 
+            onClick={() => navigate('/login')} 
+            variant="brand" 
+            className="px-5 py-2 text-sm"
+          >
+            Sign up <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
       )}
+      </div>
     </header>
   );
 };

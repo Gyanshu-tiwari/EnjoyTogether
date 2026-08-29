@@ -6,6 +6,8 @@ import Room from '@/pages/Room';
 import ResetPassword from '@/pages/ResetPassword';
 import Verified from '@/pages/Verified';
 import Profile from '@/pages/Profile';
+import Landing from '@/pages/Landing';
+import Login from '@/pages/Login';
 import { MainLayout } from '@/shared/components/layout';
 
 // ── Auth state listener — handles cross-tab sign-in sync ────────────────────
@@ -50,7 +52,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
@@ -62,7 +64,16 @@ export const AppRoutes = () => {
       <AuthListener />
       <Routes>
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Room />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Room />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/room/:id"
             element={
