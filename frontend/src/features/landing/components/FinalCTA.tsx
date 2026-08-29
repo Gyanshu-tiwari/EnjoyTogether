@@ -26,16 +26,18 @@ export const FinalCTA: React.FC = () => {
           Start your first watch party in seconds. No credit card required.
         </p>
         
-        <Button
-          onClick={() => navigate('/dashboard')}
-          variant="brand"
-          className="px-10 py-5 text-lg font-bold shadow-2xl shadow-brand/40 scale-100 hover:scale-105 transition-transform duration-300"
-        >
-          <span className="flex items-center gap-2">
-            <Play className="w-6 h-6" fill="currentColor" />
-            Create a Room Now
-          </span>
-        </Button>
+        <div className="flex flex-col bg-brand overflow-hidden backdrop-blur-md rounded-full sm:flex-row gap-4 justify-between items-center shadow-2xl shadow-brand/40 hover:scale-105 transition-transform duration-300">
+          <Button
+            onClick={() => navigate('/dashboard')}
+            variant="brand"
+            className="py-2 px-2 pr-6 text-lg font-bold shadow-none rounded-full w-full sm:w-auto"
+          >
+            <span className="flex items-center text-white gap-3">
+              <span className='h-12 w-12 flex items-center justify-center rounded-full text-brand bg-white'><Play className="w-6 h-6 ml-1" fill="currentColor" /></span>
+              Create a Room Now
+            </span>
+          </Button>
+        </div>
       </motion.div>
     </section>
   );

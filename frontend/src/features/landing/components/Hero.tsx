@@ -75,14 +75,13 @@ export const Hero: React.FC = () => {
           <Button
             onClick={() => navigate('/dashboard')}
             variant="brand"
-            className="py-2 font-bold shadow-xl rounded-full shadow-brand/20 w-full sm:w-auto"
+            className="py-2 px-2 pr-6 font-bold shadow-xl rounded-full shadow-brand/20 w-full sm:w-auto"
           >
-            <span className="flex text-sm items-center text-white gap-2">
-              <span className='h-10 w-10 rounded-full p-2.5 text-primary bg-white'><Play className="w-5 h-5" fill="currentColor" /></span>
+            <span className="flex text-sm items-center text-white gap-3">
+              <span className='h-10 w-10 flex items-center justify-center rounded-full text-brand bg-white'><Play className="w-5 h-5 ml-1" fill="currentColor" /></span>
               Start a Watch Party
             </span>
           </Button>
-          
         </motion.div>
       </div>
 

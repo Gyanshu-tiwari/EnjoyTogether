@@ -61,7 +61,7 @@ export const Testimonial: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="flex flex-col"
         >
-          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-6 block">
+          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-8 block">
             // Testimonial
           </span>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-normal text-white tracking-tight leading-[1.1]">
