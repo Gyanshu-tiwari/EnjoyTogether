@@ -12,7 +12,7 @@ export const Hero: React.FC = () => {
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   return (
-    <section className="relative w-full min-h-screen flex flex-col items-center pt-32 pb-20 px-6 overflow-hidden">
+    <section className="relative isolate w-full min-h-screen flex flex-col items-center pt-32 pb-20 px-6 overflow-hidden">
       {/* Background Gradients */}
       <div className="absolute inset-0 -z-10 w-full h-full flex items-center justify-center pointer-events-none">
         <div style={{ width: '1080px', height: '1080px', position: 'relative' }}>
