@@ -93,6 +93,11 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   100% { transform: translateY(-100vh) scale(0.9); opacity: 0; }
 }
 
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 @layer utilities {
   .animate-shimmer {
     background: linear-gradient(
@@ -125,6 +130,10 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
   .animate-emoji-float {
     animation: emojiFloat 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
   }
 
   /* Custom scrollbar utility */

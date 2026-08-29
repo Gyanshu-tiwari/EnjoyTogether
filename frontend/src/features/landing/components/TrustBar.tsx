@@ -2,37 +2,31 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 export const TrustBar: React.FC = () => {
+  // Array of items to duplicate for the marquee effect
+  const items = Array.from({ length: 8 }).map((_, i) => (
+    <div key={i} className="flex items-center gap-8 md:gap-16 mx-4 md:mx-8">
+      <span className="text-4xl md:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-linear-to-b from-white/30 to-white/5 uppercase tracking-tighter shrink-0">
+        enjoy together
+      </span>
+      <span className="text-brand/40 text-2xl md:text-4xl shrink-0">✦</span>
+    </div>
+  ));
+
   return (
-    <section className="w-full py-12 px-6 flex flex-col items-center justify-center border-y border-white/5 bg-white/1">
+    <section className="w-full py-16 md:py-24 flex flex-col items-center justify-center border-y border-white/5 bg-black overflow-hidden relative">
+      <div className="absolute inset-y-0 left-0 w-32 bg-linear-to-r from-black to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-32 bg-linear-to-l from-black to-transparent z-10 pointer-events-none" />
+      
       <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
         viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.6 }}
-        className="flex flex-col items-center gap-6"
+        transition={{ duration: 0.8 }}
+        className="w-full flex"
       >
-        <p className="text-sm font-semibold text-text-secondary tracking-widest uppercase">
-          Trusted for movie nights across the globe
-        </p>
-        
-        <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 grayscale">
-          {/* Abstract geometric shapes or placeholder logos to represent different user bases */}
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-neutral-400" />
-            <span className="font-bold text-neutral-400 text-lg tracking-tight">Remote Teams</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-neutral-400" />
-            <span className="font-bold text-neutral-400 text-lg tracking-tight">Long Distance</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rotate-45 bg-neutral-400" />
-            <span className="font-bold text-neutral-400 text-lg tracking-tight">Watch Parties</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-t-full bg-neutral-400" />
-            <span className="font-bold text-neutral-400 text-lg tracking-tight">Study Groups</span>
-          </div>
+        <div className="flex w-max animate-marquee items-center will-change-transform">
+          {items}
+          {items} {/* Duplicated for seamless loop */}
         </div>
       </motion.div>
     </section>
