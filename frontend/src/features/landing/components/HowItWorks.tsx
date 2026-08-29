@@ -32,7 +32,10 @@ export const HowItWorks: React.FC = () => {
           transition={{ duration: 0.6 }}
           className="flex flex-col"
         >
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold font-heading text-white tracking-tight mb-12 lg:mb-16">
+          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-4 block">
+            How It Works
+          </span>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-normal font-heading text-white tracking-tight mb-12 lg:mb-16">
             From link to watch party in seconds.
           </h2>
 
@@ -46,12 +49,12 @@ export const HowItWorks: React.FC = () => {
                 transition={{ duration: 0.5, delay: i * 0.15 }}
                 className="flex gap-6 md:gap-8 group"
               >
-                <div className="flex-shrink-0 mt-1 w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-text-secondary group-hover:text-white group-hover:border-brand/50 transition-colors">
+                <div className="flex-shrink-0 mt-1 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-semibold text-text-secondary group-hover:text-white group-hover:border-brand/50 transition-colors">
                   {step.num}
                 </div>
                 <div>
-                  <h3 className="text-xl md:text-2xl font-bold text-white mb-3 font-heading">{step.title}</h3>
-                  <p className="text-text-secondary leading-relaxed text-base md:text-lg">{step.description}</p>
+                  <h3 className="text-lg md:text-xl font-semibold text-white mb-3 font-heading">{step.title}</h3>
+                  <p className="text-text-secondary leading-normal text-md md:text-lg">{step.description}</p>
                 </div>
               </motion.div>
             ))}
