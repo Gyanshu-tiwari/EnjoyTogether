@@ -26,8 +26,12 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
   const displayName = username || userEmail || 'User';
   const userInitial = displayName.charAt(0).toUpperCase();
 
+  const headerClass = isLandingPage
+    ? 'absolute top-0 left-0 right-0 w-full flex justify-between items-center z-50 px-6 pt-6'
+    : 'w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4 relative z-45';
+
   return (
-    <header className={`w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4 relative z-45 ${isLandingPage ? 'px-6 pt-6' : ''}`}>
+    <header className={headerClass}>
       <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
         <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-brand/10 text-white">
           <Video className="w-5 h-5" />
