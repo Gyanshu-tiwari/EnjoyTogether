@@ -49,7 +49,7 @@ export const HowItWorks: React.FC = () => {
                 transition={{ duration: 0.5, delay: i * 0.15 }}
                 className="flex gap-6 md:gap-8 group"
               >
-                <div className="flex-shrink-0 mt-1 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-semibold text-text-secondary group-hover:text-white group-hover:border-brand/50 transition-colors">
+                <div className="shrink-0 mt-1 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-semibold text-text-secondary group-hover:text-white group-hover:border-brand/50 transition-colors">
                   {step.num}
                 </div>
                 <div>
@@ -67,7 +67,7 @@ export const HowItWorks: React.FC = () => {
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="w-full lg:h-[600px] bg-[#121214] border border-white/5 rounded-[2.5rem] p-4 md:p-8 flex flex-col items-center justify-center relative shadow-2xl"
+          className="w-full lg:h-150 bg-[#121214] border border-white/5 rounded-[2.5rem] p-4 md:p-8 flex flex-col items-center justify-center relative shadow-2xl"
         >
           {/* Faux UI Window */}
           <div className="w-full h-full bg-[#1A1A1D] border border-white/10 rounded-2xl overflow-hidden flex flex-col relative shadow-inner">
@@ -87,7 +87,7 @@ export const HowItWorks: React.FC = () => {
               
               {/* Fake Play Button */}
               <div className="w-16 h-16 rounded-full bg-brand/90 flex items-center justify-center backdrop-blur-md shadow-lg shadow-brand/20 z-10 hover:scale-105 transition-transform cursor-pointer">
-                <div className="w-0 h-0 border-t-8 border-t-transparent border-l-[14px] border-l-white border-b-8 border-b-transparent ml-1" />
+                <div className="w-0 h-0 border-t-8 border-t-transparent border-l-14 border-l-white border-b-8 border-b-transparent ml-1" />
               </div>
 
               {/* Floating Emojis (Decoration) */}

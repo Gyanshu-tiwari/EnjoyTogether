@@ -5,7 +5,7 @@ import { Clock, MessageSquare, ShieldCheck, Video, Mic, Lock } from 'lucide-reac
 export const FeatureShowcase: React.FC = () => {
   return (
     <section id="features" className="w-full py-24 md:py-32 px-6 flex flex-col items-center">
-      <div className="max-w-[1200px] w-full">
+      <div className="max-w-300 w-full">
         {/* Header Area */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -39,13 +39,13 @@ export const FeatureShowcase: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5 }}
-              className="lg:col-span-2 relative rounded-3xl overflow-hidden group min-h-[400px] flex flex-col justify-between p-8 md:p-10 bg-bg-card border border-white/5 hover:border-white/10 transition-colors shadow-2xl"
+              className="lg:col-span-2 relative rounded-3xl overflow-hidden group min-h-100 flex flex-col justify-between p-8 md:p-10 bg-bg-card border border-white/5 hover:border-white/10 transition-colors shadow-2xl"
             >
               {/* Graphic Background */}
               <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity duration-700">
                 <img src="/hero.avif" alt="Synced Playback" className="w-full h-full object-cover mix-blend-luminosity" />
-                <div className="absolute inset-0 bg-gradient-to-t from-bg-card via-bg-card/80 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-bg-card via-bg-card/50 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-bg-card via-bg-card/80 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-r from-bg-card via-bg-card/50 to-transparent" />
               </div>
               
               <div className="relative z-10 max-w-md mt-auto">
@@ -76,7 +76,7 @@ export const FeatureShowcase: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="lg:col-span-1 rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 flex flex-col relative overflow-hidden min-h-[400px]"
+              className="lg:col-span-1 rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 flex flex-col relative overflow-hidden min-h-100"
             >
               <div className="w-12 h-12 rounded-2xl bg-pink-500/20 flex items-center justify-center mb-6 text-pink-500 relative z-10">
                 <MessageSquare className="w-6 h-6" />
@@ -109,7 +109,7 @@ export const FeatureShowcase: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 md:p-10 flex flex-col sm:flex-row gap-8 relative overflow-hidden min-h-[300px] items-center"
+              className="rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 md:p-10 flex flex-col sm:flex-row gap-8 relative overflow-hidden min-h-75 items-center"
             >
               <div className="flex-1 relative z-10">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-6 text-emerald-400">
@@ -122,7 +122,7 @@ export const FeatureShowcase: React.FC = () => {
               </div>
 
               {/* Graphic */}
-              <div className="w-full sm:w-48 h-48 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0">
+              <div className="w-full sm:w-48 h-48 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
                  {/* Audio Visualizer Faux */}
                  <div className="flex items-center gap-1.5 h-16 opacity-80">
                    {[3,5,8,4,9,6,3].map((h, i) => (
@@ -150,7 +150,7 @@ export const FeatureShowcase: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 md:p-10 flex flex-col sm:flex-row-reverse gap-8 relative overflow-hidden min-h-[300px] items-center"
+              className="rounded-3xl bg-bg-card border border-white/5 hover:border-white/10 transition-colors p-8 md:p-10 flex flex-col sm:flex-row-reverse gap-8 relative overflow-hidden min-h-75 items-center"
             >
               <div className="flex-1 relative z-10">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 text-indigo-400">
@@ -163,7 +163,7 @@ export const FeatureShowcase: React.FC = () => {
               </div>
 
               {/* Graphic */}
-              <div className="w-full sm:w-48 h-48 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0">
+              <div className="w-full sm:w-48 h-48 rounded-2xl bg-black/40 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
                  <div className="relative w-24 h-24 flex items-center justify-center">
                    <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-full animate-ping" />
                    <div className="absolute inset-2 border-2 border-indigo-500/40 rounded-full" />

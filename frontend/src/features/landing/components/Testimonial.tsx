@@ -51,7 +51,7 @@ export const Testimonial: React.FC = () => {
 
   return (
     <section id="testimonial" className="w-full py-24 md:py-32 px-6 flex flex-col items-center bg-bg-primary border-t border-white/5">
-      <div className="max-w-[1000px] w-full grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 items-start">
+      <div className="max-w-250 w-full grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 items-start">
         
         {/* Left: Heading */}
         <motion.div 
@@ -101,7 +101,7 @@ export const Testimonial: React.FC = () => {
           </div>
 
           {/* Quote Content */}
-          <div className="min-h-[160px] relative">
+          <div className="min-h-40 relative">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeIndex}

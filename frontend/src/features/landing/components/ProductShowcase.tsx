@@ -6,7 +6,7 @@ import { Button } from '@/shared/components/ui/Button';
 export const ProductShowcase: React.FC = () => {
   return (
     <section id="why-enjoytogether" className="w-full py-24 md:py-32 px-6 flex flex-col items-center bg-[#0a0a0a]">
-      <div className="max-w-[1000px] w-full flex flex-col gap-32">
+      <div className="max-w-250 w-full flex flex-col gap-32">
         
         {/* Section Header */}
         <div className="flex flex-col items-center text-center">
@@ -43,7 +43,7 @@ export const ProductShowcase: React.FC = () => {
             transition={{ duration: 0.6 }}
             className="w-full md:w-1/2 relative"
           >
-            <div className="bg-[#161618] border border-white/5 rounded-3xl p-8 aspect-[3/2] flex flex-col items-center justify-center relative overflow-hidden shadow-2xl">
+            <div className="bg-[#161618] border border-white/5 rounded-3xl p-8 aspect-3/2 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl">
               <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center text-[#555] mb-8">
                 <User className="w-10 h-10" />
               </div>
@@ -85,7 +85,7 @@ export const ProductShowcase: React.FC = () => {
             className="w-full md:w-1/2 relative flex justify-center lg:justify-start"
           >
             
-            <div className="w-[340px] bg-[#1a1a1c] border border-white/5 rounded-3xl p-6 shadow-2xl flex flex-col gap-6 relative z-10">
+            <div className="w-85 bg-[#1a1a1c] border border-white/5 rounded-3xl p-6 shadow-2xl flex flex-col gap-6 relative z-10">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-[#202030] flex items-center justify-center text-[#7c8fff]">
                   <Hand className="w-6 h-6" />
