@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/shared/lib/supabase';
 import { Video, Mail, Eye, EyeOff } from 'lucide-react';
 
 type AuthMode = 'signin' | 'signup' | 'forgot_password';
 
 export const LoginForm: React.FC = () => {
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const [searchParams] = useSearchParams();
+  const initialMode = (searchParams.get('mode') as AuthMode) || 'signin';
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

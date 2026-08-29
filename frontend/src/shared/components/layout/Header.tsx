@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
             Log in
           </button>
           <Button 
-            onClick={() => navigate('/login')} 
+            onClick={() => navigate('/login?mode=signup')} 
             variant="brand" 
             className="px-5 py-2 text-sm"
           >
