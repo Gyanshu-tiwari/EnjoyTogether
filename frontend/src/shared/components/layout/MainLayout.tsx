@@ -44,8 +44,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   if (!session) {
     return (
-      <div className={`min-h-screen bg-bg-primary flex flex-col items-center justify-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
-        {content}
+      <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
+        <div className="w-full max-w-7xl flex flex-col relative z-10">
+          {!isTheaterPage && <Header session={session} />}
+          <main className="w-full flex flex-col items-center">
+            {content}
+          </main>
+        </div>
       </div>
     );
   }
