@@ -100,6 +100,9 @@ export const Hero: React.FC = () => {
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
         />
       </motion.div>
+
+      {/* Bottom Gradient Fade */}
+      <div className="absolute bottom-0 left-0 w-full h-40 bg-linear-to-t from-bg-primary to-transparent pointer-events-none z-30" />
     </section>
   );
 };
