@@ -5,10 +5,10 @@ export const TrustBar: React.FC = () => {
   // Array of items to duplicate for the marquee effect
   const items = Array.from({ length: 8 }).map((_, i) => (
     <div key={i} className="flex items-center gap-8 md:gap-16 mx-4 md:mx-8 shrink-0">
-      <span className="text-lg md:text-2xl font-black text-transparent bg-clip-text bg-linear-to-b from-white/30 to-white/5 uppercase tracking-tighter shrink-0 whitespace-nowrap">
+      <span className="text-lg md:text-2xl font-black text-transparent bg-clip-text bg-linear-to-b from-white/60 to-white/20 uppercase tracking-tighter shrink-0 whitespace-nowrap">
         enjoy together
       </span>
-      <span className="text-brand/40 text-lg md:text-2xl shrink-0">✦</span>
+      <span className="text-brand/60 text-lg md:text-2xl shrink-0">✦</span>
     </div>
   ));
 
