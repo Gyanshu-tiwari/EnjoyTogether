@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 export const TrustBar: React.FC = () => {
   // Array of items to duplicate for the marquee effect
   const items = Array.from({ length: 8 }).map((_, i) => (
-    <div key={i} className="flex items-center gap-8 md:gap-16 mx-4 md:mx-8">
-      <span className="text-4xl md:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-linear-to-b from-white/30 to-white/5 uppercase tracking-tighter shrink-0">
+    <div key={i} className="flex items-center gap-8 md:gap-16 mx-4 md:mx-8 shrink-0">
+      <span className="text-4xl md:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-linear-to-b from-white/30 to-white/5 uppercase tracking-tighter shrink-0 whitespace-nowrap">
         enjoy together
       </span>
       <span className="text-brand/40 text-2xl md:text-4xl shrink-0">✦</span>
@@ -22,7 +22,7 @@ export const TrustBar: React.FC = () => {
         whileInView={{ opacity: 1 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ duration: 0.8 }}
-        className="w-full flex"
+        className="w-full overflow-hidden"
       >
         <div className="flex w-max animate-marquee items-center will-change-transform">
           {items}
