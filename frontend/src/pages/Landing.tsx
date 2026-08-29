@@ -4,6 +4,7 @@ import { TrustBar } from '@/features/landing/components/TrustBar';
 import { HowItWorks } from '@/features/landing/components/HowItWorks';
 import { FeatureShowcase } from '@/features/landing/components/FeatureShowcase';
 import { ProductShowcase } from '@/features/landing/components/ProductShowcase';
+import { Testimonial } from '@/features/landing/components/Testimonial';
 import { FAQ } from '@/features/landing/components/FAQ';
 import { FinalCTA } from '@/features/landing/components/FinalCTA';
 import { Footer } from '@/features/landing/components/Footer';
@@ -18,6 +19,7 @@ export const Landing: React.FC = () => {
         <HowItWorks />
         <ProductShowcase />
         <FeatureShowcase />
+        <Testimonial />
         <FAQ />
         <FinalCTA />
         <Footer />

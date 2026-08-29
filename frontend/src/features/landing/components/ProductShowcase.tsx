@@ -10,10 +10,10 @@ export const ProductShowcase: React.FC = () => {
         
         {/* Section Header */}
         <div className="flex flex-col items-center text-center">
-          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-6 block">
-            Why EnjoyTogether
+          <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-8 block">
+           // Why EnjoyTogether
           </span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold font-heading text-white tracking-tight uppercase leading-none">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-normal font-heading text-white tracking-tight">
             Built for a perfect<br />viewing experience.
           </h2>
         </div>
@@ -28,7 +28,7 @@ export const ProductShowcase: React.FC = () => {
             className="w-full md:w-1/2 flex flex-col gap-4"
           >
             <span className="text-[#5c6bc0] font-bold tracking-[0.2em] text-xs uppercase">Pre-Join Lobby</span>
-            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight font-heading leading-tight">
+            <h2 className="text-3xl md:text-4xl font-normal text-white tracking-tight">
               Get ready before you enter.
             </h2>
             <p className="text-[#888] text-base leading-relaxed mt-2">
@@ -43,7 +43,7 @@ export const ProductShowcase: React.FC = () => {
             transition={{ duration: 0.6 }}
             className="w-full md:w-1/2 relative"
           >
-            <div className="bg-[#161618] border border-white/5 rounded-3xl p-8 aspect-[4/3] flex flex-col items-center justify-center relative overflow-hidden shadow-2xl">
+            <div className="bg-[#161618] border border-white/5 rounded-3xl p-8 aspect-[3/2] flex flex-col items-center justify-center relative overflow-hidden shadow-2xl">
               <div className="w-20 h-20 rounded-full bg-black flex items-center justify-center text-[#555] mb-8">
                 <User className="w-10 h-10" />
               </div>
@@ -68,8 +68,8 @@ export const ProductShowcase: React.FC = () => {
             transition={{ duration: 0.6 }}
             className="w-full md:w-1/2 flex flex-col gap-4"
           >
-            <span className="text-[#00e676] font-bold tracking-[0.2em] text-xs uppercase">Host Controls</span>
-            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight font-heading leading-tight">
+            <span className="text-[#5c6bc0] font-bold tracking-[0.2em] text-xs uppercase">Host Controls</span>
+            <h2 className="text-3xl md:text-4xl font-normal text-white tracking-tight">
               Total control over your room.
             </h2>
             <p className="text-[#888] text-base leading-relaxed mt-2">
