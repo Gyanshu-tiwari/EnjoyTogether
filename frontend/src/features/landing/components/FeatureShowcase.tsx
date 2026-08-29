@@ -15,8 +15,8 @@ export const FeatureShowcase: React.FC = () => {
           className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8"
         >
           <div>
-            <span className="text-brand font-bold tracking-widest text-xs uppercase mb-4 block">
-              The Ultimate Toolkit
+            <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-4 block">
+              Features
             </span>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black font-heading text-white tracking-tight uppercase leading-none">
               Everything you need<br />for movie night.
