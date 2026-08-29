@@ -3,6 +3,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Play, Users, Smile } from 'lucide-react';
 import { Button } from '@/shared/components/ui/Button';
+import { Plasma } from './Plasma';
 
 export const Hero: React.FC = () => {
   const navigate = useNavigate();
@@ -13,8 +14,22 @@ export const Hero: React.FC = () => {
   return (
     <section className="relative w-full min-h-screen flex flex-col items-center pt-32 pb-20 px-6 overflow-hidden">
       {/* Background Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-brand/20 blur-[120px] rounded-full pointer-events-none -z-10" />
-      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute inset-0 -z-10 w-full h-full flex items-center justify-center pointer-events-none">
+        <div style={{ width: '1080px', height: '1080px', position: 'relative' }}>
+          <Plasma
+            color="#5e53eb"
+            speed={1}
+            direction="forward"
+            scale={1}
+            opacity={1}
+            mouseInteractive
+            iterations={60}
+            renderScale={0.55}
+            targetFps={60}
+            maxDpr={1.5}
+          />
+        </div>
+      </div>
 
       {/* Hero Content */}
       <div className="flex flex-col items-center text-center max-w-4xl z-10 mb-16">
@@ -37,7 +52,7 @@ export const Hero: React.FC = () => {
           className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-6 leading-tight font-heading"
         >
           Watch together, <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand to-indigo-400">
+          <span className="text-transparent bg-clip-text bg-linear-to-r from-brand to-indigo-400">
             feel closer.
           </span>
         </motion.h1>
@@ -89,7 +104,7 @@ export const Hero: React.FC = () => {
         className="relative w-full max-w-5xl aspect-video rounded-2xl md:rounded-[2rem] border border-white/10 bg-bg-card shadow-2xl shadow-black/50 overflow-hidden flex flex-col group z-20"
       >
         {/* Mockup Top Bar */}
-        <div className="h-12 w-full border-b border-white/5 bg-white/[0.02] flex items-center px-4 justify-between backdrop-blur-md shrink-0">
+        <div className="h-12 w-full border-b border-white/5 bg-white/2 flex items-center px-4 justify-between backdrop-blur-md shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500/80" />
             <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
@@ -115,7 +130,7 @@ export const Hero: React.FC = () => {
         {/* Mockup Video Area */}
         <div className="relative flex-1 bg-black/80 flex items-center justify-center overflow-hidden">
           {/* Faux Video Content */}
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-black pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-br from-indigo-900/40 via-purple-900/20 to-black pointer-events-none" />
           
           <div className="w-20 h-20 rounded-full bg-brand/20 border border-brand-border flex items-center justify-center shadow-2xl shadow-brand/20 backdrop-blur-xl group-hover:scale-110 transition-transform duration-500">
             <Play className="w-8 h-8 text-white ml-1" fill="currentColor" />

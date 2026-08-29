@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 export const TrustBar: React.FC = () => {
   return (
-    <section className="w-full py-12 px-6 flex flex-col items-center justify-center border-y border-white/5 bg-white/[0.01]">
+    <section className="w-full py-12 px-6 flex flex-col items-center justify-center border-y border-white/5 bg-white/1">
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}

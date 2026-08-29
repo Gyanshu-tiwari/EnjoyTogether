@@ -60,7 +60,7 @@ export const FAQ: React.FC = () => {
                   <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-white/5 text-neutral-400"
+                    className="w-6 h-6 shrink-0 flex items-center justify-center rounded-full bg-white/5 text-neutral-400"
                   >
                     <ChevronDown className="w-4 h-4" />
                   </motion.div>
