@@ -22,7 +22,7 @@ export const FeatureShowcase: React.FC = () => {
         </div>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* Card 1: Synced Playback (Col span 2) */}
           <motion.div 
@@ -30,7 +30,7 @@ export const FeatureShowcase: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.5 }}
-            className="md:col-span-2 relative rounded-3xl overflow-hidden group min-h-[450px] flex flex-col justify-end p-8 md:p-10 border border-white/5 bg-[#1A1A1D]"
+            className="md:col-span-2 lg:col-span-2 relative rounded-3xl overflow-hidden group min-h-[450px] flex flex-col justify-end p-8 md:p-10 border border-white/5 bg-[#1A1A1D]"
           >
             <img src="/hero.avif" alt="Synced Playback" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-60" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
