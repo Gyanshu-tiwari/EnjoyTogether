@@ -115,7 +115,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-2 gap-y-4 w-full">
+          <div className="flex flex-col gap-3 w-full pb-4">
             {displayParticipants.map((p) => {
               const cleanName = (name: string): string => {
                 if (!name) return '';
@@ -127,45 +127,45 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
 
               const displayName = cleanName(p.identity);
               const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
+              
+              // Simulate an active speaker border if they are speaking (or random for visual flair if not provided by livekit)
+              // Currently LiveKit exposes isSpeaking on the track/participant if subscribed to, but we'll use a hover effect as a placeholder for interactivity.
+              
               return (
-                <div key={p.identity} className="flex flex-col gap-1.5 w-full min-w-0">
-                  {/* Card wrapper (aspect-video) */}
-                  <div className="relative aspect-video rounded-2xl bg-bg-primary border border-white/5 hover:border-brand-border/40 transition-all duration-300 group overflow-hidden flex flex-col items-center justify-center w-full">
-                    {/* Camera Video Stream vs Placeholder Avatar */}
-                    {p.isCameraEnabled && p.videoTrack ? (
-                      <div className="absolute inset-0 w-full h-full z-0">
-                        <TrackRenderer track={p.videoTrack} isLocal={p.isLocal} />
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-2 text-center z-10 select-none animate-fade-in">
-                        <div className="w-10 h-10 rounded-full bg-brand-muted border border-brand-border flex items-center justify-center shadow-inner">
-                          <span className="text-xs font-bold text-indigo-400 font-mono">
-                            {initial}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Top Right Mic Status Badge */}
-                    <div className="absolute top-2 right-2 z-20">
-                      {p.isMicEnabled ? (
-                        <span className="flex h-5 w-5 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 rounded-full backdrop-blur-md text-emerald-400" title="Microphone Active">
-                          <Mic className="w-3 h-3" />
-                        </span>
-                      ) : (
-                        <span className="flex h-5 w-5 items-center justify-center bg-red-500/25 border border-red-500/35 rounded-full backdrop-blur-md text-red-400" title="Microphone Muted">
-                          <MicOff className="w-3 h-3" />
-                        </span>
-                      )}
+                <div key={p.identity} className="relative h-24 w-full rounded-xl bg-[#1e1e1e] border border-white/5 hover:border-[#4f46e5]/50 transition-all duration-300 group overflow-hidden flex shadow-lg">
+                  
+                  {/* Camera Video Stream vs Placeholder Avatar */}
+                  {p.isCameraEnabled && p.videoTrack ? (
+                    <div className="absolute inset-0 w-full h-full z-0">
+                      <TrackRenderer track={p.videoTrack} isLocal={p.isLocal} />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full bg-[#121212] flex items-center justify-center z-0">
+                      <div className="w-12 h-12 rounded-full bg-brand-muted border border-brand-border flex items-center justify-center shadow-inner">
+                        <span className="text-sm font-bold text-indigo-400 font-mono">
+                          {initial}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Username Label Below the Card */}
-                  <div className="text-center w-full min-w-0 px-1">
-                    <p className="text-[10px] font-medium text-neutral-400 font-mono truncate w-full" title={displayName}>
+                  {/* Right Side Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-l from-black/90 via-black/40 to-transparent pointer-events-none z-10" />
+
+                  {/* User Info (Name & Mic) on the right */}
+                  <div className="absolute inset-y-0 right-4 flex items-center justify-end gap-3 z-20">
+                    <span className="text-[13px] font-medium text-neutral-200 drop-shadow-md truncate max-w-[120px]">
                       {displayName}
-                    </p>
+                    </span>
+                    {p.isMicEnabled ? (
+                      <Mic className="w-4 h-4 text-neutral-400 drop-shadow-md" />
+                    ) : (
+                      <MicOff className="w-4 h-4 text-red-500 drop-shadow-md" />
+                    )}
                   </div>
+                  
+                  {/* Active Speaker Border Glow (mocked with hover for now) */}
+                  <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#4f46e5] rounded-xl z-30 pointer-events-none transition-colors duration-300"></div>
                 </div>
               );
             })}
