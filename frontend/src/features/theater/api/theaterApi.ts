@@ -77,7 +77,7 @@ export async function uploadChunk({ chunk, fileName, fileId, chunkIndex, totalCh
 }
 
 export async function getTranscodeStatus(fileId?: string): Promise<TranscodeStatus> {
-  const params = fileId ? { params: { fileId } } : {};
+  const params = fileId ? { params: { fileId, _cb: Date.now() } } : { params: { _cb: Date.now() } };
   const response = await apiClient.get(`/api/video/transcode-status`, params);
   return response.data;
 }

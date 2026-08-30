@@ -205,6 +205,7 @@ export class RoomController {
 
   static async transcodeStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       const fileId = req.query.fileId as string | undefined;
       // Prefer the per-fileId status file when a fileId is provided.
       // This allows concurrent uploads to have independent status tracking.
