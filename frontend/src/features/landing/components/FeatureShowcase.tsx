@@ -18,7 +18,7 @@ export const FeatureShowcase: React.FC = () => {
             <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-8 block">
               // Features
             </span>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold font-heading text-white tracking-tight uppercase leading-none">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-normal text-white tracking-tight leading-none">
               Everything you need<br />for movie night.
             </h2>
           </div>

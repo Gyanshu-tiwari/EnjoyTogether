@@ -19,7 +19,7 @@ export const FinalCTA: React.FC = () => {
         {/* Decorative background blur */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-100 bg-brand/30 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-        <h2 className="text-4xl md:text-6xl font-extrabold font-heading text-white tracking-tight mb-6">
+        <h2 className="text-4xl md:text-6xl font-semibold font-heading text-white tracking-tight mb-6">
           Ready for movie night?
         </h2>
         <p className="text-lg md:text-xl text-indigo-200 max-w-2xl mb-10 leading-relaxed">

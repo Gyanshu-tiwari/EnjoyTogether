@@ -64,8 +64,8 @@ export const Testimonial: React.FC = () => {
           <span className="text-[#C0C0C0] font-semibold tracking-widest text-sm uppercase mb-8 block">
             // Testimonial
           </span>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-normal text-white tracking-tight leading-[1.1]">
-            Loved by movie buffs, friends
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-normal text-white tracking-normal leading-none">
+            Loved by movie lovers, friends
           </h2>
         </motion.div>
 
@@ -111,7 +111,7 @@ export const Testimonial: React.FC = () => {
                 transition={{ duration: 0.4 }}
                 className="absolute inset-0 flex flex-col"
               >
-                <p className="text-white text-lg md:text-xl font-medium leading-relaxed mb-6">
+                <p className="text-white/80 text-lg md:text-xl font-normal leading-relaxed mb-6">
                   "{testimonials[activeIndex].quote}"
                 </p>
                 <div className="flex flex-col">
