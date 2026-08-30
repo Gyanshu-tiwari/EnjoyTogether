@@ -8,7 +8,7 @@ export const Login: React.FC = () => {
       <div className="absolute top-0 right-0 w-96 h-96 bg-brand/5 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
       
-      <div className="relative z-10 w-full flex justify-center mt-[-40px]">
+      <div className="relative z-10 w-full flex justify-center -mt-10">
         <AuthLoginForm />
       </div>
     </div>

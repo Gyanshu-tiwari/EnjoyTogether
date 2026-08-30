@@ -31,7 +31,7 @@ const RevealLink = ({ href, children }: { href: string; children: string }) => {
           hover: { y: 0 },
         }}
         transition={{ duration: 0.3, ease: [0.33, 1, 0.68, 1] }}
-        className="block whitespace-nowrap text-white absolute inset-0 flex items-center justify-center"
+        className="whitespace-nowrap text-white absolute inset-0 flex items-center justify-center"
         aria-hidden
       >
         {children}
