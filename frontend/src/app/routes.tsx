@@ -10,10 +10,16 @@ import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import { MainLayout } from '@/shared/components/layout';
 
-// ── Auth state listener — handles cross-tab sign-in sync ────────────────────
 const AuthListener = () => {
   const navigate = useNavigate();
   const { loading } = useAuthSession();
+
+  // Tell the native HTML loader to finish and dismiss once Auth is ready globally
+  useEffect(() => {
+    if (!loading && typeof window.finishLoading === 'function') {
+      window.finishLoading();
+    }
+  }, [loading]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {

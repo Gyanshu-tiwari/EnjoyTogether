@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { useAuthSession } from '@/features/auth';
@@ -23,13 +23,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isTheaterPage = location.pathname.includes('/room/');
   const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/signup') || location.pathname.includes('/reset-password');
   const isLandingPage = location.pathname === '/';
-
-  // Tell the native HTML loader to finish and dismiss once React & Auth are ready
-  useEffect(() => {
-    if (!authLoading && typeof window.finishLoading === 'function') {
-      window.finishLoading();
-    }
-  }, [authLoading]);
 
   const isLoading = authLoading;
   const shouldShowHeader = !isTheaterPage && !isAuthPage;
