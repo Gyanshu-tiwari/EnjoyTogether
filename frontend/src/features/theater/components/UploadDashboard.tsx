@@ -84,9 +84,10 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
     startTimeRef.current = Date.now();
 
     try {
-      console.log("📤 Dispatching sequential chunk network requests to backend...");
+      console.log("📤 Dispatching parallel chunk network requests to backend...");
 
-      const CHUNK_SIZE = 15 * 1024 * 1024; // 15MB chunks to minimize HTTP request overhead and significantly speed up upload
+      const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB chunks → fewer HTTP round trips
+      const PARALLEL_UPLOADS = 3; // Upload 3 chunks simultaneously
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
       const newFileId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
       setFileId(newFileId);
@@ -98,30 +99,34 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       }
 
       let lastResponseData: { success?: boolean; fileId?: string; streamUrl?: string } | null = null;
-      let totalLoaded = 0;
 
-      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      // Track bytes loaded per chunk index for accurate total progress
+      const chunkLoadedMap = new Map<number, number>();
+      const getChunkProgress = () => {
+        let loaded = 0;
+        chunkLoadedMap.forEach(v => loaded += v);
+        return loaded;
+      };
+
+      const uploadSingleChunk = async (chunkIndex: number): Promise<void> => {
         const start = chunkIndex * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, file.size);
         const chunkBlob = file.slice(start, end);
+        chunkLoadedMap.set(chunkIndex, 0);
 
-        console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks}`);
-
-        let chunkSuccess = false;
         let attempt = 0;
         const MAX_RETRIES = 3;
-
-        while (!chunkSuccess && attempt < MAX_RETRIES) {
+        while (attempt < MAX_RETRIES) {
           try {
-            lastResponseData = await uploadChunk({
+            const result = await uploadChunk({
               chunk: chunkBlob,
               fileName: file.name,
               fileId: newFileId,
               chunkIndex,
               totalChunks,
               onProgress: (progressEvent: import('axios').AxiosProgressEvent) => {
-                const chunkLoaded = progressEvent.loaded;
-                const currentTotalLoaded = totalLoaded + chunkLoaded;
+                chunkLoadedMap.set(chunkIndex, progressEvent.loaded);
+                const currentTotalLoaded = getChunkProgress();
                 const percentCompleted = Math.round((currentTotalLoaded * 100) / file.size);
                 setProgress(percentCompleted);
 
@@ -131,10 +136,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                   const bytesPerSec = currentTotalLoaded / elapsedSec;
                   const remainingBytes = file.size - currentTotalLoaded;
                   const remainingSec = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
-
-                  const speedMBps = bytesPerSec / (1024 * 1024);
-                  setUploadSpeed(`${speedMBps.toFixed(2)} MB/s`);
-
+                  setUploadSpeed(`${(bytesPerSec / (1024 * 1024)).toFixed(2)} MB/s`);
                   if (remainingSec > 0) {
                     const mins = Math.floor(remainingSec / 60);
                     const secs = Math.floor(remainingSec % 60);
@@ -145,25 +147,37 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                 }
               }
             });
-            chunkSuccess = true;
+            // Only the last chunk response carries the final streamUrl
+            if (chunkIndex === totalChunks - 1) lastResponseData = result;
+            chunkLoadedMap.set(chunkIndex, chunkBlob.size); // mark as fully done
+            return;
           } catch (chunkErr) {
             attempt++;
             console.warn(`⚠️ Chunk ${chunkIndex + 1} upload failed (attempt ${attempt}/${MAX_RETRIES}). Retrying...`, chunkErr);
             if (attempt >= MAX_RETRIES) {
-              throw new Error(`Upload failed after 3 retries on chunk ${chunkIndex + 1}. Network instability detected.`, { cause: chunkErr });
+              throw new Error(`Upload failed after ${MAX_RETRIES} retries on chunk ${chunkIndex + 1}.`, { cause: chunkErr });
             }
-            // Exponential backoff before retry (2s, 4s)
             await new Promise(r => setTimeout(r, attempt * 2000));
           }
         }
-        
-        totalLoaded += chunkBlob.size;
+      };
+
+      // ── Parallel upload pool ───────────────────────────────────────────────
+      // Process chunks in batches of PARALLEL_UPLOADS for maximum throughput
+      for (let i = 0; i < totalChunks; i += PARALLEL_UPLOADS) {
+        const batch = [];
+        for (let j = i; j < Math.min(i + PARALLEL_UPLOADS, totalChunks); j++) {
+          console.log(`Uploading chunk ${j + 1}/${totalChunks} (batch)`);
+          batch.push(uploadSingleChunk(j));
+        }
+        await Promise.all(batch); // Each batch of 3 runs in parallel
       }
 
-      if (lastResponseData?.success) {
-        console.log("Uploaded successfully! File Identifier Map reference:", lastResponseData.fileId);
+      const response = lastResponseData as { success?: boolean; fileId?: string; streamUrl?: string } | null;
+      if (response?.success) {
+        console.log("Uploaded successfully! File Identifier Map reference:", response?.fileId);
         
-        let streamUrl = lastResponseData.streamUrl || '';
+        let streamUrl = response?.streamUrl || '';
         if (!streamUrl) {
           const backendBase = import.meta.env.VITE_BACKEND_URL
             ? (import.meta.env.VITE_BACKEND_URL.startsWith('http') ? import.meta.env.VITE_BACKEND_URL : `https://${import.meta.env.VITE_BACKEND_URL}`)

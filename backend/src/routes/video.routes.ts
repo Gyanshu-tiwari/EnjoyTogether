@@ -30,7 +30,7 @@ const movieStorage = multer.diskStorage({
 
 const uploadMovie = multer({
   storage: movieStorage,
-  limits: { fileSize: 4 * 1024 * 1024 * 1024 }, // 4 GB max
+  limits: { fileSize: 30 * 1024 * 1024 }, // 30MB per chunk (frontend sends max 25MB)
 });
 
 // Video pipeline endpoints

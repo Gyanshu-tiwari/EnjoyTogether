@@ -1,13 +1,24 @@
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import util from 'util';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const execPromise = util.promisify(exec);
+// Run a shell command and stream stdout/stderr to process (no stdout buffer limit)
+function execStream(cmd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('sh', ['-c', cmd], { stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.on('data', (d: Buffer) => process.stdout.write(d));
+    child.stderr.on('data', (d: Buffer) => process.stderr.write(d));
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Process exited with code ${code}`));
+    });
+    child.on('error', reject);
+  });
+}
 const BACKEND_ROOT = process.cwd();
 const inputPath = process.argv[2];
 const fileId = process.argv[3] || 'master_party';
@@ -179,10 +190,31 @@ async function runPipeline() {
     const ffmpegCmd = `ffmpeg -loglevel error -y -progress "${PROGRESS_FILE}" -i "${INPUT_MOVIE}" ${videoFlag} ${audioFlag} -map 0:v:0? -map 0:a:0? -sn -dn -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "${OUTPUT_M3U8}"`;
 
     // ── Pipelined Background Segment Uploader ────────────────────────────────
-    // Uploads segments to Supabase as soon as FFMPEG finishes writing them to the playlist
+    // Uploads segments to Supabase as soon as FFMPEG finishes writing them to the playlist.
+    // We cap parallel uploads at UPLOAD_CONCURRENCY to avoid saturating the Supabase connection.
+    const UPLOAD_CONCURRENCY = 5;
     const uploadedSegments = new Set<string>();
     const activeUploadPromises: Promise<void>[] = [];
     let allSegmentsIdentified: string[] = [];
+    let activeUploads = 0;
+    const uploadQueue: string[] = [];
+
+    const drainQueue = async () => {
+      while (uploadQueue.length > 0 && activeUploads < UPLOAD_CONCURRENCY) {
+        const segFile = uploadQueue.shift()!;
+        activeUploads++;
+        const p = uploadSegment(segFile).finally(() => {
+          activeUploads--;
+          drainQueue(); // Refill slot immediately when one finishes
+        });
+        activeUploadPromises.push(p);
+      }
+    };
+
+    const enqueueSegment = (segFile: string) => {
+      uploadQueue.push(segFile);
+      drainQueue();
+    };
 
     const uploadSegment = async (segFile: string, retries = 3) => {
       if (!supabase) return;
@@ -200,14 +232,13 @@ async function runPipeline() {
               upsert: true,
             });
           if (error) throw error;
-          console.log(`  ✓ Pipelined upload: ${segFile}`);
+          console.log(`  ✓ Uploaded: ${segFile}`);
           return; // Success
         } catch (e: any) {
-          console.error(`⚠️ Upload attempt ${attempt}/${retries} failed for segment ${segFile}:`, e.message);
+          console.error(`⚠️ Upload attempt ${attempt}/${retries} failed for ${segFile}:`, e.message);
           if (attempt === retries) {
-            console.error(`❌ Failed to pipeline upload segment ${segFile} after all attempts.`);
+            console.error(`❌ Failed to upload segment ${segFile} after ${retries} attempts.`);
           } else {
-            // Wait briefly before retry
             await new Promise(resolve => setTimeout(resolve, attempt * 500));
           }
         }
@@ -238,8 +269,7 @@ async function runPipeline() {
             if (!uploadedSegments.has(segFile)) {
               uploadedSegments.add(segFile);
               allSegmentsIdentified.push(segFile);
-              const p = uploadSegment(segFile);
-              activeUploadPromises.push(p);
+              enqueueSegment(segFile); // queued into concurrency pool
             }
           }
         } catch (e) {
@@ -288,7 +318,7 @@ async function runPipeline() {
     }, 1000);
 
     try {
-      await execPromise(ffmpegCmd);
+      await execStream(ffmpegCmd);
       console.log('🎉 Local HLS transcoding completed successfully.');
 
       // ── Upload remaining segments to Supabase CDN ─────────────────────────
@@ -306,8 +336,7 @@ async function runPipeline() {
             if (!uploadedSegments.has(segFile)) {
               uploadedSegments.add(segFile);
               allSegmentsIdentified.push(segFile);
-              const p = uploadSegment(segFile);
-              activeUploadPromises.push(p);
+              enqueueSegment(segFile);
             }
           }
         }
