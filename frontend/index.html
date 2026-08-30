@@ -21,6 +21,9 @@
         padding: 1.5rem;
         z-index: 100;
         box-sizing: border-box;
+        background-color: #0a0a0a;
+        transform-origin: top;
+        will-change: transform, border-radius;
       }
       @media (min-width: 768px) {
         .html-loader {
@@ -50,17 +53,12 @@
       }
       .loader-line {
         height: 100%;
-        width: 30%;
+        width: 0%;
         background-color: white;
         position: absolute;
         top: 0;
-        left: -30%;
-        animation: loading-line 2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-      }
-      @keyframes loading-line {
-        0% { left: -30%; width: 10%; }
-        50% { left: 40%; width: 50%; }
-        100% { left: 100%; width: 10%; }
+        left: 0;
+        transform-origin: left;
       }
       .loader-counter-container {
         display: flex;
@@ -78,7 +76,6 @@
         letter-spacing: -0.05em;
         line-height: 1;
         font-variant-numeric: tabular-nums;
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
       .loader-percent {
         font-size: 1.875rem;
@@ -90,31 +87,95 @@
         .loader-number { font-size: 12rem; }
         .loader-percent { font-size: 3rem; margin-bottom: 1.5rem; }
       }
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="html-loader">
-        <div style="display: flex; justify-content: flex-start;">
-          <span class="loader-logo">EnjoyTogether®</span>
-        </div>
-        
-        <div class="loader-line-container">
-          <div class="loader-line"></div>
-        </div>
-        
-        <div class="loader-counter-container">
-          <div class="loader-counter">
-            <span class="loader-number">0</span>
-            <span class="loader-percent">%</span>
-          </div>
+    <!-- The HTML Loader is outside the root so React doesn't wipe it out immediately, allowing it to animate out smoothly -->
+    <div class="html-loader" id="native-loader">
+      <div style="display: flex; justify-content: flex-start;">
+        <span class="loader-logo">EnjoyTogether®</span>
+      </div>
+      
+      <div class="loader-line-container">
+        <div class="loader-line" id="native-loader-line"></div>
+      </div>
+      
+      <div class="loader-counter-container">
+        <div class="loader-counter">
+          <span class="loader-number" id="native-loader-num">0</span>
+          <span class="loader-percent">%</span>
         </div>
       </div>
     </div>
+    
+    <script>
+      (function() {
+        let progress = 0;
+        const numEl = document.getElementById('native-loader-num');
+        const lineEl = document.getElementById('native-loader-line');
+        const loaderEl = document.getElementById('native-loader');
+        
+        const startTime = performance.now();
+        let animationFrame;
+        
+        function updateProgress(timestamp) {
+          if (window.__APP_LOADED__) return;
+          
+          const elapsed = timestamp - startTime;
+          // Asymptotic progress curve: reaches ~95% over 15 seconds (typical slow 3G)
+          // Adjust formula for a realistic perceived loading speed
+          const target = 99 * (1 - Math.exp(-elapsed / 6000));
+          
+          progress = target;
+          if (numEl) numEl.textContent = Math.floor(progress);
+          if (lineEl) lineEl.style.width = progress + '%';
+          
+          animationFrame = requestAnimationFrame(updateProgress);
+        }
+        
+        animationFrame = requestAnimationFrame(updateProgress);
+        
+        window.finishLoading = function() {
+          if (window.__APP_LOADED__) return;
+          window.__APP_LOADED__ = true;
+          cancelAnimationFrame(animationFrame);
+          
+          const startProgress = progress;
+          const finishStartTime = performance.now();
+          
+          function finishAnim(timestamp) {
+            const elapsed = timestamp - finishStartTime;
+            const t = Math.min(elapsed / 400, 1); // 400ms to zip to 100%
+            
+            // easeOutQuad
+            const easeT = t * (2 - t);
+            
+            progress = startProgress + (100 - startProgress) * easeT;
+            if (numEl) numEl.textContent = Math.floor(progress);
+            if (lineEl) lineEl.style.width = progress + '%';
+            
+            if (t < 1) {
+              requestAnimationFrame(finishAnim);
+            } else {
+              if (loaderEl) {
+                // Trigger the Framer-style curtain exit
+                loaderEl.style.transition = 'transform 0.6s cubic-bezier(0.76, 0, 0.24, 1), border-radius 0.6s cubic-bezier(0.76, 0, 0.24, 1)';
+                loaderEl.style.borderBottomLeftRadius = '50%';
+                loaderEl.style.borderBottomRightRadius = '50%';
+                loaderEl.style.transform = 'translateY(-100%)';
+                
+                setTimeout(() => {
+                  loaderEl.remove();
+                }, 600);
+              }
+            }
+          }
+          requestAnimationFrame(finishAnim);
+        };
+      })();
+    </script>
+    
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
