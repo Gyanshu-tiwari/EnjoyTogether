@@ -55,8 +55,8 @@ export const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center p-6 text-white selection:bg-brand/25 font-sans select-none w-full">
-      <div className="w-full max-w-md p-8 rounded-3xl bg-bg-card border border-white/5 shadow-2xl relative overflow-hidden animate-fade-in">
+    <div className="flex-1 flex flex-col items-center justify-center w-full relative">
+      <div className="w-full max-w-md p-8 rounded-3xl bg-bg-card border border-white/5 shadow-2xl relative overflow-hidden animate-fade-in mt-[-40px]">
         {/* Decorative light glows */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />

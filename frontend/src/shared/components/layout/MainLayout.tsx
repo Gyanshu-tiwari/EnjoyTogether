@@ -1,72 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { useAuthSession } from '@/features/auth';
 import { DashboardSkeleton, TheaterSkeleton } from '@/shared/components/feedback/Skeletons';
+import { GlobalLoader } from '@/shared/components/feedback/GlobalLoader';
+import { AnimatePresence } from 'framer-motion';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { session, loading } = useAuthSession();
+  const { session, loading: authLoading } = useAuthSession();
   const location = useLocation();
   const content = children || <Outlet />;
 
   const isTheaterPage = location.pathname.includes('/room/');
+  const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/signup') || location.pathname.includes('/reset-password');
   const isLandingPage = location.pathname === '/';
+  
+  const [showSplash, setShowSplash] = useState(isLandingPage);
+
+  useEffect(() => {
+    if (isLandingPage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowSplash(true);
+      const timer = setTimeout(() => setShowSplash(false), 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowSplash(false);
+    }
+  }, [isLandingPage]);
+
+  // Loader stays mounted as long as auth is loading or the splash is active
+  const isLoading = authLoading || showSplash;
+  const shouldShowHeader = !isTheaterPage && !isAuthPage;
+  
   const paddingClass = isLandingPage ? '' : 'p-6';
   const maxWidthClass = isLandingPage ? 'w-full' : 'w-full max-w-7xl';
 
-  if (loading) {
-    return (
-      <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
-        <div className={`${maxWidthClass} flex flex-col relative z-10`}>
-          {!isTheaterPage && (
-            <header className="w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-bg-card border border-white/5 animate-shimmer" />
-                <div className="flex flex-col gap-1.5">
-                  <div className="h-4 w-28 rounded-md bg-bg-card border border-white/5 animate-shimmer" />
-                  <div className="h-3 w-48 rounded-md bg-bg-card border border-white/5 animate-shimmer" />
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-bg-card border border-white/5 animate-shimmer" />
-            </header>
-          )}
-          <main className="w-full flex flex-col items-center">
-            {isTheaterPage ? <TheaterSkeleton /> : <DashboardSkeleton />}
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
-        <div className={`${maxWidthClass} flex flex-col relative z-10`}>
-          {!isTheaterPage && <Header session={session} />}
-          <main className="w-full flex flex-col items-center">
-            {content}
-          </main>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
-      {/* Background decorations */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
-      <div className={`${maxWidthClass} flex flex-col relative z-10`}>
-        {!isTheaterPage && <Header session={session} />}
-        <main className="w-full flex flex-col items-center">
-          {content}
-        </main>
+    <>
+      <AnimatePresence>
+        {isLoading && isLandingPage && <GlobalLoader />}
+      </AnimatePresence>
+
+      <div className={`min-h-screen bg-bg-primary flex flex-col items-center text-white selection:bg-brand/25 font-sans select-none w-full relative overflow-hidden ${paddingClass}`}>
+        {/* Background decorations */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-brand/3 rounded-full blur-[80px] pointer-events-none" />
+        
+        <div className={`${maxWidthClass} flex flex-col relative z-10 flex-1`}>
+          {shouldShowHeader && <Header session={session} />}
+          
+          <main className="w-full flex-1 flex flex-col items-center">
+            {/* If we are loading a non-landing page, show the skeleton */}
+            {isLoading && !isLandingPage ? (
+              isTheaterPage ? <TheaterSkeleton /> : <DashboardSkeleton />
+            ) : (
+              content
+            )}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 };

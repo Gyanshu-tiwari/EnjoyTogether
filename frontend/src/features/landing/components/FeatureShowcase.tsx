@@ -52,8 +52,8 @@ export const FeatureShowcase: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-brand/20 flex items-center justify-center mb-6 text-brand">
                   <Clock className="w-6 h-6" />
                 </div>
-                <h3 className="text-3xl md:text-4xl font-bold text-white mb-3 font-heading tracking-tight">Synced Playback</h3>
-                <p className="text-text-secondary text-base md:text-lg leading-relaxed">
+                <h3 className="text-3xl md:text-4xl font-normal text-white mb-3 font-heading tracking-tight">Synced Playback</h3>
+                <p className="text-text-secondary text-md md:text-lg leading-normal">
                   When anyone pauses or seeks, it happens for everyone instantly. Perfect synchronization with no countdowns needed.
                 </p>
               </div>
@@ -81,8 +81,8 @@ export const FeatureShowcase: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-pink-500/20 flex items-center justify-center mb-6 text-pink-500 relative z-10">
                 <MessageSquare className="w-6 h-6" />
               </div>
-              <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 font-heading tracking-tight relative z-10">Floating Reactions</h3>
-              <p className="text-text-secondary text-sm md:text-base leading-relaxed relative z-10">
+              <h3 className="text-3xl md:text-4xl font-normal text-white mb-3 font-heading tracking-tight relative z-10">Floating Reactions</h3>
+              <p className="text-text-secondary text-md md:text-lg leading-normal relative z-10">
                 Spam emojis that float across the screen to react to crazy moments without talking over the movie.
               </p>
               
@@ -115,8 +115,8 @@ export const FeatureShowcase: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-6 text-emerald-400">
                   <Video className="w-6 h-6" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 font-heading tracking-tight">Real-time A/V</h3>
-                <p className="text-text-secondary text-sm md:text-base leading-relaxed">
+                <h3 className="text-2xl md:text-3xl font-normal text-white mb-3 font-heading tracking-tight">Real-time A/V</h3>
+                <p className="text-text-secondary text-md md:text-lg leading-normal">
                   Keep your camera on or just use your mic. Talk through the movie naturally like you are sitting on the same couch.
                 </p>
               </div>
@@ -156,8 +156,8 @@ export const FeatureShowcase: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-6 text-indigo-400">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-3 font-heading tracking-tight">Secure Rooms</h3>
-                <p className="text-text-secondary text-sm md:text-base leading-relaxed">
+                <h3 className="text-2xl md:text-3xl font-normal text-white mb-3 font-heading tracking-tight">Secure Rooms</h3>
+                <p className="text-text-secondary text-md md:text-lg leading-normal">
                   Private rooms with host-approval workflows. Nobody gets in unless you let them in.
                 </p>
               </div>

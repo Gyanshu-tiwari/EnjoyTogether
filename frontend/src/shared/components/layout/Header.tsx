@@ -3,8 +3,42 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Video, ChevronRight } from 'lucide-react';
 import { supabase } from '@/shared/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import { motion } from 'framer-motion';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
+
+const RevealLink = ({ href, children }: { href: string; children: string }) => {
+  return (
+    <motion.a
+      href={href}
+      initial="initial"
+      whileHover="hover"
+      className="relative overflow-hidden flex flex-col items-center justify-center text-xs font-normal text-neutral-400 transition-colors h-5"
+    >
+      <motion.span
+        variants={{
+          initial: { y: 0 },
+          hover: { y: '-100%' },
+        }}
+        transition={{ duration: 0.3, ease: [0.33, 1, 0.68, 1] }}
+        className="block whitespace-nowrap"
+      >
+        {children}
+      </motion.span>
+      <motion.span
+        variants={{
+          initial: { y: '100%' },
+          hover: { y: 0 },
+        }}
+        transition={{ duration: 0.3, ease: [0.33, 1, 0.68, 1] }}
+        className="block whitespace-nowrap text-white absolute inset-0 flex items-center justify-center"
+        aria-hidden
+      >
+        {children}
+      </motion.span>
+    </motion.a>
+  );
+};
 
 interface HeaderProps {
   session: Session | null;
@@ -33,22 +67,22 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
   return (
     <header className={headerClass}>
       <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-        <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center shadow-lg shadow-brand/10 text-white">
-          <Video className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center shadow-lg shadow-brand/10 text-white">
+          <Video className="w-4 h-4" />
         </div>
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-white">EnjoyTogether</h1>
+          <h1 className="text-lg font-normal tracking-tight text-white">EnjoyTogether</h1>
           {!isLandingPage && <p className="text-[10px] text-text-secondary hidden sm:block">Google Meet style movie streaming room</p>}
         </div>
       </div>
 
       {isLandingPage && (
         <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2 mt-1">
-          <a href="#how-it-works" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">How it works</a>
-          <a href="#why-enjoytogether" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Why us</a>
-          <a href="#features" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Features</a>
-          <a href="#testimonial" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">Testimonials</a>
-          <a href="#faq" className="text-sm font-semibold text-neutral-400 hover:text-white transition-colors">FAQ</a>
+          <RevealLink href="#how-it-works">How it works</RevealLink>
+          <RevealLink href="#why-enjoytogether">Why us</RevealLink>
+          <RevealLink href="#features">Features</RevealLink>
+          <RevealLink href="#testimonial">Testimonials</RevealLink>
+          <RevealLink href="#faq">FAQ</RevealLink>
         </nav>
       )}
 
@@ -100,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/login')}
-            className="hidden sm:flex items-center justify-center px-4 py-2 text-sm font-bold text-white hover:text-brand-hover transition-colors cursor-pointer"
+            className="hidden sm:flex items-center justify-center px-4 py-2 text-xs text-white hover:text-brand-hover transition-colors cursor-pointer"
           >
             Log in
           </button>
@@ -109,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
             variant="brand" 
             className="px-5 py-2 text-sm"
           >
-            Sign up <ChevronRight className="w-4 h-4 ml-1" />
+            <span className='text-xs font-normal'>Sign up</span><ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       )}
