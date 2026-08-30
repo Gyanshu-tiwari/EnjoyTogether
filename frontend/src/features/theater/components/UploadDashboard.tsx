@@ -147,10 +147,11 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
                 }
               }
             });
-            // Only the last chunk response carries the final streamUrl
-            if (chunkIndex === totalChunks - 1) lastResponseData = result;
-            chunkLoadedMap.set(chunkIndex, chunkBlob.size); // mark as fully done
-            return;
+            // Store every successful response; the last one written wins.
+            // With parallel uploads, chunkIndex order doesn't match completion order.
+            lastResponseData = result;
+            chunkLoadedMap.set(chunkIndex, chunkBlob.size);
+            return; // success
           } catch (chunkErr) {
             attempt++;
             console.warn(`⚠️ Chunk ${chunkIndex + 1} upload failed (attempt ${attempt}/${MAX_RETRIES}). Retrying...`, chunkErr);
@@ -204,58 +205,50 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
         const MAX_CONSECUTIVE_ERRORS = 5;
 
         pollIntervalRef.current = setInterval(async () => {
-          const poll = async () => {
-            try {
-              const statusRes = await getTranscodeStatus(newFileId);
-              const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as import('../api/theaterApi').TranscodeStatus & { streamUrl?: string };
-              consecutiveErrors = 0; // reset on success
+          try {
+            const statusRes = await getTranscodeStatus(newFileId);
+            const { status: tStatus, progress: tProgress, eta: tEta, speed: tSpeed, streamUrl: cdnUrl } = statusRes as import('../api/theaterApi').TranscodeStatus & { streamUrl?: string };
+            consecutiveErrors = 0;
 
-              if (tStatus === 'encoding' || tStatus === 'starting') {
-                setProgress(tProgress ?? 0);
-                setUploadSpeed(tSpeed ?? 'Calculating...');
-                setEta(tEta ?? 'Calculating...');
-              } else if (tStatus === 'uploading_segments' || tStatus === 'uploading') {
-                setProgress(100);
-                setUploadSpeed('Uploading to CDN...');
-                setEta(tEta ?? 'Almost done...');
-              } else if (tStatus === 'complete') {
-                clearInterval(pollIntervalRef.current!);
-                pollIntervalRef.current = null;
-                setProgress(100);
-                // If the transcoder uploaded to Supabase CDN, switch to the persistent URL
-                if (cdnUrl) {
-                  setResolvedStreamUrl(cdnUrl);
-                }
-                setProcessingPhase('complete');
-                setUploading(false);
-                setUploadComplete(true);
-                isUploadingRef.current = false;
-              } else if (tStatus === 'failed') {
-                clearInterval(pollIntervalRef.current!);
-                pollIntervalRef.current = null;
-                setError("Transcoding pipeline failed on backend. Check ffmpeg logs.");
-                setUploading(false);
-                setProcessingPhase('idle');
-                isUploadingRef.current = false;
-              }
-              // 'idle' status means the transcoder hasn't written its status file yet — keep polling
-            } catch (err) {
-              consecutiveErrors++;
-              console.error(`Failed to poll transcode status (attempt ${consecutiveErrors}):`, err);
-              if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                clearInterval(pollIntervalRef.current!);
-                pollIntervalRef.current = null;
-                const errMsg = err instanceof Error ? err.message : "Lost connection to the transcoder backend server.";
-                setError(errMsg);
-                setUploading(false);
-                setProcessingPhase('idle');
-                isUploadingRef.current = false;
-              }
+            if (tStatus === 'encoding' || tStatus === 'starting') {
+              setProgress(tProgress ?? 0);
+              setUploadSpeed(tSpeed ?? 'Calculating...');
+              setEta(tEta ?? 'Calculating...');
+            } else if (tStatus === 'uploading_segments' || tStatus === 'uploading') {
+              setProgress(100);
+              setUploadSpeed('Uploading to CDN...');
+              setEta(tEta ?? 'Almost done...');
+            } else if (tStatus === 'complete') {
+              clearInterval(pollIntervalRef.current!);
+              pollIntervalRef.current = null;
+              setProgress(100);
+              if (cdnUrl) setResolvedStreamUrl(cdnUrl);
+              setProcessingPhase('complete');
+              setUploading(false);
+              setUploadComplete(true);
+              isUploadingRef.current = false;
+            } else if (tStatus === 'failed') {
+              clearInterval(pollIntervalRef.current!);
+              pollIntervalRef.current = null;
+              setError('Transcoding pipeline failed on backend. Check logs.');
+              setUploading(false);
+              setProcessingPhase('idle');
+              isUploadingRef.current = false;
             }
-          };
-          
-          poll();
-        }, 1500); // Poll every 1.5s for snappy completion detection
+            // 'idle' = transcoder not started yet, keep polling
+          } catch (err) {
+            consecutiveErrors++;
+            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+              clearInterval(pollIntervalRef.current!);
+              pollIntervalRef.current = null;
+              setError(err instanceof Error ? err.message : 'Lost connection to backend.');
+              setUploading(false);
+              setProcessingPhase('idle');
+              isUploadingRef.current = false;
+            }
+          }
+        }, 1500);
+
       }
     } catch (err) {
       console.error("🔴 Network upload pipeline transmission failed:", err);

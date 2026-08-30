@@ -41,6 +41,8 @@ async function getTelegramClient(): Promise<import('telegram').TelegramClient> {
 
 const channelId: string = process.env.TELEGRAM_CHANNEL_ID || '';
 
+const activeUploads = new Map<string, Set<number>>();
+
 export class RoomController {
   // ── Room Lifecycle ─────────────────────────────────────────────────────────
 
@@ -128,54 +130,68 @@ export class RoomController {
       const originalExt = path.extname(fileName).toLowerCase() || '.mp4';
       const uploadedChunkPath = req.file.path;
       const targetFilePath = path.join(process.cwd(), 'uploads', `${fileId}${originalExt}`);
+      const chunkFilePath = `${targetFilePath}.part${chunkIndex}`;
 
-      // ── Stream-based append (memory-safe for large files) ──────────────────
-      // Using a write stream in 'a' (append) mode avoids loading the entire
-      // chunk into RAM via readFileSync before appending. This is critical for
-      // 2GB+ files across hundreds of 5MB chunks.
-      await new Promise<void>((resolve, reject) => {
-        const writeStream = fs.createWriteStream(targetFilePath, { flags: 'a' });
-        const readStream = fs.createReadStream(uploadedChunkPath);
-        readStream.on('error', reject);
-        writeStream.on('error', reject);
-        writeStream.on('finish', resolve);
-        readStream.pipe(writeStream);
-      });
+      // Rename multer temp file to the specific chunk file
+      fs.renameSync(uploadedChunkPath, chunkFilePath);
 
-      // Cleanup the temporary multer chunk file after it is fully piped
-      try { fs.unlinkSync(uploadedChunkPath); } catch (e) {}
+      // Track received chunks
+      if (!activeUploads.has(fileId)) {
+        activeUploads.set(fileId, new Set<number>());
+      }
+      activeUploads.get(fileId)!.add(chunkIndex);
 
-      console.log(`🚀 Chunk ${chunkIndex + 1}/${totalChunks} appended for file ${fileId}`);
+      console.log(`🚀 Chunk ${chunkIndex + 1}/${totalChunks} received for file ${fileId}`);
 
-      if (chunkIndex === totalChunks - 1) {
-        console.log(`✅ All chunks received. Launching transcoder pipeline for: ${targetFilePath}`);
+      // Check if all chunks have been received
+      if (activeUploads.get(fileId)!.size === totalChunks) {
+        console.log(`✅ All chunks received. Assembling file: ${targetFilePath}`);
+        
+        // Assemble chunks in order
+        const writeStream = fs.createWriteStream(targetFilePath);
+        for (let i = 0; i < totalChunks; i++) {
+          const partPath = `${targetFilePath}.part${i}`;
+          if (fs.existsSync(partPath)) {
+            const data = fs.readFileSync(partPath);
+            writeStream.write(data);
+            fs.unlinkSync(partPath); // Clean up chunk
+          }
+        }
+        writeStream.end();
 
-        // Resolve script path relative to THIS compiled file's directory (__dirname).
-        const isDev = process.env.NODE_ENV !== 'production';
-        const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
-        const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
+        activeUploads.delete(fileId);
 
-        const useTsx = isDev && fs.existsSync(tsScript);
-        const cmd = useTsx ? 'npx' : 'node';
-        const args = useTsx ? ['tsx', tsScript, targetFilePath, fileId] : [jsScript, targetFilePath, fileId];
+        // Wait for assemble to finish before launching transcoder
+        writeStream.on('finish', () => {
+          console.log(`🎬 File assembled. Launching transcoder pipeline for: ${targetFilePath}`);
+          
+          // Resolve script path relative to THIS compiled file's directory (__dirname).
+          const isDev = process.env.NODE_ENV !== 'production';
+          const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
+          const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
 
-        // Ensure output_hls dir exists before opening log file
-        const hlsDir = path.join(process.cwd(), 'output_hls');
-        if (!fs.existsSync(hlsDir)) fs.mkdirSync(hlsDir, { recursive: true });
+          const useTsx = isDev && fs.existsSync(tsScript);
+          const cmd = useTsx ? 'npx' : 'node';
+          const args = useTsx ? ['tsx', tsScript, targetFilePath, fileId] : [jsScript, targetFilePath, fileId];
 
-        const logPath = path.join(hlsDir, 'transcoder.log');
-        const out = fs.openSync(logPath, 'a');
-        const err = fs.openSync(logPath, 'a');
+          // Ensure output_hls dir exists before opening log file
+          const hlsDir = path.join(process.cwd(), 'output_hls');
+          if (!fs.existsSync(hlsDir)) fs.mkdirSync(hlsDir, { recursive: true });
 
-        const child = spawn(cmd, args, {
-          detached: true,
-          stdio: ['ignore', out, err],
-          env: process.env,
-        });
-        child.unref();
+          const logPath = path.join(hlsDir, 'transcoder.log');
+          const out = fs.openSync(logPath, 'a');
+          const err = fs.openSync(logPath, 'a');
 
-        child.on('error', (spawnErr) => {
-          console.error('❌ Failed to spawn transcoder process:', spawnErr);
+          const child = spawn(cmd, args, {
+            detached: true,
+            stdio: ['ignore', out, err],
+            env: process.env,
+          });
+          child.unref();
+
+          child.on('error', (spawnErr) => {
+            console.error('❌ Failed to spawn transcoder process:', spawnErr);
+          });
         });
       }
 
