@@ -115,6 +115,14 @@ let activeUploads = 0;
 // Collect all promises so we can await them at the end
 const allUploadPromises: Promise<void>[] = [];
 
+// Helper to add timeout to any promise
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms))
+  ]);
+};
+
 async function uploadSegment(segFile: string, retries = 3): Promise<void> {
   if (!supabase) return;
   const localPath = path.join(OUTPUT_DIR, segFile);
@@ -126,9 +134,10 @@ async function uploadSegment(segFile: string, retries = 3): Promise<void> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const data = fs.readFileSync(localPath);
-      const { error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(`${fileId}/${segFile}`, data, { contentType: 'video/MP2T', upsert: true });
+      const { error } = await withTimeout(
+        supabase.storage.from(STORAGE_BUCKET).upload(`${fileId}/${segFile}`, data, { contentType: 'video/MP2T', upsert: true }),
+        15000 // 15 second timeout per segment attempt
+      );
       if (error) throw error;
       console.log(`  ✓ CDN upload: ${segFile}`);
       return;
@@ -190,15 +199,23 @@ async function finalizeSupabaseUpload(): Promise<string | null> {
     })
     .join('\n');
 
-  const { error: playlistError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(`${fileId}/${playlistFile}`, Buffer.from(rewrittenPlaylist, 'utf-8'), {
-      contentType: 'application/x-mpegURL',
-      upsert: true,
-    });
+  try {
+    const { error: playlistError } = await withTimeout(
+      supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(`${fileId}/${playlistFile}`, Buffer.from(rewrittenPlaylist, 'utf-8'), {
+          contentType: 'application/x-mpegURL',
+          upsert: true,
+        }),
+      15000
+    );
 
-  if (playlistError) {
-    console.error(`❌ Failed to upload rewritten playlist:`, playlistError.message);
+    if (playlistError) {
+      console.error(`❌ Failed to upload rewritten playlist:`, playlistError.message);
+      return null;
+    }
+  } catch (e: any) {
+    console.error(`❌ Failed to upload rewritten playlist (timeout/network):`, e.message);
     return null;
   }
 
@@ -343,7 +360,11 @@ async function runPipeline() {
 
     updateStatus({ status: 'uploading_segments', progress: 100, eta: 'Uploading to CDN...', speed: '0x' });
 
-    // Wait for ALL segment uploads to complete
+    // Wait for the queue to completely drain
+    while (uploadQueue.length > 0 || activeUploads > 0) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+    // Await all promises to ensure rejections are caught (though we swallow them in uploadSegment)
     await Promise.allSettled(allUploadPromises);
 
     // Upload the rewritten .m3u8 and get the CDN URL
