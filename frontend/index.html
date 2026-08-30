@@ -4,10 +4,117 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>EnjoyTogether</title>
+    <style>
+      body {
+        margin: 0;
+        background-color: #0a0a0a;
+        color: white;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      .html-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 1.5rem;
+        z-index: 100;
+        box-sizing: border-box;
+      }
+      @media (min-width: 768px) {
+        .html-loader {
+          padding: 3rem;
+        }
+      }
+      .loader-logo {
+        font-size: 0.875rem;
+        font-weight: 500;
+        letter-spacing: -0.015em;
+      }
+      .loader-line-container {
+        position: absolute;
+        top: 50%;
+        left: 1.5rem;
+        right: 1.5rem;
+        transform: translateY(-50%);
+        height: 1px;
+        background-color: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+      }
+      @media (min-width: 768px) {
+        .loader-line-container {
+          left: 3rem;
+          right: 3rem;
+        }
+      }
+      .loader-line {
+        height: 100%;
+        width: 30%;
+        background-color: white;
+        position: absolute;
+        top: 0;
+        left: -30%;
+        animation: loading-line 2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+      @keyframes loading-line {
+        0% { left: -30%; width: 10%; }
+        50% { left: 40%; width: 50%; }
+        100% { left: 100%; width: 10%; }
+      }
+      .loader-counter-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-end;
+        height: 100%;
+      }
+      .loader-counter {
+        display: flex;
+        align-items: baseline;
+      }
+      .loader-number {
+        font-size: 6rem;
+        font-weight: 300;
+        letter-spacing: -0.05em;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      .loader-percent {
+        font-size: 1.875rem;
+        font-weight: 300;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+      }
+      @media (min-width: 768px) {
+        .loader-number { font-size: 12rem; }
+        .loader-percent { font-size: 3rem; margin-bottom: 1.5rem; }
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="html-loader">
+        <div style="display: flex; justify-content: flex-start;">
+          <span class="loader-logo">EnjoyTogether®</span>
+        </div>
+        
+        <div class="loader-line-container">
+          <div class="loader-line"></div>
+        </div>
+        
+        <div class="loader-counter-container">
+          <div class="loader-counter">
+            <span class="loader-number">0</span>
+            <span class="loader-percent">%</span>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
