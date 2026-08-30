@@ -9,6 +9,7 @@ import Profile from '@/pages/Profile';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import { MainLayout } from '@/shared/components/layout';
+import { DashboardSkeleton } from '@/shared/components/feedback/Skeletons';
 
 const AuthListener = () => {
   const navigate = useNavigate();
@@ -41,10 +42,12 @@ const AuthListener = () => {
   return null;
 };
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) => {
   const { session, loading } = useAuthSession();
 
   if (loading) {
+    if (fallback) return <>{fallback}</>;
+    
     return (
       <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
@@ -75,7 +78,11 @@ export const AppRoutes = () => {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute fallback={
+                <div className="w-full flex flex-col items-center pt-24 pb-12 px-4">
+                  <DashboardSkeleton />
+                </div>
+              }>
                 <Room />
               </ProtectedRoute>
             }

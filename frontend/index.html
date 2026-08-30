@@ -121,6 +121,12 @@
         function updateProgress(timestamp) {
           if (window.__APP_LOADED__) return;
           
+          if (window.location.pathname !== '/') {
+            if (loaderEl) loaderEl.remove();
+            window.__APP_LOADED__ = true;
+            return;
+          }
+          
           const elapsed = timestamp - startTime;
           // Asymptotic progress curve: reaches ~95% over 15 seconds (typical slow 3G)
           // Adjust formula for a realistic perceived loading speed
