@@ -30,7 +30,9 @@ const AuthListener = () => {
       if (loading) return;
 
       if (event === 'SIGNED_IN') {
-        navigate('/', { replace: true });
+        if (window.location.pathname === '/login') {
+          navigate('/', { replace: true });
+        }
       }
     });
 

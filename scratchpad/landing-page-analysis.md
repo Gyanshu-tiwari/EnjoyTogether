@@ -1,7 +1,7 @@
 # Landing Page Analysis
 
 ## Existing Product Analysis
-* **What the existing product does**: "EnjoyTogether" is a "Google Meet style movie streaming room." It allows users to watch videos together in sync. A host creates a room, and guests can join by knocking. 
+* **What the existing product does**: "EnjoyTogether" is a "movie streaming room." It allows users to watch videos together in sync. A host creates a room, and guests can join by knocking. 
 * **Target users**: Friends, couples, families, and remote teams who want to watch media together in a synchronized environment with communication features.
 * **Main value proposition**: Seamless, synchronized video playback combined with real-time social interaction (audio/video, floating emojis).
 * **Existing features**:

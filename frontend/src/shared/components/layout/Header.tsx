@@ -72,7 +72,6 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         </div>
         <div>
           <h1 className="text-lg font-normal tracking-tight text-white">EnjoyTogether</h1>
-          {!isLandingPage && <p className="text-[10px] text-text-secondary hidden sm:block">Google Meet style movie streaming room</p>}
         </div>
       </div>
 
@@ -93,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
             onClick={() => setProfileOpen(!profileOpen)}
             className="rounded-full overflow-hidden hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
           >
-            <Avatar src={avatarUrl} fallback={userInitial} size="md" className="border-neutral-800" />
+            <Avatar src={avatarUrl} fallback={userInitial} size="sm" className="border-neutral-800" />
           </button>
 
           {profileOpen && (
