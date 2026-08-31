@@ -95,7 +95,9 @@ export const Hero: React.FC = () => {
       >
         <img 
           src="/hero.avif" 
-          alt="EnjoyTogether Platform Interface" 
+          alt="App Mockup" 
+          fetchPriority="high"
+          loading="eager"
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
         />
       </motion.div>

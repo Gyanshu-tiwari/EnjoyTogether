@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/shared/lib/supabase';
 import { useAuthSession } from '@/features/auth';
-import Room from '@/pages/Room';
-import ResetPassword from '@/pages/ResetPassword';
-import Verified from '@/pages/Verified';
-import Profile from '@/pages/Profile';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
+
+const Room = lazy(() => import('@/pages/Room'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const Verified = lazy(() => import('@/pages/Verified'));
+const Profile = lazy(() => import('@/pages/Profile'));
 import { MainLayout } from '@/shared/components/layout';
 import { DashboardSkeleton } from '@/shared/components/feedback/Skeletons';
 
@@ -73,42 +74,44 @@ export const AppRoutes = () => {
   return (
     <>
       <AuthListener />
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute fallback={
-                <div className="w-full flex flex-col items-center pt-24 pb-12 px-4">
-                  <DashboardSkeleton />
-                </div>
-              }>
-                <Room />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/room/:id"
-            element={
-              <ProtectedRoute>
-                <Room />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-        </Route>
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/verified" element={<Verified />} />
-      </Routes>
+      <Suspense fallback={<div className="min-h-screen bg-bg-primary" />}>
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute fallback={
+                  <div className="w-full flex flex-col items-center pt-24 pb-12 px-4">
+                    <DashboardSkeleton />
+                  </div>
+                }>
+                  <Room />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/room/:id"
+              element={
+                <ProtectedRoute>
+                  <Room />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verified" element={<Verified />} />
+        </Routes>
+      </Suspense>
     </>
   );
 };
