@@ -85,6 +85,33 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         </nav>
       )}
 
+      {location.pathname === '/dashboard' && (
+        <nav className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2 mt-1">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className={`flex items-center gap-2 pb-2 border-b-2 transition-colors ${
+              !location.search.includes('tab=friends')
+                ? 'border-brand text-brand'
+                : 'border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.243"></path></svg>
+            <span className="text-sm font-semibold">Upload</span>
+          </button>
+          <button
+            onClick={() => navigate('/dashboard?tab=friends')}
+            className={`flex items-center gap-2 pb-2 border-b-2 transition-colors ${
+              location.search.includes('tab=friends')
+                ? 'border-brand text-brand'
+                : 'border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span className="text-sm font-semibold">Friends</span>
+          </button>
+        </nav>
+      )}
+
       <div className="flex items-center gap-4 relative">
       {session ? (
         <div className="relative">
