@@ -124,7 +124,7 @@ export const TheaterView: React.FC = () => {
           </div>
 
           {/* Voice Grid / Participants Column */}
-          <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-3 overflow-y-auto pr-1 hidden md:flex">
+          <div className="w-full lg:w-70 shrink-0 flex-col gap-3 overflow-y-auto pr-1 hidden md:flex">
             <VideoCallOverlay
               participants={livekit.participants}
               loading={livekit.loading}

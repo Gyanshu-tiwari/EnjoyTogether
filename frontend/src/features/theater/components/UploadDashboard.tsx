@@ -41,12 +41,6 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
     };
   }, []);
 
-  useEffect(() => {
-    if (file && !uploading && !uploadComplete && !isUploadingRef.current) {
-      handleActualUpload();
-    }
-  }, [file]);
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -240,6 +234,13 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
     }
   };
 
+  useEffect(() => {
+    if (file && !uploading && !uploadComplete && !isUploadingRef.current) {
+      handleActualUpload();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
+
   if (isFriendsTab) {
     return <FriendsTab />;
   }
@@ -247,7 +248,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
   return (
     <div className="w-full max-w-6xl animate-fade-in grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start mx-auto mt-4">
       {/* Left Column: Upload Area */}
-      <div className="bg-[#111214] border border-white/5 rounded-[24px] p-8 shadow-2xl flex flex-col min-h-[600px]">
+      <div className="bg-[#111214] border border-white/5 rounded-[24px] p-8 shadow-2xl flex flex-col min-h-150">
         <h2 className="text-2xl font-bold mb-1 text-white tracking-tight">Upload a video</h2>
         <p className="text-sm text-neutral-400 mb-8 flex items-center gap-2">
           Start a watch party by uploading your video <span className="text-blue-400 text-lg leading-none mt-[-2px]">✨</span>
@@ -327,7 +328,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
             </div>
             
             {/* Disabled drag and drop */}
-            <div className="relative border border-dashed border-neutral-800/50 rounded-[20px] p-10 flex flex-col items-center justify-center min-h-[220px] bg-neutral-900/30 opacity-60">
+              <div className="border-2 border-dashed border-white/10 rounded-[20px] bg-white/[0.02] flex flex-col items-center justify-center min-h-[280px] relative">
                <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center mb-4">
                   <Lock className="w-5 h-5 text-brand" />
                </div>
@@ -415,7 +416,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
       </div>
 
       {/* Right Column: Friends Panel */}
-      <div className="bg-[#111214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col min-h-[400px]">
+        <div className="bg-[#111214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col min-h-[400px] sticky top-24">
          <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Users className="w-4 h-4 text-brand" />
@@ -428,7 +429,7 @@ export const UploadDashboard: React.FC<UploadDashboardProps> = ({ onUploadSucces
          <div className="flex flex-col gap-2">
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-neutral-800 transition-colors">
               <div className="relative shrink-0">
-                 <div className="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center overflow-hidden">
+                 <div className="border border-white/10 rounded-[20px] bg-white/[0.02] flex flex-col items-center justify-center min-h-[40px] w-10 overflow-hidden">
                     <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=sam`} alt="sam" className="w-full h-full object-cover" />
                  </div>
                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-neutral-900 rounded-full"></div>

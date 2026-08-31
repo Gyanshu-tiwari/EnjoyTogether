@@ -150,11 +150,11 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
                   )}
 
                   {/* Right Side Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-l from-black/90 via-black/40 to-transparent pointer-events-none z-10" />
+                  <div className="absolute inset-0 bg-linear-to-l from-black/90 via-black/40 to-transparent pointer-events-none z-10" />
 
                   {/* User Info (Name & Mic) on the right */}
                   <div className="absolute inset-y-0 right-4 flex items-center justify-end gap-3 z-20">
-                    <span className="text-[13px] font-medium text-neutral-200 drop-shadow-md truncate max-w-[120px]">
+                    <span className="text-[13px] font-medium text-neutral-200 drop-shadow-md truncate max-w-30">
                       {displayName}
                     </span>
                     {p.isMicEnabled ? (

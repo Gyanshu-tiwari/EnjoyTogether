@@ -256,7 +256,7 @@ export const FriendsTab: React.FC = () => {
       </div>
 
       {/* Right Column: Connections Panel */}
-      <div className="bg-[#111214] border border-white/5 rounded-[24px] p-8 shadow-2xl flex flex-col min-h-[600px]">
+      <div className="bg-[#111214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col min-h-150 relative overflow-hidden">
          <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
             <h2 className="text-3xl font-black text-white tracking-tight">Connections</h2>
             <button 
