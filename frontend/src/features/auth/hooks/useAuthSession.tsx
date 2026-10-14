@@ -41,13 +41,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
 
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        clearTimeout(timer);
         setSession(session);
         setLoading(false);
         if (session) syncProfile(session);
       })
       .catch((error) => {
+        clearTimeout(timer);
         console.error('[useAuthSession] getSession failed:', error);
         setLoading(false);
       });

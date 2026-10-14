@@ -31,6 +31,7 @@ export const TheaterView: React.FC = () => {
     approveGuest,
     rejectGuest,
     currentUserId,
+    mediaDescriptor,
   } = useTheater();
 
   // Connect to LiveKit Room at the top level
@@ -73,17 +74,23 @@ export const TheaterView: React.FC = () => {
       
       {/* Top Bar */}
       <header className="w-full flex items-center justify-between mb-4 px-2">
-        {/* Left: Room ID */}
+        {/* Left: Room ID & Media Name */}
         <div className="flex items-center gap-2 text-neutral-300 group cursor-pointer" onClick={copyRoomId}>
-          <span className="text-sm font-medium tracking-wide">{roomId}</span>
-          <Copy className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+          <div className="flex flex-col text-left">
+            <span className="text-sm font-bold text-white tracking-tight truncate max-w-[200px]" title={mediaDescriptor?.name || roomId}>
+              {mediaDescriptor?.name || 'EnjoyTogether Room'}
+            </span>
+            <span className="text-[10px] text-neutral-400 font-mono">
+              Room: {roomId}
+            </span>
+          </div>
+          <Copy className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity ml-1" />
         </div>
         
         {/* Center: Timer */}
         <div className="text-neutral-300 text-sm font-mono tracking-widest absolute left-1/2 -translate-x-1/2">
           {elapsedTime}
         </div>
-        
         {/* Right: Invite Button */}
         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer">
           <UserPlus className="w-4 h-4" />

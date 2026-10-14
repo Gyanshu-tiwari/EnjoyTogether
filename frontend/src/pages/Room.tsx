@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '@/shared/api/apiClient';
 import { supabase } from '@/shared/lib/supabase';
 import { Button } from '@/shared/components/ui/Button';
 import { LoginForm, useAuthSession } from '@/features/auth';
-import { UploadDashboard, TheaterProvider, TheaterView, useTheater } from '@/features/theater';
+import { TheaterProvider, TheaterView, useTheater } from '@/features/theater';
+import { LocalFilePicker } from '@/features/theater/components/LocalFilePicker';
+import { FriendsTab } from '@/features/friends/components/FriendsTab';
 import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft, UserPlus } from 'lucide-react';
 import { TheaterSkeleton, DashboardSkeleton, LobbySkeleton } from '@/shared/components/feedback/Skeletons';
 import { getRoomMetadata } from '@/features/theater/api/theaterApi';
-import { getAnonymousUserId } from '@/features/theater/hooks/useRoomSession';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 import { InviteModal } from '@/features/theater/components/InviteModal';
+import type { LocalMediaSource } from '@/features/theater/media/LocalMediaSource';
+import type { MediaSourceDescriptor } from '@/features/theater/media/types';
 
 const RoomContent: React.FC<{
   roomId: string;
@@ -405,11 +409,17 @@ export const Room: React.FC = () => {
   const { session, loading: authLoading } = useAuthSession();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const bypassLogin = false;
+  const location = useLocation();
+  const isFriendsTab = location.search.includes('tab=friends');
+  const isGuestMode = typeof window !== 'undefined' && (sessionStorage.getItem('guest_session') === 'true' || !!id);
+  const bypassLogin = isGuestMode;
 
   const [roomActive, setRoomActive] = useState<boolean | null>(null);
   const [isHost, setIsHost] = useState<boolean | null>(null);
   const [roomLoading, setRoomLoading] = useState<boolean>(!!id);
+
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingSource, setPendingSource] = useState<LocalMediaSource | null>(null);
 
   React.useEffect(() => {
     if (!id) return;
@@ -449,21 +459,30 @@ export const Room: React.FC = () => {
     return roomActive ? <TheaterSkeleton /> : <LobbySkeleton />;
   }
 
-  const handleCreateRoom = async (movieUrl: string) => {
+  const handleFileReady = async (
+    file: File,
+    source: LocalMediaSource,
+    descriptor: MediaSourceDescriptor
+  ) => {
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
-      const hostId = currentSession?.user?.id || 'default-host-id';
+      const hostId = currentSession?.user?.id || getAnonymousUserId();
 
       const res = await apiClient.post(`/api/rooms/create`, {
         hostId,
-        movieUrl,
+        // Pass display name for room metadata (no file bytes)
+        movieUrl: '',
+        mediaName: descriptor.name,
       });
 
       if (res.data && res.data.roomId) {
+        // Store pending file so TheaterProvider can pick it up after navigation
+        setPendingFile(file);
+        setPendingSource(source);
         navigate(`/room/${res.data.roomId}`);
       }
     } catch (err) {
-      console.error('Failed to create dynamic watch room:', err);
+      console.error('Failed to create watch room:', err);
     }
   };
 
@@ -479,11 +498,15 @@ export const Room: React.FC = () => {
           initialStreamUrl=""
           initialActive={roomActive ?? false}
           initialIsHost={isHost ?? false}
+          pendingFile={pendingFile}
+          pendingSource={pendingSource}
         >
           <RoomContent roomId={id} onExit={() => navigate('/', { replace: true })} />
         </TheaterProvider>
+      ) : isFriendsTab ? (
+        <FriendsTab />
       ) : (
-        <UploadDashboard onUploadSuccess={handleCreateRoom} />
+        <LocalFilePicker onFileReady={handleFileReady} />
       )}
     </div>
   );

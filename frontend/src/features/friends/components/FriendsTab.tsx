@@ -59,12 +59,14 @@ export const FriendsTab: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 
   // Debounced search
   useEffect(() => {
     if (!searchQuery.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchResults([]);
       return;
     }
@@ -92,7 +94,7 @@ export const FriendsTab: React.FC = () => {
       setSearchResults((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: 'PENDING' } : u))
       );
-    } catch (e: unknown) {
+    } catch {
       setError('Failed to send request.');
     } finally {
       setActionLoading(null);

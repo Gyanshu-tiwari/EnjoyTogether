@@ -291,6 +291,17 @@ export const LoginForm: React.FC = () => {
           Google
         </button>
 
+        <button
+          onClick={() => {
+            sessionStorage.setItem('guest_session', 'true');
+            window.location.reload();
+          }}
+          type="button"
+          className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white font-semibold py-3 px-4 rounded-2xl border border-white/10 transition-all text-xs cursor-pointer active:scale-[0.98]"
+        >
+          <span>👤</span> Continue as Guest
+        </button>
+
         <div className="flex items-center justify-between text-[11px] text-text-secondary font-mono tracking-wider pt-2 border-t border-white/5">
           <span>SECURE SECRETS MESH</span>
           <span>v1.2.1</span>
