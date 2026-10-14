@@ -21,8 +21,12 @@ export const authMiddleware = async (
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // Without Supabase configured, allow anonymous access in dev
-      if (!process.env.SUPABASE_URL) {
+      // In local dev / test / non-production mode, allow anonymous requests
+      if (process.env.NODE_ENV !== 'production' || !process.env.SUPABASE_URL) {
+        req.user = {
+          id: (req.query.userId as string) || (req.body?.hostId as string) || 'anonymous-user',
+          email: 'guest@local',
+        };
         return next();
       }
       return next(new AppError('Unauthorized: Missing access token', 401));

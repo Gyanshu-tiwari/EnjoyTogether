@@ -8,7 +8,7 @@ const router = Router();
 
 // Room lifecycle endpoints
 router.post('/create', authMiddleware, validate(createRoomSchema), RoomController.createRoom);
-router.get('/:roomId/metadata', authMiddleware, validate(getMetadataSchema), RoomController.getMetadata);
+router.get('/:roomId/metadata', validate(getMetadataSchema), RoomController.getMetadata);
 router.post('/toggle-active', authMiddleware, validate(toggleActiveStatusSchema), RoomController.toggleActiveStatus);
 
 export default router;

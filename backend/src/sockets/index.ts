@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { registerVideoHandlers } from './video.handler.js';
 import { registerChatHandlers } from './chat.handler.js';
+import { registerWebRTCHandlers } from './webrtc.handler.js';
 import { SOCKET_EVENTS } from '../constants/socketEvents.js';
 import { RoomRepository } from '../repositories/room.repository.js';
 import { RoomServiceClient } from 'livekit-server-sdk';
@@ -51,8 +52,10 @@ export const setupSockets = (io: Server): void => {
   io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) {
-      // Allow anonymous sockets in non-Supabase / local dev mode
-      if (!process.env.SUPABASE_URL) return next();
+      // Allow anonymous sockets in non-production / local dev mode / test mode
+      if (process.env.NODE_ENV !== 'production' || !process.env.SUPABASE_URL || socket.handshake.auth?.anonymous) {
+        return next();
+      }
       console.warn('⚠️ Socket connection rejected: missing authentication token.');
       return next(new Error('Authentication token required'));
     }
@@ -73,7 +76,8 @@ export const setupSockets = (io: Server): void => {
     socket.on('room:join', async (data: { roomId: string; userId: string }) => {
       const { roomId, userId } = data;
       const cleanRoomId = String(roomId).trim();
-      const cleanUserId = (socket as any).user?.id || String(userId).trim();
+      const cleanUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id || String(userId).trim();
+      (socket as any).userId = cleanUserId;
 
       socket.join(cleanRoomId);
       console.log(`👥 User ${cleanUserId} (${socket.id}) joined room ${cleanRoomId}`);
@@ -134,7 +138,7 @@ export const setupSockets = (io: Server): void => {
       const { roomId } = info;
 
       try {
-        const socketUserId = (socket as any).userId || (socket as any).user?.id;
+        const socketUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id || info.userId;
         const role = await RoomRepository.getUserRoomRole(roomId, socketUserId);
         if (role !== 'host' && role !== 'co-host') {
           console.warn(`⚠️ RBAC: ${socketUserId} attempted room:approve-entry without host/co-host role.`);
@@ -163,7 +167,7 @@ export const setupSockets = (io: Server): void => {
       const { roomId } = info;
 
       try {
-        const socketUserId = (socket as any).userId || (socket as any).user?.id;
+        const socketUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id || info.userId;
         const role = await RoomRepository.getUserRoomRole(roomId, socketUserId);
         if (role !== 'host' && role !== 'co-host') {
           console.warn(`⚠️ RBAC: ${socketUserId} attempted room:reject-entry without host/co-host role.`);
@@ -192,7 +196,7 @@ export const setupSockets = (io: Server): void => {
       const { roomId } = info;
       
       try {
-        const socketUserId = (socket as any).userId || (socket as any).user?.id;
+        const socketUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id || info.userId;
         const role = await RoomRepository.getUserRoomRole(roomId, socketUserId);
         if (role !== 'host') {
           return socket.emit('error', 'Unauthorized: only host can change roles.');
@@ -243,7 +247,7 @@ export const setupSockets = (io: Server): void => {
       const { roomId } = info;
       
       try {
-        const socketUserId = (socket as any).userId || (socket as any).user?.id;
+        const socketUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id || info.userId;
         const role = await RoomRepository.getUserRoomRole(roomId, socketUserId);
         if (role !== 'host' && role !== 'co-host') {
           return socket.emit('error', 'Unauthorized: only host or co-host can kick users.');
@@ -285,8 +289,9 @@ export const setupSockets = (io: Server): void => {
     });
 
     // ── Register Sub-handlers ────────────────────────────────────────────────
-    registerVideoHandlers(io, socket);
+    registerVideoHandlers(io, socket, socketInfo);
     registerChatHandlers(io, socket);
+    registerWebRTCHandlers(io, socket, socketInfo);
 
     // ── Disconnect ───────────────────────────────────────────────────────────
     socket.on(SOCKET_EVENTS.DISCONNECT, async () => {

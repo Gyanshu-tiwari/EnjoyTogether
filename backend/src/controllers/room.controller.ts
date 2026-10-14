@@ -48,13 +48,22 @@ export class RoomController {
 
   static async createRoom(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { hostId, movieUrl } = req.body;
+      const { hostId, movieUrl, mediaName } = req.body;
       const roomId = crypto.randomUUID();
       const metadata = await RoomRepository.createRoom(
         roomId,
         hostId || 'default-host-id',
-        movieUrl || `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`
+        movieUrl || ''
       );
+
+      // If a local media name is provided at creation time, store it
+      if (mediaName) {
+        await RoomRepository.updateRoomState(roomId, {
+          mediaName,
+          mediaSourceType: 'local'
+        });
+      }
+
       // createRoom() already calls assignRoomHost() internally
       res.status(201).json({ success: true, roomId, metadata });
     } catch (error) {

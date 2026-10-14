@@ -7,7 +7,15 @@ export interface RoomState {
   isPlaying: boolean;
   position: number;
   lastUpdated: number;
+  /** Monotonic version counter — clients must ignore sync-state if version ≤ their current version */
+  stateVersion: number;
   streamUrl?: string | undefined;
+  /** Display name of the current media (filename for local, title for cloud) — never file bytes */
+  mediaName?: string | undefined;
+  /** Duration in seconds; null if unknown */
+  mediaDuration?: number | undefined;
+  /** Source type tag — 'local' for MVP */
+  mediaSourceType?: 'local' | undefined;
 }
 
 export interface RoomMetadata {
@@ -21,7 +29,7 @@ const inMemoryRoomStates: Record<string, RoomState> = {};
 const inMemoryRoomMetadata: Record<string, RoomMetadata> = {
   'enjoy-together-main': {
     host_id: 'default-host-id',
-    movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+    movie_url: '',
     is_active: false,
   },
 };
@@ -149,6 +157,7 @@ export class RoomRepository {
             isPlaying: data.is_playing,
             position: data.position,
             lastUpdated: new Date(data.last_updated).getTime(),
+            stateVersion: (data as any).state_version ?? 0,
             streamUrl: data.stream_url || undefined,
           };
         }
@@ -163,8 +172,10 @@ export class RoomRepository {
         isPlaying: false,
         position: 0,
         lastUpdated: Date.now(),
+        stateVersion: 0,
         streamUrl: meta ? meta.movie_url : undefined,
       };
+
     }
     return inMemoryRoomStates[cleanRoomId]!;
   }
@@ -176,6 +187,8 @@ export class RoomRepository {
       ...currentState,
       ...updates,
       lastUpdated: Date.now(),
+      // Increment stateVersion on every update so clients can reject stale events
+      stateVersion: (currentState.stateVersion ?? 0) + 1,
     };
 
     inMemoryRoomStates[cleanRoomId] = updatedState;
@@ -209,7 +222,7 @@ export class RoomRepository {
     if (!inMemoryRoomMetadata[cleanRoomId]) {
       inMemoryRoomMetadata[cleanRoomId] = {
         host_id: 'default-host-id',
-        movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+        movie_url: '',
         is_active: isActive,
       };
     } else {
@@ -255,7 +268,7 @@ export class RoomRepository {
     if (!inMemoryRoomMetadata[cleanRoomId]) {
       inMemoryRoomMetadata[cleanRoomId] = {
         host_id: 'default-host-id',
-        movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+        movie_url: '',
         is_active: false,
       };
     }
@@ -267,7 +280,7 @@ export class RoomRepository {
     const cleanHostId = hostId.trim() || 'default-host-id';
     const metadata: RoomMetadata = {
       host_id: cleanHostId,
-      movie_url: movieUrl || `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+      movie_url: movieUrl || '',
       is_active: false,
     };
 
