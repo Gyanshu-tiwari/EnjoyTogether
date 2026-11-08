@@ -10,11 +10,51 @@
  * - Collects ICE candidates and relays them
  * - Receives the Host's MediaStream via ontrack
  * - Exposes the stream for a <video srcObject={stream}> element
+ * - Provides stats inspection (getInboundStats) and connection watchdog
  *
  * The backend NEVER receives video bytes — only SDP/ICE via Socket.IO.
  */
 
 import type { Socket } from 'socket.io-client';
+
+export interface ViewerMediaStats {
+  viewerId: string;
+  connectionId: string;
+  connectionState: RTCPeerConnectionState;
+  iceConnectionState: RTCIceConnectionState;
+  iceGatheringState: RTCIceGatheringState;
+  signalingState: RTCSignalingState;
+  hasLocalDescription: boolean;
+  hasRemoteDescription: boolean;
+  localCandidatesGathered: number;
+  remoteCandidatesReceived: number;
+  candidatesAdded: number;
+  candidateErrors: number;
+  selectedCandidatePair?: {
+    state: string;
+    localCandidateType?: string; // 'host' | 'srflx' | 'relay'
+    remoteCandidateType?: string;
+    currentRoundTripTime?: number;
+    bytesSent?: number;
+    bytesReceived?: number;
+  };
+  bytesReceived: number;
+  packetsReceived: number;
+  packetsLost: number;
+  framesReceived: number;
+  framesDecoded: number;
+  framesDropped: number;
+  framesPerSecond: number;
+  roundTripTime?: number;
+  diagnosis:
+    | 'signaling_pending'
+    | 'ice_failed'
+    | 'no_incoming_media'
+    | 'media_received_not_decoded'
+    | 'media_decoded_not_rendered'
+    | 'healthy'
+    | 'unknown';
+}
 
 export interface WebRTCViewerManagerConfig {
   /** Socket.IO socket for signaling */
@@ -46,6 +86,19 @@ export class WebRTCViewerManager {
   private _destroyed = false;
   private _incomingStream: MediaStream | null = null;
   private _makingAnswer = false;
+  private _pendingIceCandidates: RTCIceCandidateInit[] = [];
+
+  private _statsInfo = {
+    localCandidatesGathered: 0,
+    remoteCandidatesReceived: 0,
+    candidatesAdded: 0,
+    candidateErrors: 0,
+  };
+  private _deferredOffer: { sdp: RTCSessionDescriptionInit; connectionId: string } | null = null;
+
+  // Watchdog timers
+  private _readyRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private _connectionTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(config: WebRTCViewerManagerConfig) {
     this._socket = config.socket;
@@ -59,19 +112,85 @@ export class WebRTCViewerManager {
     console.log(`[WebRTCViewerManager] Initialized for viewer ${this._viewerId} in room ${this._roomId}.`);
   }
 
+  private _logPeerLifecycle(event: string): void {
+    if (!this._pc) return;
+    console.log(
+      `[WebRTC:Viewer] [${event}] roomId=${this._roomId} viewerId=${this._viewerId} connId=${this._connectionId} ` +
+      `connState=${this._pc.connectionState} iceState=${this._pc.iceConnectionState} ` +
+      `iceGathering=${this._pc.iceGatheringState} signaling=${this._pc.signalingState} ` +
+      `hasLocalDesc=${Boolean(this._pc.localDescription)} hasRemoteDesc=${Boolean(this._pc.remoteDescription)} ` +
+      `localCandGathered=${this._statsInfo.localCandidatesGathered} remoteCandRecv=${this._statsInfo.remoteCandidatesReceived} ` +
+      `candAdded=${this._statsInfo.candidatesAdded} candErrors=${this._statsInfo.candidateErrors} ` +
+      `ts=${new Date().toISOString()}`
+    );
+  }
+
   /**
    * Signal to the host that this viewer is ready for a peer connection.
-   * The host will respond with a webrtc:offer.
+   * Starts a watchdog timer to retry or fail if the host does not respond.
    */
-  signalReady(): void {
+  signalReady(force: boolean = false): void {
     if (this._destroyed) return;
-    this._connectionId = crypto.randomUUID();
-    console.log(`[WebRTCViewerManager] Signaling ready to host. Connection ID: ${this._connectionId}`);
+
+    // If we are already connected, do not re-signal unless forced (e.g. user clicked Retry)
+    if (!force && this._pc && this._pc.connectionState === 'connected') {
+      console.log('[WebRTCViewerManager] Already connected to host stream. Skipping redundant signalReady.');
+      return;
+    }
+
+    // If an answer is currently in flight or remote description is already set for the current connectionId,
+    // don't blow away the active negotiation on duplicate triggers
+    if (!force && this._connectionId && this._makingAnswer) {
+      console.log('[WebRTCViewerManager] Answer is already being generated for current connection. Skipping redundant signalReady.');
+      return;
+    }
+
+    // Only generate a new connectionId if we don't have an active one or if forced
+    if (force || !this._connectionId) {
+      this._clearWatchdogs();
+      this._connectionId = crypto.randomUUID();
+    }
+
+    console.log(`[WebRTCViewerManager] Signaling ready to host. Connection ID: ${this._connectionId} (viewer: ${this._viewerId})`);
+
     this._socket.emit('webrtc:viewer-ready', {
       roomId: this._roomId,
       viewerId: this._viewerId,
       connectionId: this._connectionId,
     });
+
+    // 1st watchdog: re-signal ready if host has not responded with an offer within 4s
+    if (!this._readyRetryTimer) {
+      this._readyRetryTimer = setTimeout(() => {
+        if (this._destroyed || this._pc?.remoteDescription) return;
+        console.warn('[WebRTCViewerManager] No offer received after 4s. Re-emitting viewer-ready signal with current connectionId...');
+        this._socket.emit('webrtc:viewer-ready', {
+          roomId: this._roomId,
+          viewerId: this._viewerId,
+          connectionId: this._connectionId,
+        });
+      }, 4000);
+    }
+
+    // 2nd watchdog: if peer is still not connected after 15s, transition to failed
+    if (!this._connectionTimeoutTimer) {
+      this._connectionTimeoutTimer = setTimeout(() => {
+        if (this._destroyed) return;
+        if (!this._pc || this._pc.connectionState !== 'connected') {
+          console.error('[WebRTCViewerManager] Connection watchdog timeout (15s). WebRTC setup failed.');
+          this._onConnectionStateChange?.('failed');
+        }
+      }, 15000);
+    }
+  }
+
+  /** Retry connection from scratch */
+  retry(): void {
+    if (this._destroyed) return;
+    console.log('[WebRTCViewerManager] Retrying connection...');
+    this._closePeer(true);
+    this._connectionId = ''; // Reset so a fresh UUID is generated
+    this.signalReady(true);
   }
 
   public handleOffer = async ({
@@ -84,11 +203,22 @@ export class WebRTCViewerManager {
   }) => {
     if (this._destroyed) return;
 
-    // A new offer from a different connectionId means the host restarted.
-    // Close old peer and start fresh.
+    if (this._readyRetryTimer) {
+      clearTimeout(this._readyRetryTimer);
+      this._readyRetryTimer = null;
+    }
+
+    // Glare-safe: if we are currently generating/setting an answer, queue this offer so it isn't dropped!
+    if (this._makingAnswer) {
+      console.warn(`[WebRTCViewerManager] Offer arrived while making answer for ${this._connectionId} — queueing offer for ${connectionId}.`);
+      this._deferredOffer = { sdp, connectionId };
+      return;
+    }
+
+    // If an offer arrives with a new connectionId from the host, reset peer
     if (this._pc && connectionId !== this._connectionId) {
       console.log(`[WebRTCViewerManager] New connectionId received (${connectionId}). Rebuilding peer.`);
-      this._closePeer();
+      this._closePeer(false); // preserve watchdogs!
     }
     this._connectionId = connectionId;
 
@@ -96,31 +226,60 @@ export class WebRTCViewerManager {
       this._createPeer();
     }
 
-    const pc = this._pc!;
-
-    // Glare-safe: if we're making an answer and another offer arrives, defer
-    if (this._makingAnswer) {
-      console.warn('[WebRTCViewerManager] Offer arrived while making answer — deferring.');
-      return;
+    // Re-arm connection timeout if not running
+    if (!this._connectionTimeoutTimer) {
+      this._connectionTimeoutTimer = setTimeout(() => {
+        if (this._destroyed) return;
+        if (!this._pc || this._pc.connectionState !== 'connected') {
+          console.error('[WebRTCViewerManager] Connection watchdog timeout (15s). WebRTC setup failed.');
+          this._onConnectionStateChange?.('failed');
+        }
+      }, 15000);
     }
+
+    const pc = this._pc!;
 
     try {
       this._makingAnswer = true;
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      console.log(`[WebRTCViewerManager] Remote description set from offer (${connectionId}).`);
+      this._logPeerLifecycle('remote_description_set');
+
+      // Drain any buffered ICE candidates that arrived before setRemoteDescription
+      if (this._pendingIceCandidates.length > 0) {
+        console.log(`[WebRTCViewerManager] Flushing ${this._pendingIceCandidates.length} buffered ICE candidates.`);
+        for (const cand of this._pendingIceCandidates) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(cand));
+            this._statsInfo.candidatesAdded++;
+          } catch (iceErr) {
+            this._statsInfo.candidateErrors++;
+            console.warn('[WebRTCViewerManager] Error adding buffered ICE candidate:', iceErr);
+          }
+        }
+        this._pendingIceCandidates = [];
+      }
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      this._logPeerLifecycle('answer_created');
       this._socket.emit('webrtc:answer', {
         roomId: this._roomId,
-        targetId: 'host', // The backend routes this to the host socket
+        targetId: 'host',
         sdp: { type: answer.type, sdp: answer.sdp },
         connectionId,
         senderId: this._viewerId,
       });
-      console.log(`[WebRTCViewerManager] Answer sent to host.`);
+      console.log(`[WebRTCViewerManager] Answer sent to host for connectionId=${connectionId}.`);
     } catch (err) {
       console.error('[WebRTCViewerManager] Failed to handle offer:', err);
     } finally {
       this._makingAnswer = false;
+      if (this._deferredOffer && !this._destroyed) {
+        const next = this._deferredOffer;
+        this._deferredOffer = null;
+        this.handleOffer(next);
+      }
     }
   };
 
@@ -132,11 +291,26 @@ export class WebRTCViewerManager {
     candidate: RTCIceCandidateInit;
     connectionId: string;
   }) => {
-    if (this._destroyed || !this._pc) return;
-    if (connectionId !== this._connectionId) return; // Stale
+    if (this._destroyed) return;
+    this._statsInfo.remoteCandidatesReceived++;
+
+    // Accept candidate if it matches current connectionId OR if connectionId hasn't been set yet
+    if (this._connectionId && connectionId !== this._connectionId) {
+      console.log(`[WebRTCViewerManager] Candidate for non-current connectionId (${connectionId} vs ${this._connectionId}). Discarding.`);
+      return;
+    }
+
+    if (!this._pc || !this._pc.remoteDescription) {
+      // Buffer until remote description is set
+      this._pendingIceCandidates.push(candidate);
+      return;
+    }
+
     try {
       await this._pc.addIceCandidate(new RTCIceCandidate(candidate));
+      this._statsInfo.candidatesAdded++;
     } catch (err) {
+      this._statsInfo.candidateErrors++;
       console.warn('[WebRTCViewerManager] addIceCandidate failed:', err);
     }
   };
@@ -154,27 +328,47 @@ export class WebRTCViewerManager {
     this._incomingStream = new MediaStream();
 
     pc.ontrack = (event) => {
-      console.log(`[WebRTCViewerManager] Track received: ${event.track.kind}`);
+      console.log(`[WebRTCViewerManager] ontrack fired: kind=${event.track.kind}, id=${event.track.id}, readyState=${event.track.readyState}`);
       const stream = this._incomingStream!;
+
+      // Add track listeners for mute/unmute/ended
+      event.track.onmute = () => {
+        console.warn(`[WebRTCViewerManager] Remote track muted: ${event.track.kind}`);
+      };
+      event.track.onunmute = () => {
+        console.log(`[WebRTCViewerManager] Remote track unmuted: ${event.track.kind}`);
+        if (stream.getVideoTracks().length > 0) {
+          this._onStream(stream);
+        }
+      };
+      event.track.onended = () => {
+        console.log(`[WebRTCViewerManager] Remote track ended: ${event.track.kind}`);
+      };
+
       if (event.streams && event.streams[0]) {
         event.streams[0].getTracks().forEach((track) => {
           if (!stream.getTrackById(track.id)) {
             stream.addTrack(track);
+            console.log(`[WebRTCViewerManager] Added track ${track.id} (${track.kind}) from event.streams[0]`);
           }
         });
       } else if (event.track) {
         if (!stream.getTrackById(event.track.id)) {
           stream.addTrack(event.track);
+          console.log(`[WebRTCViewerManager] Added track ${event.track.id} (${event.track.kind}) directly from event.track`);
         }
       }
-      // Notify once we have at least a video track
+
+      // Notify consumer once we have at least a video track
       if (stream.getVideoTracks().length > 0) {
+        console.log(`[WebRTCViewerManager] Incoming stream ready with ${stream.getVideoTracks().length} video track(s) and ${stream.getAudioTracks().length} audio track(s).`);
         this._onStream(stream);
       }
     };
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
+        this._statsInfo.localCandidatesGathered++;
         this._socket.emit('webrtc:ice-candidate', {
           roomId: this._roomId,
           targetId: 'host',
@@ -187,16 +381,22 @@ export class WebRTCViewerManager {
 
     pc.oniceconnectionstatechange = () => {
       console.log(`[WebRTCViewerManager] ICE state: ${pc.iceConnectionState}`);
+      this._logPeerLifecycle('ice_state_change');
       if (pc.iceConnectionState === 'failed') {
         console.warn('[WebRTCViewerManager] ICE failed. Requesting reconnect.');
         this._closePeer();
         this._onStreamLost();
+        this._onConnectionStateChange?.('failed');
       }
     };
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       console.log(`[WebRTCViewerManager] Connection state: ${state}`);
+      this._logPeerLifecycle('connection_state_change');
+      if (state === 'connected') {
+        this._clearWatchdogs();
+      }
       this._onConnectionStateChange?.(state);
       if (state === 'failed' || state === 'closed') {
         this._closePeer();
@@ -207,8 +407,117 @@ export class WebRTCViewerManager {
     console.log('[WebRTCViewerManager] RTCPeerConnection created.');
   }
 
-  private _closePeer(): void {
+  /**
+   * Inspect WebRTC stats on the viewer side (inbound-rtp video).
+   * Distinguishes no incoming media, media received but not decoded, and healthy.
+   */
+  async getInboundStats(): Promise<ViewerMediaStats | null> {
+    if (!this._pc) return null;
+    try {
+      const stats = await this._pc.getStats();
+      let bytesReceived = 0;
+      let packetsReceived = 0;
+      let framesDecoded = 0;
+      let framesReceived = 0;
+      let framesDropped = 0;
+      let framesPerSecond = 0;
+      let packetsLost = 0;
+      let roundTripTime: number | undefined;
+
+      let selectedPair: ViewerMediaStats['selectedCandidatePair'] = undefined;
+      const candidateMap = new Map<string, any>();
+
+      stats.forEach((report) => {
+        if (report.type === 'local-candidate' || report.type === 'remote-candidate') {
+          candidateMap.set(report.id, report);
+        }
+      });
+
+      stats.forEach((report) => {
+        if (report.type === 'inbound-rtp' && (report.kind === 'video' || report.mediaType === 'video')) {
+          bytesReceived = report.bytesReceived || 0;
+          packetsReceived = report.packetsReceived || 0;
+          framesDecoded = report.framesDecoded || 0;
+          framesReceived = report.framesReceived || 0;
+          framesDropped = report.framesDropped || 0;
+          framesPerSecond = report.framesPerSecond || 0;
+          packetsLost = report.packetsLost || 0;
+        } else if (report.type === 'candidate-pair' && (report.state === 'succeeded' || report.nominated || report.selected)) {
+          roundTripTime = report.currentRoundTripTime;
+          const local = candidateMap.get(report.localCandidateId);
+          const remote = candidateMap.get(report.remoteCandidateId);
+          selectedPair = {
+            state: report.state,
+            localCandidateType: local?.candidateType,
+            remoteCandidateType: remote?.candidateType,
+            currentRoundTripTime: report.currentRoundTripTime,
+            bytesSent: report.bytesSent,
+            bytesReceived: report.bytesReceived,
+          };
+        }
+      });
+
+      let diagnosis: ViewerMediaStats['diagnosis'] = 'unknown';
+      if (!this._pc.remoteDescription) {
+        diagnosis = 'signaling_pending';
+      } else if (this._pc.iceConnectionState === 'failed' || this._pc.connectionState === 'failed') {
+        diagnosis = 'ice_failed';
+      } else if (bytesReceived === 0) {
+        diagnosis = 'no_incoming_media';
+      } else if (bytesReceived > 0 && framesDecoded === 0) {
+        diagnosis = 'media_received_not_decoded';
+      } else if (framesDecoded > 0) {
+        diagnosis = 'healthy';
+      }
+
+      return {
+        viewerId: this._viewerId,
+        connectionId: this._connectionId,
+        connectionState: this._pc.connectionState,
+        iceConnectionState: this._pc.iceConnectionState,
+        iceGatheringState: this._pc.iceGatheringState,
+        signalingState: this._pc.signalingState,
+        hasLocalDescription: Boolean(this._pc.localDescription),
+        hasRemoteDescription: Boolean(this._pc.remoteDescription),
+        localCandidatesGathered: this._statsInfo.localCandidatesGathered,
+        remoteCandidatesReceived: this._statsInfo.remoteCandidatesReceived,
+        candidatesAdded: this._statsInfo.candidatesAdded,
+        candidateErrors: this._statsInfo.candidateErrors,
+        selectedCandidatePair: selectedPair,
+        bytesReceived,
+        packetsReceived,
+        framesDecoded,
+        framesReceived,
+        framesDropped,
+        framesPerSecond,
+        packetsLost,
+        roundTripTime,
+        diagnosis,
+      };
+    } catch (err) {
+      console.warn('[WebRTCViewerManager] getStats error:', err);
+      return null;
+    }
+  }
+
+  private _clearWatchdogs(): void {
+    if (this._readyRetryTimer) {
+      clearTimeout(this._readyRetryTimer);
+      this._readyRetryTimer = null;
+    }
+    if (this._connectionTimeoutTimer) {
+      clearTimeout(this._connectionTimeoutTimer);
+      this._connectionTimeoutTimer = null;
+    }
+  }
+
+  private _closePeer(clearWatchdogs = true): void {
+    if (clearWatchdogs) {
+      this._clearWatchdogs();
+    }
+    this._pendingIceCandidates = [];
     if (!this._pc) return;
+
     this._pc.ontrack = null;
     this._pc.onicecandidate = null;
     this._pc.oniceconnectionstatechange = null;

@@ -25,14 +25,38 @@ import { RoomRepository } from '../repositories/room.repository.js';
 // socketInfo is shared from the parent index.ts
 type SocketInfoMap = Map<string, { roomId: string; userId: string; name: string; isHost: boolean; role: string }>;
 
+export const pendingViewerSignals = new Map<string, Array<{ viewerId: string; connectionId: string; socketId: string }>>();
+
+export function flushPendingViewerSignals(io: Server, roomId: string, hostSocketId: string): void {
+  const queue = pendingViewerSignals.get(roomId);
+  if (queue && queue.length > 0) {
+    console.log(`[WebRTC] Flushing ${queue.length} pending viewer-ready signal(s) to host ${hostSocketId}`);
+    for (const item of queue) {
+      io.to(hostSocketId).emit(WEBRTC_EVENTS.VIEWER_READY, {
+        viewerId: item.viewerId,
+        connectionId: item.connectionId,
+        roomId,
+      });
+    }
+    pendingViewerSignals.delete(roomId);
+  }
+}
+
 export function registerWebRTCHandlers(
   io: Server,
   socket: Socket,
-  socketInfo: SocketInfoMap
+  socketInfo: SocketInfoMap,
+  activeHosts?: Map<string, { userId: string; socketId: string }>
 ): void {
 
   // ── Helper: find the host socket ID for a given room ──────────────────────
   function findHostSocketId(roomId: string): string | null {
+    if (activeHosts) {
+      const active = activeHosts.get(roomId);
+      if (active?.socketId) {
+        return active.socketId;
+      }
+    }
     for (const [sId, info] of socketInfo.entries()) {
       if (info.roomId === roomId && info.isHost) {
         return sId;
@@ -48,26 +72,40 @@ export function registerWebRTCHandlers(
         return sId;
       }
     }
+    // Fallback: check if viewerId was passed as a socketId directly
+    if (socketInfo.has(viewerId)) {
+      const info = socketInfo.get(viewerId);
+      if (info && info.roomId === roomId) return viewerId;
+    }
     return null;
   }
 
   // ── Viewer → Server → Host: "I'm ready for a peer connection" ─────────────
   socket.on(WEBRTC_EVENTS.VIEWER_READY, (data: { roomId: string; viewerId: string; connectionId: string }) => {
-    const { roomId, viewerId, connectionId } = data;
-    const senderInfo = socketInfo.get(socket.id);
-    if (!senderInfo) return;
+    const { roomId, viewerId, connectionId } = data || {};
+    if (!roomId) return;
 
-    console.log(`[WebRTC] Viewer ${viewerId} is ready in room ${roomId} (conn: ${connectionId})`);
+    const senderInfo = socketInfo.get(socket.id);
+    const verifiedViewerId = senderInfo?.userId || (socket as any).userId || (typeof viewerId === 'string' && viewerId.trim()) || socket.id;
+
+    console.log(`[WebRTC] Viewer ${verifiedViewerId} is ready in room ${roomId} (conn: ${connectionId})`);
 
     const hostSocketId = findHostSocketId(roomId);
     if (!hostSocketId) {
-      console.warn(`[WebRTC] No host found in room ${roomId} to relay viewer-ready.`);
-      socket.emit('webrtc:error', { message: 'Host not found in room.' });
+      console.warn(`[WebRTC] No host found yet in room ${roomId} to relay viewer-ready. Queueing signal.`);
+      let queue = pendingViewerSignals.get(roomId);
+      if (!queue) {
+        queue = [];
+        pendingViewerSignals.set(roomId, queue);
+      }
+      queue = queue.filter((item) => item.viewerId !== verifiedViewerId);
+      queue.push({ viewerId: verifiedViewerId, connectionId, socketId: socket.id });
+      pendingViewerSignals.set(roomId, queue);
       return;
     }
 
-    // Relay to host socket
-    io.to(hostSocketId).emit(WEBRTC_EVENTS.VIEWER_READY, { viewerId, connectionId, roomId });
+    // Relay to host socket with verified viewerId
+    io.to(hostSocketId).emit(WEBRTC_EVENTS.VIEWER_READY, { viewerId: verifiedViewerId, connectionId, roomId });
   });
 
   // ── Host → Server → Viewer: SDP Offer ─────────────────────────────────────
@@ -127,7 +165,10 @@ export function registerWebRTCHandlers(
       return;
     }
 
-    console.log(`[WebRTC] Relaying answer from viewer ${senderId} to host (conn: ${connectionId})`);
+    const senderInfo = socketInfo.get(socket.id);
+    const verifiedSenderId = senderInfo?.userId || (socket as any).userId || (typeof senderId === 'string' && senderId.trim()) || socket.id;
+
+    console.log(`[WebRTC] Relaying answer from viewer ${verifiedSenderId} to host (conn: ${connectionId})`);
 
     const hostSocketId = findHostSocketId(roomId);
     if (!hostSocketId) {
@@ -136,7 +177,7 @@ export function registerWebRTCHandlers(
     }
 
     io.to(hostSocketId).emit(WEBRTC_EVENTS.ANSWER, {
-      senderId,
+      senderId: verifiedSenderId,
       sdp,
       connectionId,
     });
@@ -158,7 +199,7 @@ export function registerWebRTCHandlers(
     }
 
     const senderInfo = socketInfo.get(socket.id);
-    const senderId = senderInfo?.userId || data.senderId;
+    const senderId = senderInfo?.userId || (socket as any).userId || (typeof data.senderId === 'string' && data.senderId.trim()) || socket.id;
 
     let targetSocketId: string | null = null;
 

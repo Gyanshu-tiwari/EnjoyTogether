@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/shared/lib/supabase';
+import { useAuthSession } from '../hooks/useAuthSession';
 import { Video, Mail, Eye, EyeOff } from 'lucide-react';
 
 type AuthMode = 'signin' | 'signup' | 'forgot_password';
 
 export const LoginForm: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { startGuestSession } = useAuthSession();
   const initialMode = (searchParams.get('mode') as AuthMode) || 'signin';
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
@@ -104,6 +108,57 @@ export const LoginForm: React.FC = () => {
       if (error) throw error;
     } catch (error) {
       console.error('Authentication routing initialization failed:', error);
+    }
+  };
+
+  const getIntendedDestination = (): string => {
+    const isSafeRelativePath = (p: string | null | undefined): p is string => {
+      return !!p && p.startsWith('/') && !p.startsWith('//') && !p.includes('\\') && p !== '/login';
+    };
+
+    // 1. Check query parameter redirect / returnUrl / room / roomId
+    const redirectParam = searchParams.get('redirect') || searchParams.get('returnUrl');
+    if (isSafeRelativePath(redirectParam)) {
+      return redirectParam;
+    }
+    const roomIdParam = searchParams.get('room') || searchParams.get('roomId');
+    if (roomIdParam) {
+      const cleanRoom = roomIdParam.replace(/[^a-zA-Z0-9_-]/g, '');
+      if (cleanRoom) return `/room/${cleanRoom}`;
+    }
+
+    // 2. Check React Router state (e.g. from ProtectedRoute)
+    const fromState = (location.state as { from?: { pathname?: string; search?: string } | string })?.from;
+    if (typeof fromState === 'string' && isSafeRelativePath(fromState)) {
+      return fromState;
+    }
+    if (fromState && typeof fromState === 'object' && isSafeRelativePath(fromState.pathname)) {
+      return `${fromState.pathname}${fromState.search || ''}`;
+    }
+
+    // 3. Check sessionStorage intended destination
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('et_intended_destination');
+      if (isSafeRelativePath(stored)) {
+        sessionStorage.removeItem('et_intended_destination');
+        return stored;
+      }
+    }
+
+    // 4. Default to dashboard
+    return '/dashboard';
+  };
+
+  const handleContinueAsGuest = (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      startGuestSession();
+      const destination = getIntendedDestination();
+      console.log(`[LoginForm] Guest session started, navigating to: ${destination}`);
+      navigate(destination, { replace: true });
+    } catch (err) {
+      console.error('[LoginForm] Failed to start guest session:', err);
+      setError('Failed to start guest session. Please try again.');
     }
   };
 
@@ -292,11 +347,9 @@ export const LoginForm: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            sessionStorage.setItem('guest_session', 'true');
-            window.location.reload();
-          }}
+          onClick={handleContinueAsGuest}
           type="button"
+          id="continue-as-guest-btn"
           className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white font-semibold py-3 px-4 rounded-2xl border border-white/10 transition-all text-xs cursor-pointer active:scale-[0.98]"
         >
           <span>👤</span> Continue as Guest

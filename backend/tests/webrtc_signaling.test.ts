@@ -6,16 +6,15 @@ import { io as ClientSocket, Socket as ClientSocketType } from 'socket.io-client
 import { setupSockets } from '../src/sockets/index.js';
 import { RoomRepository } from '../src/repositories/room.repository.js';
 import { WEBRTC_EVENTS } from '../src/constants/socketEvents.js';
-
-describe('Local-File WebRTC Signaling, RBAC & Playback State Integration Tests', () => {
+describe('Local-File WebRTC Signaling, RBAC & Playback State Integration Tests', { concurrency: 1 }, () => {
   let httpServer: HttpServer;
   let ioServer: SocketIOServer;
   let port: number;
   let serverUrl: string;
 
   const testRoomId = 'test-room-' + Date.now();
-  const hostUserId = 'host-user-123';
-  const viewerUserId = 'viewer-user-456';
+  const hostUserId = 'anon_host_123';
+  const viewerUserId = 'anon_viewer_456';
   const mockConnectionId = 'conn-uuid-999';
 
   let hostClient: ClientSocketType;
@@ -245,6 +244,7 @@ describe('Local-File WebRTC Signaling, RBAC & Playback State Integration Tests',
     assert.strictEqual(broadcast.mediaName, 'family_vacation.mp4');
     assert.strictEqual(broadcast.mediaDuration, 300);
 
+    await new Promise((r) => setTimeout(r, 50));
     const roomState = await RoomRepository.getRoomState(testRoomId);
     assert.strictEqual(roomState?.mediaName, 'family_vacation.mp4');
     assert.strictEqual(roomState?.mediaDuration, 300);

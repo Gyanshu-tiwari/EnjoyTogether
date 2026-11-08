@@ -9,6 +9,7 @@ export const searchFriendsSchema = z.object({
 export const sendFriendRequestSchema = z.object({
   body: z.object({
     addresseeId: z.string().min(1, 'addresseeId is required'),
+    requesterId: z.string().optional(),
   }),
 });
 

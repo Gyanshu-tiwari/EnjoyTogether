@@ -24,6 +24,7 @@ import { LocalMediaSource } from '../media/LocalMediaSource';
 import { WebRTCHostManager } from '../webrtc/WebRTCHostManager';
 import { WebRTCViewerManager } from '../webrtc/WebRTCViewerManager';
 import { getIceServers } from '../webrtc/iceServers';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 import type { WatchPartyRole } from '@/features/videocall/hooks/useLiveKitRoom';
 import type { MediaSourceDescriptor } from '../media/types';
 
@@ -58,22 +59,73 @@ export const TheaterProvider: React.FC<{
   const [userRole, setUserRole] = useState<WatchPartyRole>('viewer');
 
   // ── Local media state ──────────────────────────────────────────────────────
-  // ── Local media state ──────────────────────────────────────────────────────
   const [localFile, setLocalFileState] = useState<File | null>(pendingFile ?? null);
-  const mediaSourceRef = useRef<LocalMediaSource | null>(pendingSource ?? null);
-  const [mediaSource, setMediaSource] = useState<LocalMediaSource | null>(pendingSource ?? null);
+
+  // Resolve or revive valid LocalMediaSource from props
+  const getInitialSource = (): LocalMediaSource | null => {
+    if (pendingSource) {
+      if (pendingSource.status === 'destroyed') {
+        pendingSource.revive();
+      }
+      return pendingSource;
+    }
+    if (pendingFile) {
+      return new LocalMediaSource(pendingFile);
+    }
+    return null;
+  };
+
+  const initialSource = getInitialSource();
+  const mediaSourceRef = useRef<LocalMediaSource | null>(initialSource);
+  const [mediaSource, setMediaSource] = useState<LocalMediaSource | null>(initialSource);
   const [mediaDescriptor, setMediaDescriptor] = useState<MediaSourceDescriptor | null>(() => {
-    if (pendingSource && pendingSource.status === 'ready') {
-      return pendingSource.descriptor;
+    if (initialSource && initialSource.status === 'ready') {
+      return initialSource.descriptor;
     }
     return null;
   });
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // Sync state if pending props arrive after initial mount or change
+  useEffect(() => {
+    if (pendingFile) {
+      setLocalFileState(pendingFile);
+    }
+    if (pendingSource) {
+      if (pendingSource.status === 'destroyed') {
+        pendingSource.revive();
+      }
+      mediaSourceRef.current = pendingSource;
+      setMediaSource(pendingSource);
+      if (pendingSource.status === 'ready') {
+        setMediaDescriptor(pendingSource.descriptor);
+      } else {
+        pendingSource.loadMetadata().then((desc) => {
+          setMediaDescriptor(desc);
+        }).catch((err) => {
+          console.error('[TheaterProvider] Failed to load metadata for pending source:', err);
+        });
+      }
+    } else if (pendingFile && (!mediaSourceRef.current || mediaSourceRef.current.status === 'destroyed')) {
+      const src = new LocalMediaSource(pendingFile);
+      mediaSourceRef.current = src;
+      setMediaSource(src);
+      src.loadMetadata().then((desc) => {
+        setMediaDescriptor(desc);
+      }).catch((err) => {
+        console.error('[TheaterProvider] Failed to load metadata for pending file:', err);
+      });
+    }
+  }, [pendingFile, pendingSource]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const [hostStream, setHostStream] = useState<MediaStream | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null); // Set by SyncVideoPlayer
 
   // ── WebRTC state ──────────────────────────────────────────────────────────
   const [viewerStream, setViewerStream] = useState<MediaStream | null>(null);
   const [webrtcStatus, setWebRTCStatus] = useState<WebRTCStatus>('idle');
+  const [streamDuration, setStreamDuration] = useState<number | null>(null);
+  const [streamMediaName, setStreamMediaName] = useState<string | null>(null);
   const hostManagerRef = useRef<WebRTCHostManager | null>(null);
   const viewerManagerRef = useRef<WebRTCViewerManager | null>(null);
   const pendingViewersRef = useRef<Array<{ viewerId: string; connectionId: string }>>([]);
@@ -146,13 +198,27 @@ export const TheaterProvider: React.FC<{
         hostManagerRef.current.handleViewerReady(data);
       } else {
         console.log(`[TheaterProvider] Queueing viewer-ready from ${data.viewerId} until host stream starts.`);
+        pendingViewersRef.current = pendingViewersRef.current.filter((v) => v.viewerId !== data.viewerId);
         pendingViewersRef.current.push(data);
       }
     }, []),
 
-    onHostStreamReady: useCallback(() => {
+    onViewerJoined: useCallback((data: { viewerId: string; roomId: string }) => {
+      console.log(`[TheaterProvider] Host notified that viewer joined room: ${data.viewerId}`);
+      // Host awaits viewer's webrtc:viewer-ready with its coordinated connectionId
+      // to eliminate offer/answer collisions and mismatched connection IDs.
+    }, []),
+
+    onHostStreamReady: useCallback((data?: { mediaName?: string; mediaDuration?: number | null }) => {
+      if (data?.mediaDuration !== undefined && data.mediaDuration !== null) {
+        setStreamDuration(data.mediaDuration);
+      }
+      if (data?.mediaName) {
+        setStreamMediaName(data.mediaName);
+      }
       if (!isHost) {
-        setWebRTCStatus('connecting');
+        console.log('[TheaterProvider] onHostStreamReady received for viewer:', data);
+        setWebRTCStatus((prev) => (prev === 'connected' ? 'connected' : 'connecting'));
         viewerManagerRef.current?.signalReady();
       }
     }, [isHost]),
@@ -163,6 +229,14 @@ export const TheaterProvider: React.FC<{
       setWebRTCStatus('host_disconnected');
     }, []),
   });
+
+  const retryViewerConnection = useCallback(() => {
+    if (!isHost) {
+      console.log('[TheaterProvider] Retrying viewer connection to host...');
+      setWebRTCStatus('connecting');
+      viewerManagerRef.current?.retry();
+    }
+  }, [isHost]);
 
   // ── Set up WebRTC managers when session becomes active ─────────────────────
   useEffect(() => {
@@ -175,27 +249,38 @@ export const TheaterProvider: React.FC<{
       // Nothing to do here yet — no file selected
     } else {
       // Viewer: set up viewer manager and signal ready
-      console.log('[TheaterProvider] Setting up WebRTCViewerManager for viewer.');
+      const effectiveViewerId = currentUserId || (typeof window !== 'undefined' ? (localStorage.getItem('et_anon_user_id') || getAnonymousUserId()) : 'viewer');
+      console.log(`[TheaterProvider] Setting up WebRTCViewerManager for viewer ${effectiveViewerId}.`);
       const manager = new WebRTCViewerManager({
         socket,
         roomId,
-        viewerId: currentUserId || 'unknown',
+        viewerId: effectiveViewerId,
         iceServers,
         onStream: (stream) => {
+          console.log(`[TheaterProvider] Viewer received remote stream with ${stream.getTracks().length} track(s).`);
           setViewerStream(stream);
           setWebRTCStatus('connected');
         },
         onStreamLost: () => {
+          console.log('[TheaterProvider] Viewer stream lost.');
           setViewerStream(null);
           setWebRTCStatus('host_disconnected');
         },
         onConnectionStateChange: (state) => {
-          if (state === 'connected') setWebRTCStatus('connected');
-          else if (state === 'failed' || state === 'closed') setWebRTCStatus('failed');
+          console.log(`[TheaterProvider] Viewer connectionState: ${state}`);
+          if (state === 'connected') {
+            setWebRTCStatus('connected');
+          } else if (state === 'failed' || state === 'closed') {
+            setWebRTCStatus('failed');
+          } else if (state === 'connecting') {
+            // Guard: do not downgrade to 'connecting' if we already transitioned to 'connected'
+            setWebRTCStatus((prev) => (prev === 'connected' ? 'connected' : 'connecting'));
+          }
         },
       });
 
       viewerManagerRef.current = manager;
+      setWebRTCStatus('connecting');
       manager.signalReady();
     }
 
@@ -253,8 +338,17 @@ export const TheaterProvider: React.FC<{
   // This is called by SyncVideoPlayer when the host video is ready to stream
   const startHostCapture = useCallback((videoEl: HTMLVideoElement) => {
     videoElRef.current = videoEl;
-    const source = mediaSourceRef.current;
+    let source = mediaSourceRef.current || mediaSource;
+    if (!source && localFile) {
+      source = new LocalMediaSource(localFile);
+      mediaSourceRef.current = source;
+      setMediaSource(source);
+    }
     if (!source || !socket || sessionState !== 'active_session') return;
+
+    if (source.status === 'destroyed') {
+      source.revive();
+    }
 
     const stream = source.captureStream(videoEl);
     if (!stream) {
@@ -266,9 +360,21 @@ export const TheaterProvider: React.FC<{
 
     const iceServers = getIceServers();
 
+    const descriptor = mediaSourceRef.current?.descriptor;
+    const sourceDimensions = (descriptor?.width && descriptor?.height) ? {
+      width: descriptor.width,
+      height: descriptor.height,
+    } : (videoEl && videoEl.videoWidth && videoEl.videoHeight) ? {
+      width: videoEl.videoWidth,
+      height: videoEl.videoHeight,
+    } : undefined;
+
     // Create or replace host manager
     if (hostManagerRef.current) {
-      // Replace stream on existing connections
+      // Replace stream on existing connections and update dimensions
+      if (sourceDimensions) {
+        hostManagerRef.current.updateSourceDimensions(sourceDimensions);
+      }
       hostManagerRef.current.replaceStream(stream);
     } else {
       const manager = new WebRTCHostManager({
@@ -276,6 +382,7 @@ export const TheaterProvider: React.FC<{
         socket,
         roomId,
         iceServers,
+        sourceDimensions,
         onPeerStateChange: (viewerId, state) => {
           console.log(`[TheaterProvider] Peer state for ${viewerId}: ${state}`);
         },
@@ -293,14 +400,19 @@ export const TheaterProvider: React.FC<{
     }
 
     // Notify all viewers that the stream is ready
-    const descriptor = mediaSourceRef.current?.descriptor;
+    const resolvedDuration = (descriptor?.durationSeconds && descriptor.durationSeconds > 0)
+      ? descriptor.durationSeconds
+      : (videoEl && isFinite(videoEl.duration) && videoEl.duration > 0 ? Math.round(videoEl.duration) : null);
+    const resolvedName = descriptor?.name || localFile?.name || 'Local Video';
+    setStreamDuration(resolvedDuration);
+    setStreamMediaName(resolvedName);
     notifyHostStreamReady(
-      descriptor?.name || 'Unknown',
-      descriptor?.durationSeconds ?? null
+      resolvedName,
+      resolvedDuration
     );
 
     console.log(`[TheaterProvider] Host capture started. ${stream.getTracks().length} track(s).`);
-  }, [socket, sessionState, roomId, notifyHostStreamReady]);
+  }, [socket, sessionState, roomId, notifyHostStreamReady, localFile, mediaSource]);
 
   // ── Expose startHostCapture via context (SyncVideoPlayer will call it) ─────
   // We use a global ref accessible from SyncVideoPlayer through context
@@ -328,18 +440,21 @@ export const TheaterProvider: React.FC<{
   // ── Cleanup on unmount ─────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (mediaSourceRef.current) {
-        mediaSourceRef.current.destroy();
-        mediaSourceRef.current = null;
-      }
+      // Clean up host WebRTC connections
       if (hostManagerRef.current) {
         hostManagerRef.current.destroy();
         hostManagerRef.current = null;
       }
+      // Clean up viewer WebRTC connections
       if (viewerManagerRef.current) {
         viewerManagerRef.current.destroy();
         viewerManagerRef.current = null;
       }
+      // NOTE: Do not destroy mediaSourceRef.current on transient unmount!
+      // In React Strict Mode or during route/skeleton toggling, destroying
+      // mediaSource kills the active source for subsequent mounts.
+      // mediaSource is destroyed explicitly when a file is replaced in setLocalFile()
+      // or permanently disposed when leaving the room.
     };
   }, []);
 
@@ -385,6 +500,9 @@ export const TheaterProvider: React.FC<{
         setViewerStream,
         webrtcStatus,
         setWebRTCStatus,
+        streamDuration,
+        streamMediaName,
+        retryViewerConnection,
         startHostCapture,
 
         // Chat

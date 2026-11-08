@@ -13,15 +13,13 @@
  *   - Receives a WebRTC MediaStream (from WebRTCViewerManager)
  *   - Attaches via video.srcObject
  *   - Receives sync-state from backend → useSocketSync applies them
- *   - Shows "Streaming from host device" overlay
- *   - No independent seeking (host owns the timeline)
+ *   - Displays clear diagnostic states (A through F)
+ *   - Handles browser autoplay policy (muted playback fallback + unmute prompt)
+ *   - Provides connection timeouts and recovery retry action
  *
  * LEGACY HLS MODE:
  *   - If currentStreamUrl is set and no localFile/viewerStream, falls back
  *   - Preserves backward compatibility with existing HLS-based rooms
- *
- * Security: the local File object never leaves this component.
- * The objectUrl is revoked when the component unmounts.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -30,7 +28,8 @@ import { useTheater } from '../context/useTheater';
 import { useSocketSync } from '../hooks/useSocketSync';
 import { Spinner } from '@/shared/components/feedback/Spinner';
 import { Button } from '@/shared/components/ui/Button';
-import { Eye, AlertTriangle, RefreshCw, Zap, Loader2 } from 'lucide-react';
+import { Eye, AlertTriangle, RefreshCw, Zap, Loader2, Volume2 } from 'lucide-react';
+import { CustomVlcPlayer } from './CustomVlcPlayer';
 
 type PlayerMode = 'idle' | 'local_host' | 'webrtc_viewer' | 'hls_legacy';
 
@@ -46,6 +45,9 @@ export const SyncVideoPlayer: React.FC = () => {
     viewerStream,
     webrtcStatus,
     setWebRTCStatus,
+    streamDuration,
+    streamMediaName,
+    retryViewerConnection,
     startHostCapture,
   } = useTheater();
 
@@ -59,6 +61,9 @@ export const SyncVideoPlayer: React.FC = () => {
   const [isBuffering, setIsBuffering] = useState(false);
   const [retryCount, setRetryCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasVideoFrames, setHasVideoFrames] = useState<boolean>(false);
+  const [isMutedAutoplay, setIsMutedAutoplay] = useState<boolean>(false);
+  const [connectingElapsed, setConnectingElapsed] = useState<number>(0);
 
   // Determine player mode — local WebRTC viewer is prioritized over legacy HLS for guests
   const mode: PlayerMode = (() => {
@@ -83,32 +88,74 @@ export const SyncVideoPlayer: React.FC = () => {
   // Reset retry/loading state when HLS stream changes
   useEffect(() => {
     if (currentStreamUrl && mode === 'hls_legacy') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRetryCount(0);
       setPlaybackError(null);
       setIsLoading(true);
     }
   }, [currentStreamUrl, mode]);
 
+  // Track elapsed seconds in 'connecting' status to offer retry
+  useEffect(() => {
+    if (mode === 'webrtc_viewer' && webrtcStatus === 'connecting') {
+      setConnectingElapsed(0);
+      const interval = setInterval(() => {
+        setConnectingElapsed((s) => s + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setConnectingElapsed(0);
+    }
+  }, [mode, webrtcStatus]);
+
   // ── HOST MODE: Local file playback & WebRTC capture ────────────────────────
   useEffect(() => {
     if (mode !== 'local_host' || !videoRef.current || !mediaSource) return;
 
     const video = videoRef.current;
-    const objectUrl = mediaSource.getObjectUrl();
-    objectUrlRef.current = objectUrl;
+    let objectUrl: string;
+    try {
+      if (mediaSource.status === 'destroyed') {
+        mediaSource.revive();
+      }
+      objectUrl = mediaSource.getObjectUrl();
+    } catch (err) {
+      console.error('[SyncVideoPlayer] Failed to get object URL:', err);
+      setPlaybackError(
+        `Cannot load video "${localFile?.name || 'selected file'}": ` +
+        (err instanceof Error ? err.message : 'Media source unavailable.')
+      );
+      return;
+    }
 
+    objectUrlRef.current = objectUrl;
     video.src = objectUrl;
     video.load();
     setPlaybackError(null);
     captureStartedRef.current = false;
 
+    // Begin captureStream only when the video element has loaded valid metadata
+    const tryStartCapture = () => {
+      if (captureStartedRef.current || !videoRef.current) return;
+      if (
+        videoRef.current.readyState >= HTMLMediaElement.HAVE_METADATA &&
+        (videoRef.current.videoWidth > 0 || videoRef.current.duration > 0)
+      ) {
+        captureStartedRef.current = true;
+        console.log('[SyncVideoPlayer] Host video metadata verified, starting WebRTC capture stream.');
+        startHostCapture(videoRef.current);
+      }
+    };
+
     const onCanPlay = () => {
       setIsBuffering(false);
+      tryStartCapture();
     };
 
     const onWaiting = () => setIsBuffering(true);
-    const onPlaying = () => setIsBuffering(false);
+    const onPlaying = () => {
+      setIsBuffering(false);
+      tryStartCapture();
+    };
 
     const onError = () => {
       const err = video.error;
@@ -121,21 +168,12 @@ export const SyncVideoPlayer: React.FC = () => {
       );
     };
 
-    // Begin captureStream as soon as the video element can produce frames
     const onLoadedMetadata = () => {
-      if (!captureStartedRef.current && videoRef.current) {
-        captureStartedRef.current = true;
-        console.log('[SyncVideoPlayer] Host video metadata loaded, starting capture stream.');
-        startHostCapture(videoRef.current);
-      }
+      tryStartCapture();
     };
 
     const onPlay = () => {
-      if (!captureStartedRef.current && videoRef.current) {
-        captureStartedRef.current = true;
-        console.log('[SyncVideoPlayer] Host video play started, starting capture stream.');
-        startHostCapture(videoRef.current);
-      }
+      tryStartCapture();
     };
 
     video.addEventListener('canplay', onCanPlay);
@@ -145,6 +183,9 @@ export const SyncVideoPlayer: React.FC = () => {
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('play', onPlay);
 
+    // Initial check in case metadata was already loaded or cached
+    tryStartCapture();
+
     return () => {
       video.removeEventListener('canplay', onCanPlay);
       video.removeEventListener('waiting', onWaiting);
@@ -152,25 +193,84 @@ export const SyncVideoPlayer: React.FC = () => {
       video.removeEventListener('error', onError);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('play', onPlay);
-      // Do NOT revoke objectUrl here — mediaSource.destroy() handles it
     };
   }, [mode, mediaSource, localFile, startHostCapture]);
 
-  // ── VIEWER MODE: WebRTC stream ─────────────────────────────────────────────
+  // ── VIEWER MODE: WebRTC stream attachment and autoplay policy handling ─────
   useEffect(() => {
     if (mode !== 'webrtc_viewer' || !videoRef.current) return;
     const video = videoRef.current;
 
+    setHasVideoFrames(false);
+    setIsMutedAutoplay(false);
+
     if (viewerStream) {
-      // Clean up any HLS instance
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
       video.srcObject = viewerStream;
-      video.play().catch((err) => {
-        console.warn('[SyncVideoPlayer] Viewer autoplay blocked:', err);
-      });
+
+      const markFramesActive = () => {
+        setIsBuffering(false);
+        setHasVideoFrames(true);
+        if (webrtcStatus !== 'connected') {
+          console.log('[SyncVideoPlayer] Video frames verified playing. Ensuring webrtcStatus is connected.');
+          setWebRTCStatus('connected');
+        }
+      };
+
+      const onCanPlay = () => {
+        setIsBuffering(false);
+        if (video.videoWidth > 0 || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          markFramesActive();
+        }
+      };
+
+      const onPlaying = () => {
+        markFramesActive();
+      };
+
+      const onLoadedData = () => {
+        if (video.videoWidth > 0 || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          markFramesActive();
+        }
+      };
+
+      const onTimeUpdate = () => {
+        if (video.currentTime > 0) {
+          markFramesActive();
+        }
+      };
+
+      video.addEventListener('canplay', onCanPlay);
+      video.addEventListener('playing', onPlaying);
+      video.addEventListener('loadeddata', onLoadedData);
+      video.addEventListener('timeupdate', onTimeUpdate);
+
+      // Attempt playback; handle browser autoplay restriction gracefully
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('[SyncVideoPlayer] Unmuted viewer playback blocked by browser:', err);
+          // Fall back to muted playback so video frames render immediately without user lockup
+          video.muted = true;
+          video.play().then(() => {
+            console.log('[SyncVideoPlayer] Playing remote video stream in muted fallback mode.');
+            setIsMutedAutoplay(true);
+            markFramesActive();
+          }).catch((fallbackErr) => {
+            console.error('[SyncVideoPlayer] Muted playback also blocked:', fallbackErr);
+          });
+        });
+      }
+
+      return () => {
+        video.removeEventListener('canplay', onCanPlay);
+        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('loadeddata', onLoadedData);
+        video.removeEventListener('timeupdate', onTimeUpdate);
+      };
     } else {
       video.srcObject = null;
     }
@@ -291,15 +391,12 @@ export const SyncVideoPlayer: React.FC = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 group">
-      <video
-        ref={videoRef}
-        controls={isHost || mode === 'hls_legacy'} // Viewers don't get native controls
-        className="w-full h-full object-contain"
-        playsInline
-        preload="metadata"
-      />
-
+    <CustomVlcPlayer
+      externalVideoRef={videoRef}
+      canControl={canControl && mode !== 'webrtc_viewer'}
+      className="shadow-2xl border border-white/10"
+      externalDuration={isHost ? (mediaSource?.descriptor?.durationSeconds ?? videoRef.current?.duration ?? null) : streamDuration}
+    >
       {/* Loading overlay: shown while HLS manifest is being fetched */}
       {mode === 'hls_legacy' && isLoading && !playbackError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 gap-3 z-10">
@@ -312,11 +409,31 @@ export const SyncVideoPlayer: React.FC = () => {
         </div>
       )}
 
-      {/* Viewer mode overlay badges */}
-      {mode === 'webrtc_viewer' && webrtcStatus === 'connected' && (
-        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm px-2.5 py-1.5 rounded-full border border-white/10 pointer-events-none select-none">
+      {/* State F: Video playing successfully badge */}
+      {mode === 'webrtc_viewer' && webrtcStatus === 'connected' && hasVideoFrames && (
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm px-2.5 py-1.5 rounded-full border border-white/10 pointer-events-none select-none z-10">
           <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-[10px] text-cyan-300 font-bold tracking-widest uppercase">Streaming from host device</span>
+          <span className="text-[10px] text-cyan-300 font-bold tracking-widest uppercase">
+            {streamMediaName ? `Streaming "${streamMediaName}" from host` : 'Streaming from host device'}
+          </span>
+        </div>
+      )}
+
+      {/* Muted Autoplay Recovery Pill */}
+      {isMutedAutoplay && mode === 'webrtc_viewer' && (
+        <div className="absolute top-3 left-3 z-30 animate-fade-in">
+          <button
+            onClick={() => {
+              if (videoRef.current) {
+                videoRef.current.muted = false;
+                setIsMutedAutoplay(false);
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg backdrop-blur-sm transition-all cursor-pointer"
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            <span>Click to unmute video audio</span>
+          </button>
         </div>
       )}
 
@@ -327,34 +444,61 @@ export const SyncVideoPlayer: React.FC = () => {
         </div>
       )}
 
-      {/* Idle: no video selected yet */}
+      {/* State A: Waiting for host media source */}
       {mode === 'idle' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-neutral-600 select-none">
           <span className="text-5xl opacity-20">🎬</span>
           <p className="text-sm font-semibold text-neutral-500">
-            {isHost ? 'Select a video file to start streaming' : 'Waiting for host to start streaming...'}
+            {isHost ? 'Select a video file to start streaming' : 'Host has not started a video yet'}
           </p>
           {!isHost && (
             <div className="flex items-center gap-2 text-xs text-neutral-600 font-mono">
               <Spinner size="sm" />
-              <span>Waiting for host...</span>
+              <span>Waiting for host to select a file...</span>
             </div>
           )}
         </div>
       )}
 
-      {/* Viewer: connecting to host */}
-      {mode === 'webrtc_viewer' && webrtcStatus === 'connecting' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-neutral-950/80 backdrop-blur-sm animate-fade-in">
+      {/* State B: Waiting for WebRTC connection */}
+      {mode === 'webrtc_viewer' && webrtcStatus === 'connecting' && !hasVideoFrames && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-neutral-950/80 backdrop-blur-sm animate-fade-in z-20">
           <Spinner size="md" />
           <p className="text-sm font-semibold text-neutral-300">Connecting to host stream...</p>
-          <p className="text-xs text-neutral-500 font-mono">WebRTC negotiating...</p>
+          <p className="text-xs text-neutral-500 font-mono">WebRTC negotiating... ({connectingElapsed}s)</p>
+          {connectingElapsed >= 6 && (
+            <Button
+              onClick={retryViewerConnection}
+              variant="secondary"
+              className="mt-1 px-4 py-1.5 text-xs font-semibold"
+            >
+              🔄 Retry Connection
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* State C: WebRTC connected but awaiting remote video track */}
+      {mode === 'webrtc_viewer' && webrtcStatus === 'connected' && (!viewerStream || viewerStream.getVideoTracks().length === 0) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-950/80 backdrop-blur-sm animate-fade-in z-20">
+          <Spinner size="md" />
+          <p className="text-sm font-semibold text-cyan-300">Connected to host</p>
+          <p className="text-xs text-neutral-400 font-mono">Awaiting remote video track from host...</p>
+        </div>
+      )}
+
+      {/* State D: Remote track received but media not yet playable */}
+      {mode === 'webrtc_viewer' && webrtcStatus === 'connected' && viewerStream && viewerStream.getVideoTracks().length > 0 && !hasVideoFrames && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-neutral-950/70 backdrop-blur-sm animate-fade-in z-20">
+          <Spinner size="md" />
+          <p className="text-sm font-semibold text-neutral-200">Receiving video track...</p>
+          <p className="text-xs text-neutral-400 font-mono">Decoding initial video frames...</p>
         </div>
       )}
 
       {/* Viewer: host disconnected */}
       {mode === 'webrtc_viewer' && webrtcStatus === 'host_disconnected' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-neutral-950/90 backdrop-blur-md animate-fade-in">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-neutral-950/90 backdrop-blur-md animate-fade-in z-20">
           <span className="text-4xl">📡</span>
           <p className="text-sm font-bold text-amber-400">Host Disconnected</p>
           <p className="text-xs text-neutral-400 text-center max-w-[280px]">
@@ -369,14 +513,14 @@ export const SyncVideoPlayer: React.FC = () => {
 
       {/* Viewer: WebRTC failed */}
       {mode === 'webrtc_viewer' && webrtcStatus === 'failed' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-neutral-950/90 backdrop-blur-md animate-fade-in">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-neutral-950/90 backdrop-blur-md animate-fade-in z-20">
           <span className="text-4xl">⚠️</span>
           <p className="text-sm font-bold text-red-400">Connection Failed</p>
           <p className="text-xs text-neutral-400 text-center max-w-[280px]">
             Could not establish WebRTC connection to the host. This may be a network issue (NAT, firewall, or missing TURN server).
           </p>
           <Button
-            onClick={() => setWebRTCStatus('connecting')}
+            onClick={retryViewerConnection}
             variant="primary"
             className="px-6 py-2 text-xs"
           >
@@ -385,9 +529,9 @@ export const SyncVideoPlayer: React.FC = () => {
         </div>
       )}
 
-      {/* Buffering overlay */}
-      {isBuffering && mode !== 'idle' && (
-        <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 pointer-events-none animate-fade-in">
+      {/* State E: Video playback actively buffering */}
+      {isBuffering && mode !== 'idle' && hasVideoFrames && (
+        <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 pointer-events-none animate-fade-in z-20">
           <Spinner size="sm" />
           <span className="text-[10px] text-neutral-300 font-mono">Buffering...</span>
         </div>
@@ -399,7 +543,9 @@ export const SyncVideoPlayer: React.FC = () => {
           <div className="h-14 w-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mb-4 text-red-400">
             <AlertTriangle className="w-7 h-7" />
           </div>
-          <p className="text-sm font-bold text-red-400 mb-2">Stream Offline or Unreachable</p>
+          <p className="text-sm font-bold text-red-400 mb-2">
+            {mode === 'local_host' ? 'Playback Error' : 'Stream Offline or Unreachable'}
+          </p>
           <p className="text-xs text-text-secondary max-w-[320px] leading-relaxed mb-5 font-medium font-sans">
             {playbackError}
           </p>
@@ -412,20 +558,26 @@ export const SyncVideoPlayer: React.FC = () => {
             className="px-6 py-2 flex items-center justify-center gap-1.5 font-bold"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Retry Loading Stream</span>
+            <span>{mode === 'local_host' ? 'Retry Playback' : 'Retry Loading Stream'}</span>
           </Button>
         </div>
       )}
 
-      {/* Autoplay blocked overlay (non-viewer) */}
-      {isBlocked && mode !== 'idle' && !isViewer && (
+      {/* Autoplay blocked overlay (both host and viewers) */}
+      {isBlocked && mode !== 'idle' && (
         <div className="absolute inset-0 bg-neutral-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all z-50 animate-fade-in">
           <div className="bg-bg-card border border-white/5 p-6 rounded-2xl max-w-sm text-center shadow-xl">
             <p className="text-sm text-text-secondary mb-4 font-medium font-sans">
-              Your browser has paused the synchronized stream track to protect connection overhead. Click to sync and play.
+              Your browser has paused the stream audio/video track due to autoplay policy. Click to play.
             </p>
             <Button
-              onClick={handleManualUnlock}
+              onClick={() => {
+                if (videoRef.current) {
+                  videoRef.current.muted = false;
+                  videoRef.current.play().catch(() => {});
+                }
+                handleManualUnlock();
+              }}
               variant="brand"
               className="w-full py-2.5 flex items-center justify-center gap-1.5 font-bold"
             >
@@ -435,7 +587,7 @@ export const SyncVideoPlayer: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </CustomVlcPlayer>
   );
 };
 

@@ -24,7 +24,8 @@ export const changeVideoSrcSchema = z.object({
 export const createRoomSchema = z.object({
   body: z.object({
     hostId: z.string().optional(),
-    movieUrl: z.string().trim().min(1, 'Video source path cannot be empty').optional(),
+    movieUrl: z.string().optional(),
+    mediaName: z.string().optional(),
   }),
 });
 

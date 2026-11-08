@@ -7,7 +7,7 @@ import { LoginForm, useAuthSession } from '@/features/auth';
 import { TheaterProvider, TheaterView, useTheater } from '@/features/theater';
 import { LocalFilePicker } from '@/features/theater/components/LocalFilePicker';
 import { FriendsTab } from '@/features/friends/components/FriendsTab';
-import { AlertTriangle, Ban, Check, Link, Trash2, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft, UserPlus } from 'lucide-react';
+import { AlertTriangle, Ban, Check, Link, LogOut, Hand, User, Mic, MicOff, Video, VideoOff, Play, X, Home, RefreshCw, ArrowLeft, UserPlus } from 'lucide-react';
 import { TheaterSkeleton, DashboardSkeleton, LobbySkeleton } from '@/shared/components/feedback/Skeletons';
 import { getRoomMetadata } from '@/features/theater/api/theaterApi';
 import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
@@ -23,7 +23,6 @@ const RoomContent: React.FC<{
     sessionState,
     isHost,
     startSession,
-    endSession,
     loading,
     dbError,
     knocks,
@@ -113,68 +112,8 @@ const RoomContent: React.FC<{
   // Active Theater Session view
   if (sessionState === 'active_session') {
     return (
-      <div className="w-full">
-        {/* Small context indicator bar in theater mode */}
-        <div className="w-full flex justify-between items-center mb-4 px-4 bg-white/5 py-3 rounded-2xl border border-white/5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-brand animate-pulse" />
-            <span className="text-xs font-bold text-neutral-200 tracking-wider">LIVE THEATER SESSION</span>
-            <span className="text-xs text-neutral-500 font-mono">| Room: {roomId}</span>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => setInviteOpen(true)}
-              variant="brand"
-              className="px-3 py-1.5 text-xs font-semibold"
-            >
-              <span className="flex items-center gap-1.5">
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Invite</span>
-              </span>
-            </Button>
-            <Button
-              onClick={copyInviteLink}
-              variant={copied ? 'emerald' : 'secondary'}
-              className="px-3 py-1.5 text-xs font-semibold"
-            >
-              <span className="flex items-center gap-1.5">
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Link className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied' : 'Link'}</span>
-              </span>
-            </Button>
-            {isHost && (
-              <Button
-                onClick={endSession}
-                variant="secondary"
-                className="px-3 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Close Room</span>
-                </span>
-              </Button>
-            )}
-            <Button
-              onClick={onExit}
-              variant="secondary"
-              className="px-3 py-1.5 text-xs"
-            >
-              <span className="flex items-center gap-1.5">
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Exit</span>
-              </span>
-            </Button>
-          </div>
-        </div>
-
+      <div className="w-full h-full flex flex-col overflow-hidden">
         <TheaterView />
-
-        {/* InviteModal */}
-        <InviteModal
-          roomId={roomId}
-          isOpen={inviteOpen}
-          onClose={() => setInviteOpen(false)}
-        />
 
         {/* Host Admission Alerts */}
         {isHost && knocks.length > 0 && (
@@ -241,17 +180,17 @@ const RoomContent: React.FC<{
 
   // Pre-join Lobby State: styled like Google Meet Green Room
   return (
-    <div className="w-full flex flex-col lg:flex-row gap-12 items-center justify-center max-w-5xl mx-auto py-8 px-4 animate-fade-in">
+    <div className="w-full max-w-5xl mx-auto py-6 sm:py-10 px-4 flex flex-col lg:flex-row gap-8 lg:gap-10 items-stretch justify-center animate-fade-in">
       {/* Left side: Simulated Local Video Preview Card */}
-      <div className="w-full lg:w-3/5 bg-bg-card border border-white/5 rounded-3xl overflow-hidden aspect-video relative flex flex-col items-center justify-center shadow-2xl">
+      <div className="w-full lg:w-7/12 bg-neutral-900/80 border border-white/10 rounded-3xl overflow-hidden aspect-video relative flex flex-col items-center justify-center shadow-2xl shrink-0">
         {cameraOn ? (
           <div className="absolute inset-0 bg-bg-primary flex items-center justify-center">
             <span className="text-xs text-text-secondary">[Camera Feed Mock]</span>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 text-center">
-            <div className="w-20 h-20 rounded-full bg-bg-primary border border-white/5 flex items-center justify-center text-text-secondary">
-              <User className="w-10 h-10" />
+            <div className="w-20 h-20 rounded-full bg-neutral-800/80 border border-white/10 flex items-center justify-center text-text-secondary shadow-inner">
+              <User className="w-10 h-10 text-neutral-400" />
             </div>
             <p className="text-sm font-semibold text-text-secondary">Camera is off</p>
           </div>
@@ -263,8 +202,8 @@ const RoomContent: React.FC<{
             onClick={() => setMicOn(!micOn)}
             className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
               micOn
-                ? 'bg-bg-primary hover:bg-neutral-800 text-white border-white/5'
-                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/20'
+                ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-white/10'
+                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30'
             }`}
             title={micOn ? 'Mute Mic' : 'Unmute Mic'}
           >
@@ -274,8 +213,8 @@ const RoomContent: React.FC<{
             onClick={() => setCameraOn(!cameraOn)}
             className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
               cameraOn
-                ? 'bg-bg-primary hover:bg-neutral-800 text-white border-white/5'
-                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/20'
+                ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-white/10'
+                : 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30'
             }`}
             title={cameraOn ? 'Turn Camera Off' : 'Turn Camera On'}
           >
@@ -285,7 +224,7 @@ const RoomContent: React.FC<{
       </div>
 
       {/* Right side: Action card */}
-      <div className="w-full lg:w-2/5 flex flex-col gap-6 text-left">
+      <div className="w-full lg:w-5/12 bg-neutral-900/60 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl flex flex-col justify-center text-left">
         {sessionState === 'idle_host' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-bold tracking-tight text-white">Ready to host?</h2>
@@ -406,12 +345,12 @@ const RoomContent: React.FC<{
 };
 
 export const Room: React.FC = () => {
-  const { session, loading: authLoading } = useAuthSession();
+  const { session, loading: authLoading, isGuest } = useAuthSession();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const isFriendsTab = location.search.includes('tab=friends');
-  const isGuestMode = typeof window !== 'undefined' && (sessionStorage.getItem('guest_session') === 'true' || !!id);
+  const isGuestMode = isGuest || (typeof window !== 'undefined' && (sessionStorage.getItem('guest_session') === 'true' || !!id));
   const bypassLogin = isGuestMode;
 
   const [roomActive, setRoomActive] = useState<boolean | null>(null);
@@ -428,16 +367,26 @@ export const Room: React.FC = () => {
 
     const checkRoom = async () => {
       try {
-        setRoomLoading(true);
+        // Avoid setting roomLoading to true if host already holds pending media source
+        if (!pendingSource && !pendingFile) {
+          setRoomLoading(true);
+        }
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        const userId = currentSession?.user?.id || getAnonymousUserId();
+        const activeUserId = session?.user?.id || currentSession?.user?.id || getAnonymousUserId();
 
         const response = await getRoomMetadata(id);
         const room = response.metadata;
 
         if (!cancelled && room) {
           setRoomActive(room.is_active || false);
-          setIsHost(room.host_id === userId);
+          const isDbHost = Boolean(
+            room.host_id && (
+              room.host_id === activeUserId ||
+              (session?.user?.id && room.host_id === session.user.id) ||
+              (currentSession?.user?.id && room.host_id === currentSession.user.id)
+            )
+          );
+          setIsHost((prev) => (prev === true ? true : isDbHost));
         }
       } catch (err) {
         console.error('❌ Failed quick room lookup:', err);
@@ -452,7 +401,7 @@ export const Room: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, session]);
+  }, [id, session, pendingFile, pendingSource]);
 
   if (authLoading || (id && roomLoading)) {
     if (!id) return <DashboardSkeleton />;
@@ -479,11 +428,23 @@ export const Room: React.FC = () => {
         // Store pending file so TheaterProvider can pick it up after navigation
         setPendingFile(file);
         setPendingSource(source);
+        setIsHost(true);
+        setRoomActive(false);
+        setRoomLoading(false);
         navigate(`/room/${res.data.roomId}`);
       }
     } catch (err) {
       console.error('Failed to create watch room:', err);
     }
+  };
+
+  const handleExitRoom = () => {
+    if (pendingSource) {
+      pendingSource.destroy();
+      setPendingSource(null);
+    }
+    setPendingFile(null);
+    navigate('/', { replace: true });
   };
 
   if (!session && !bypassLogin) {
@@ -493,16 +454,17 @@ export const Room: React.FC = () => {
   return (
     <div className="w-full flex flex-col items-center">
       {id ? (
-        <TheaterProvider 
-          roomId={id} 
+        <TheaterProvider
+          roomId={id}
           initialStreamUrl=""
-          initialActive={roomActive ?? false}
-          initialIsHost={isHost ?? false}
+          initialActive={roomActive ?? undefined}
+          initialIsHost={isHost !== null ? isHost : undefined}
           pendingFile={pendingFile}
           pendingSource={pendingSource}
         >
-          <RoomContent roomId={id} onExit={() => navigate('/', { replace: true })} />
+          <RoomContent roomId={id} onExit={handleExitRoom} />
         </TheaterProvider>
+
       ) : isFriendsTab ? (
         <FriendsTab />
       ) : (

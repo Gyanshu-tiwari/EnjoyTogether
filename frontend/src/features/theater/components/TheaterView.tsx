@@ -4,15 +4,17 @@ import { useTheater } from '../context/useTheater';
 import { SyncVideoPlayer } from './SyncVideoPlayer';
 import { VideoCallOverlay, useLiveKitRoom } from '@/features/videocall';
 import { ActiveUsersModal } from './ActiveUsersModal';
-import { 
-  Hand, MessageSquare, Users, X, Mic, MicOff, Video, VideoOff, 
-  Smile, Copy, UserPlus, MonitorUp, Phone
+import { InviteModal } from './InviteModal';
+import {
+  Hand, MessageSquare, Users, X, Mic, MicOff, Video, VideoOff,
+  Smile, Copy, UserPlus, Phone
 } from 'lucide-react';
 
 export const TheaterView: React.FC = () => {
   const navigate = useNavigate();
   const [emojiPopoverOpen, setEmojiPopoverOpen] = useState(false);
   const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [elapsedTime, setElapsedTime] = useState('00:00');
 
@@ -70,10 +72,10 @@ export const TheaterView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full min-h-screen bg-[#0a0a0a] flex flex-col p-4 md:p-6 overflow-hidden relative font-sans text-white z-50">
-      
+    <div className="w-full h-screen max-h-screen bg-[#0a0a0a] flex flex-col p-3 md:p-4 overflow-hidden relative font-sans text-white z-50">
+
       {/* Top Bar */}
-      <header className="w-full flex items-center justify-between mb-4 px-2">
+      <header className="w-full flex items-center justify-between mb-3 px-2 shrink-0 h-10">
         {/* Left: Room ID & Media Name */}
         <div className="flex items-center gap-2 text-neutral-300 group cursor-pointer" onClick={copyRoomId}>
           <div className="flex flex-col text-left">
@@ -86,28 +88,31 @@ export const TheaterView: React.FC = () => {
           </div>
           <Copy className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity ml-1" />
         </div>
-        
+
         {/* Center: Timer */}
         <div className="text-neutral-300 text-sm font-mono tracking-widest absolute left-1/2 -translate-x-1/2">
           {elapsedTime}
         </div>
         {/* Right: Invite Button */}
-        <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer">
+        <button
+          onClick={() => setInviteModalOpen(true)}
+          className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer"
+        >
           <UserPlus className="w-4 h-4" />
           <span>Invite</span>
         </button>
       </header>
 
       {/* Main Body Area */}
-      <div className="flex-1 flex gap-4 min-h-0 relative w-full overflow-hidden pb-20">
-        
+      <div className="flex-1 flex gap-4 min-h-0 min-w-0 relative w-full overflow-hidden pb-20">
+
         {/* Video & Participants Group */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-w-0 transition-all duration-300">
-          
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col lg:flex-row gap-4 transition-all duration-300">
+
           {/* Main Synced Video Player */}
-          <div className="flex-1 bg-black rounded-2xl overflow-hidden shadow-2xl relative flex items-center justify-center border border-white/5">
+          <div className="flex-1 min-h-0 min-w-0 bg-black rounded-2xl overflow-hidden shadow-2xl relative flex items-center justify-center border border-white/5">
             <SyncVideoPlayer />
-            
+
             {/* Host Join Requests UI overlay */}
             {isHost && knocks.length > 0 && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-auto px-4">
@@ -131,7 +136,7 @@ export const TheaterView: React.FC = () => {
           </div>
 
           {/* Voice Grid / Participants Column */}
-          <div className="w-full lg:w-70 shrink-0 flex-col gap-3 overflow-y-auto pr-1 hidden md:flex">
+          <div className="w-full lg:w-72 shrink-0 flex-col gap-3 overflow-y-auto pr-1 hidden md:flex min-h-0">
             <VideoCallOverlay
               participants={livekit.participants}
               loading={livekit.loading}
@@ -153,7 +158,7 @@ export const TheaterView: React.FC = () => {
                   {livekit.participants.length} online
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => setIsChatOpen(false)}
                 className="text-neutral-400 hover:text-white p-1 rounded cursor-pointer transition-colors"
                 title="Close Chat"
@@ -227,7 +232,7 @@ export const TheaterView: React.FC = () => {
 
       {/* Floating Bottom Dock (Google Meet / Zoom style) */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#18181b]/80 backdrop-blur-xl border border-white/10 px-4 py-2.5 rounded-full shadow-2xl z-40 transition-all">
-        
+
         {/* Mic */}
         <button
           onClick={livekit.toggleMic}
@@ -252,16 +257,6 @@ export const TheaterView: React.FC = () => {
           {livekit.isCameraEnabled ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
         </button>
 
-        {/* Screen Share (UI Placeholder) */}
-        <button className="w-10 h-10 rounded-full hover:bg-white/10 text-white flex items-center justify-center transition-all cursor-pointer">
-          <MonitorUp className="w-4 h-4" />
-        </button>
-        
-        {/* Hand Raise (UI Placeholder) */}
-        <button className="w-10 h-10 rounded-full hover:bg-white/10 text-white flex items-center justify-center transition-all cursor-pointer">
-          <Hand className="w-4 h-4" />
-        </button>
-
         {/* Emoji / Reactions */}
         <div className="relative">
           <button
@@ -270,7 +265,7 @@ export const TheaterView: React.FC = () => {
           >
             <Smile className="w-4 h-4" />
           </button>
-          
+
           {emojiPopoverOpen && (
             <div className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-[#18181b] border border-white/10 p-2.5 rounded-2xl shadow-2xl flex gap-2 z-50 animate-slide-up backdrop-blur-xl">
               {['❤️', '😂', '😮', '😢', '👏', '🔥'].map((emoji) => (
@@ -325,6 +320,13 @@ export const TheaterView: React.FC = () => {
           <span className="text-sm font-medium">Chat</span>
         </button>
       )}
+
+      {/* Invite Modal */}
+      <InviteModal
+        roomId={roomId}
+        isOpen={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+      />
 
     </div>
   );

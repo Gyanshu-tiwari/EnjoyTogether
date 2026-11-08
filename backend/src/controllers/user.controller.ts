@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { UserRepository } from '../repositories/user.repository.js';
+import { AvatarService } from '../services/avatar.service.js';
 import { AppError } from '../utils/appError.js';
 
 export class UserController {
@@ -16,6 +17,7 @@ export class UserController {
 
       res.status(200).json({ status: 'success', data: { profile } });
     } catch (error) {
+      if (error instanceof AppError) return next(error);
       next(new AppError('Failed to update user profile.', 500));
     }
   }
@@ -42,6 +44,7 @@ export class UserController {
 
       res.status(200).json({ status: 'success', data: { profile } });
     } catch (error) {
+      if (error instanceof AppError) return next(error);
       next(new AppError('Failed to sync Google profile.', 500));
     }
   }
@@ -54,7 +57,38 @@ export class UserController {
       const profile = await UserRepository.getProfile(userId);
       res.status(200).json({ status: 'success', data: { profile } });
     } catch (error) {
+      if (error instanceof AppError) return next(error);
       next(new AppError('Failed to retrieve user profile.', 500));
+    }
+  }
+
+  static async uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return next(new AppError('Unauthorized: User information not found in token', 401));
+
+      if (!req.file || !req.file.buffer) {
+        return next(new AppError('No avatar file uploaded. Please select an image.', 400));
+      }
+
+      const avatarUrl = await AvatarService.uploadUserAvatar(userId, req.file.buffer);
+      res.status(200).json({ status: 'success', data: { avatarUrl } });
+    } catch (error) {
+      if (error instanceof AppError) return next(error);
+      next(new AppError('Failed to upload user avatar.', 500));
+    }
+  }
+
+  static async removeAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return next(new AppError('Unauthorized: User information not found in token', 401));
+
+      await AvatarService.removeUserAvatar(userId);
+      res.status(200).json({ status: 'success', message: 'Avatar removed successfully.' });
+    } catch (error) {
+      if (error instanceof AppError) return next(error);
+      next(new AppError('Failed to remove user avatar.', 500));
     }
   }
 }

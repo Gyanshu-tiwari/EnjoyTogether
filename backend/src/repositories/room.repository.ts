@@ -65,7 +65,7 @@ export class RoomRepository {
           );
         if (error) throw error;
       } catch (err) {
-        handleSharedDbError(err, `assignRoomHost for room ${cleanRoomId}, user ${cleanUserId}`);
+        // room_members is ephemeral; fallback to inMemoryRoleStore without disabling Supabase globally
       }
     }
   }
@@ -86,7 +86,7 @@ export class RoomRepository {
           .update({ role: newRole })
           .eq('room_id', cleanRoomId)
           .eq('user_id', cleanUserId);
-        
+
         if (error) {
           // If update fails because record doesn't exist, we can try to insert it (upsert)
           const { error: upsertError } = await supabase
@@ -98,7 +98,7 @@ export class RoomRepository {
           if (upsertError) throw upsertError;
         }
       } catch (err) {
-        handleSharedDbError(err, `updateUserRoomRole for room ${cleanRoomId}, user ${cleanUserId}`);
+        // room_members is ephemeral; fallback to inMemoryRoleStore without disabling Supabase globally
       }
     }
   }
@@ -124,7 +124,7 @@ export class RoomRepository {
           return data.role as WatchPartyRole;
         }
       } catch (err) {
-        handleSharedDbError(err, `getUserRoomRole for room ${cleanRoomId}, user ${cleanUserId}`);
+        // room_members is ephemeral; fallback to inMemoryRoleStore without disabling Supabase globally
       }
     }
 
@@ -148,17 +148,21 @@ export class RoomRepository {
           .from('rooms')
           .select('is_playing, position, last_updated, stream_url')
           .eq('id', cleanRoomId)
-          .single();
+          .maybeSingle();
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           handleSharedDbError(error, `get room state for ${cleanRoomId}`);
         } else if (data) {
+          const mem: Partial<RoomState> = inMemoryRoomStates[cleanRoomId] || {};
           return {
             isPlaying: data.is_playing,
             position: data.position,
             lastUpdated: new Date(data.last_updated).getTime(),
             stateVersion: (data as any).state_version ?? 0,
             streamUrl: data.stream_url || undefined,
+            ...(mem.mediaName !== undefined && { mediaName: mem.mediaName }),
+            ...(mem.mediaDuration !== undefined && { mediaDuration: mem.mediaDuration }),
+            ...(mem.mediaSourceType !== undefined && { mediaSourceType: mem.mediaSourceType }),
           };
         }
       } catch (err) {
@@ -197,13 +201,13 @@ export class RoomRepository {
       try {
         const { error } = await supabase
           .from('rooms')
-          .upsert({
-            id: cleanRoomId,
+          .update({
             is_playing: updatedState.isPlaying,
             position: updatedState.position,
             last_updated: new Date(updatedState.lastUpdated).toISOString(),
             stream_url: updatedState.streamUrl || null,
-          });
+          })
+          .eq('id', cleanRoomId);
         if (error) throw error;
       } catch (err) {
         handleSharedDbError(err, `update room state for ${cleanRoomId}`);

@@ -35,7 +35,7 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-guest-secret', 'x-guest-id'],
 };
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -72,6 +72,10 @@ app.use(
     },
   })
 );
+
+// ── Avatars Local Static Fallback ─────────────────────────────────────────────
+const AVATARS_DIR = path.join(process.cwd(), 'public', 'avatars');
+app.use('/api/avatars/local', express.static(AVATARS_DIR, { maxAge: '1d' }));
 
 // ── Health Check ──────────────────────────────────────────────────────────────
 // Used by Docker HEALTHCHECK and load-balancer probes.

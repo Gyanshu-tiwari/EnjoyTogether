@@ -3,9 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Video, ChevronRight } from 'lucide-react';
 import { supabase } from '@/shared/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import { useAuthSession } from '@/features/auth';
 import { motion } from 'framer-motion';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
+import { NotificationBell } from '@/features/invitations';
 
 const RevealLink = ({ href, children }: { href: string; children: string }) => {
   return (
@@ -47,11 +49,22 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ session }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { clearGuestSession } = useAuthSession();
   const [profileOpen, setProfileOpen] = useState(false);
   const isLandingPage = location.pathname === '/';
 
   const handleSignOut = () => {
+    clearGuestSession();
     supabase.auth.signOut();
+  };
+
+  const getAuthUrl = (mode?: string) => {
+    const shouldRedirect = location.pathname !== '/' && location.pathname !== '/login';
+    const params = new URLSearchParams();
+    if (mode) params.set('mode', mode);
+    if (shouldRedirect) params.set('redirect', location.pathname + location.search);
+    const qs = params.toString();
+    return `/login${qs ? `?${qs}` : ''}`;
   };
 
   const username = session?.user?.user_metadata?.username || '';
@@ -112,8 +125,11 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         </nav>
       )}
 
-      <div className="flex items-center gap-4 relative">
-      {session ? (
+      <div className="flex items-center gap-3 sm:gap-4 relative">
+        {/* Central Notification Bell with Anchored Popover */}
+        <NotificationBell />
+
+        {session ? (
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
@@ -158,15 +174,15 @@ export const Header: React.FC<HeaderProps> = ({ session }) => {
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate('/login')}
+          <button
+            onClick={() => navigate(getAuthUrl())}
             className="hidden sm:flex items-center justify-center px-4 py-2 text-xs text-white hover:text-brand-hover transition-colors cursor-pointer"
           >
             Log in
           </button>
-          <Button 
-            onClick={() => navigate('/login?mode=signup')} 
-            variant="brand" 
+          <Button
+            onClick={() => navigate(getAuthUrl('signup'))}
+            variant="brand"
             className="px-5 py-2 text-sm"
           >
             <span className='text-xs font-normal'>Sign up</span><ChevronRight className="w-4 h-4 ml-1" />

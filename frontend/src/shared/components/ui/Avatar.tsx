@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 
 interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
   src?: string | null;
   fallback: string;
   alt?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
 export const Avatar: React.FC<AvatarProps> = ({
@@ -18,11 +18,17 @@ export const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const [error, setError] = useState(false);
 
+  // Reset error when image URL changes
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
   const sizeClasses = {
     sm: "w-8 h-8 text-xs",
     md: "w-10 h-10 text-sm",
     lg: "w-16 h-16 text-lg",
     xl: "w-24 h-24 text-2xl",
+    '2xl': "w-28 h-28 text-3xl",
   };
 
   const showFallback = !src || error;
@@ -37,13 +43,14 @@ export const Avatar: React.FC<AvatarProps> = ({
       {...props}
     >
       {showFallback ? (
-        <span>{fallback.charAt(0).toUpperCase()}</span>
+        <span>{fallback ? fallback.charAt(0).toUpperCase() : 'U'}</span>
       ) : (
         <img
           src={src}
           alt={alt}
           onError={() => setError(true)}
           className="h-full w-full aspect-square object-cover"
+          loading="lazy"
         />
       )}
     </div>

@@ -16,8 +16,11 @@
  * - Only metadata (name, size, duration) is displayed/shared
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Copy, Check, Hash } from 'lucide-react';
 import { detectCapabilities, getCapabilityErrorMessage } from '@/shared/utils/browserCapabilities';
+import { useAuthSession } from '@/features/auth';
+import { fetchProfile } from '@/features/profile/api/profileApi';
 import { LocalMediaSource } from '../media/LocalMediaSource';
 import type { MediaSourceDescriptor } from '../media/types';
 
@@ -41,6 +44,11 @@ function formatDuration(seconds: number): string {
 }
 
 export const LocalFilePicker: React.FC<LocalFilePickerProps> = ({ onFileReady }) => {
+  const { session, isGuest } = useAuthSession();
+  const [userFriendCode, setUserFriendCode] = useState<string | null>(null);
+  const [loadingCode, setLoadingCode] = useState(true);
+  const [copiedCode, setCopiedCode] = useState(false);
+
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [descriptor, setDescriptor] = useState<MediaSourceDescriptor | null>(null);
@@ -48,6 +56,43 @@ export const LocalFilePicker: React.FC<LocalFilePickerProps> = ({ onFileReady })
   const [metaError, setMetaError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaSourceRef = useRef<LocalMediaSource | null>(null);
+
+  // Load authoritative user friend code for display
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUserCode() {
+      try {
+        if (session?.user?.id) {
+          const profile = await fetchProfile();
+          if (isMounted && profile?.friendCode) {
+            setUserFriendCode(profile.friendCode);
+            setLoadingCode(false);
+            return;
+          }
+        }
+        // Guest or cached fallback
+        if (typeof window !== 'undefined') {
+          const anonCode = localStorage.getItem('et_anon_friend_code');
+          if (isMounted && anonCode) {
+            setUserFriendCode(anonCode);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch user friend code:', err);
+      } finally {
+        if (isMounted) setLoadingCode(false);
+      }
+    }
+    loadUserCode();
+    return () => { isMounted = false; };
+  }, [session, isGuest]);
+
+  const handleCopyCode = async () => {
+    if (!userFriendCode) return;
+    await navigator.clipboard.writeText(userFriendCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
 
   // Check capability once on first interaction
   const capabilityReport = detectCapabilities();
@@ -114,12 +159,50 @@ export const LocalFilePicker: React.FC<LocalFilePickerProps> = ({ onFileReady })
 
   return (
     <div className="w-full max-w-4xl bg-neutral-900/60 border border-white/5 rounded-3xl p-8 backdrop-blur-2xl shadow-2xl text-white animate-fade-in">
-      <h2 className="text-2xl font-black mb-1 bg-linear-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
-        Start a Watch Party
-      </h2>
-      <p className="text-xs text-neutral-400 mb-2">
-        Select a video from your device. <span className="text-cyan-400 font-semibold">It stays on your computer</span> — nothing is uploaded.
-      </p>
+      {/* Header with Title and User Friend Code */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-white/5">
+        <div>
+          <h2 className="text-2xl font-black mb-1 bg-linear-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
+            Start a Watch Party
+          </h2>
+          <p className="text-xs text-neutral-400">
+            Select a video from your device. <span className="text-cyan-400 font-semibold">It stays on your computer</span> — nothing is uploaded.
+          </p>
+        </div>
+
+        {/* User's Friend Code Badge */}
+        <div className="flex items-center gap-3 bg-neutral-950/70 border border-white/10 rounded-2xl px-4 py-2.5 shrink-0 shadow-inner">
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 font-semibold flex items-center gap-1">
+              <Hash className="w-3 h-3 text-cyan-400" />
+              Your Friend Code
+            </span>
+            <span className="font-mono text-base font-black tracking-widest text-white">
+              {loadingCode ? (
+                <span className="text-neutral-500 animate-pulse text-xs">Loading…</span>
+              ) : userFriendCode ? (
+                userFriendCode
+              ) : (
+                <span className="text-neutral-500 text-xs">—</span>
+              )}
+            </span>
+          </div>
+
+          {userFriendCode && (
+            <button
+              onClick={handleCopyCode}
+              title={copiedCode ? 'Copied to clipboard!' : 'Copy your code'}
+              className={`p-2 rounded-xl transition-all cursor-pointer border ${
+                copiedCode
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                  : 'bg-white/5 border-white/10 hover:bg-white/10 text-neutral-300 hover:text-white'
+              }`}
+            >
+              {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Browser Capability Warning */}
       {!capabilityReport.canDoLocalStream && (

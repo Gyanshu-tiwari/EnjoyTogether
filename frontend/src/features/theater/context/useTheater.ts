@@ -61,6 +61,12 @@ export interface TheaterContextType {
   /** WebRTC connection status */
   webrtcStatus: WebRTCStatus;
   setWebRTCStatus: (s: WebRTCStatus) => void;
+  /** Authoritative stream media duration in seconds from host/roomState */
+  streamDuration: number | null;
+  /** Authoritative stream media name from host/roomState */
+  streamMediaName: string | null;
+  /** Viewer: retry connection to host */
+  retryViewerConnection: () => void;
   /** Host: begin captureStream and initialize WebRTCHostManager */
   startHostCapture: (videoEl: HTMLVideoElement) => void;
 

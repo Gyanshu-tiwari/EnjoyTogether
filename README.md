@@ -1,6 +1,6 @@
 # 🍿 EnjoyTogether (Watch Stream Together)
 
-A production-ready platform for synchronized video watching, real-time chat, and integrated WebRTC video/audio calls. 
+A production-ready platform for synchronized video watching, real-time chat, and integrated WebRTC video/audio calls.
 
 EnjoyTogether ensures that no matter where your friends are, your video playback is perfectly synced. With built-in Role-Based Access Control (RBAC), room hosts can seamlessly manage permissions, granting co-hosts the ability to control media and share their camera/microphone on the fly.
 
@@ -44,7 +44,6 @@ watch_stream_together/
 - **FFmpeg** installed on your host machine (if running backend outside Docker)
 - **Supabase** Project (for Auth and Database)
 - **LiveKit** Cloud or Local Server
-- **Telegram** API Keys (for backend range proxy)
 
 ### 2. Backend Setup
 ```bash
@@ -58,9 +57,6 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 LIVEKIT_API_KEY=your_livekit_key
 LIVEKIT_API_SECRET=your_livekit_secret
 LIVEKIT_URL=wss://your-project.livekit.cloud
-TELEGRAM_API_ID=your_telegram_api_id
-TELEGRAM_API_HASH=your_telegram_api_hash
-TELEGRAM_STRING_SESSION=your_telegram_string_session
 CORS_ORIGIN=http://localhost:5173
 BACKEND_URL=http://localhost:5000
 ```

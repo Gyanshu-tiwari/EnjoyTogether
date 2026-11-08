@@ -16,6 +16,7 @@ export class FriendController {
       const results = await FriendRepository.searchUsers(q, userId);
       res.status(200).json({ status: 'success', data: { users: results } });
     } catch (error) {
+      if (error instanceof AppError) return next(error);
       next(new AppError('Failed to search users.', 500));
     }
   }
@@ -26,10 +27,22 @@ export class FriendController {
       const requesterId = req.user?.id;
       if (!requesterId) return next(new AppError('Unauthorized', 401));
 
-      const { addresseeId } = req.body as { addresseeId: string };
+      const { addresseeId, requesterId: suppliedRequesterId } = req.body as {
+        addresseeId: string;
+        requesterId?: string;
+      };
+
+      // Verify that requester is the authenticated user. Do not trust client-supplied ID.
+      if (suppliedRequesterId && suppliedRequesterId !== requesterId) {
+        return next(new AppError('Forbidden: Cannot send friend request on behalf of another user.', 403));
+      }
+
       const friendship = await FriendRepository.sendFriendRequest(requesterId, addresseeId);
       res.status(201).json({ status: 'success', data: { friendship } });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       if (error instanceof Error) {
         return next(new AppError(error.message, 400));
       }
@@ -49,6 +62,9 @@ export class FriendController {
       const friendship = await FriendRepository.respondToRequest(friendshipId, userId, action);
       res.status(200).json({ status: 'success', data: { friendship } });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       if (error instanceof Error) {
         return next(new AppError(error.message, 400));
       }
@@ -126,6 +142,9 @@ export class FriendController {
       await FriendRepository.deleteFriendship(friendshipId, userId);
       res.status(200).json({ status: 'success', message: 'Friendship removed.' });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       if (error instanceof Error) {
         return next(new AppError(error.message, 400));
       }

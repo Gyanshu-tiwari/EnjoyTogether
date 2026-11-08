@@ -38,8 +38,4 @@ router.post('/start-upload', authMiddleware, validate(startUploadSchema), RoomCo
 router.post('/upload-chunk', authMiddleware, uploadMovie.single('chunk'), RoomController.uploadChunk);
 router.get('/transcode-status', authMiddleware, RoomController.transcodeStatus);
 router.get('/logs', authMiddleware, RoomController.getLogs);
-
-// Keep streaming endpoints public for <video> tags
-router.get('/stream/:messageId', RoomController.streamVideo);
-
 export default router;

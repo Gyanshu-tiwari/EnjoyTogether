@@ -31,11 +31,18 @@ export function getIceServers(): RTCIceServer[] {
   const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL || '';
 
   if (turnUrl) {
-    servers.push({
-      urls: turnUrl,
-      ...(turnUsername && { username: turnUsername }),
-      ...(turnCredential && { credential: turnCredential }),
-    });
+    const turnList = turnUrl
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+    if (turnList.length > 0) {
+      servers.push({
+        urls: turnList.length === 1 ? turnList[0] : turnList,
+        ...(turnUsername && { username: turnUsername }),
+        ...(turnCredential && { credential: turnCredential }),
+      });
+    }
   }
 
   return servers;

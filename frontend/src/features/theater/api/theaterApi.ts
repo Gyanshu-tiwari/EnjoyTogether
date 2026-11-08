@@ -18,7 +18,7 @@ export interface TranscodeStatus {
 
 export async function fetchMovieMetadata(movieName: string): Promise<MovieMetadata | null> {
   if (!movieName.trim() || !TMDB_ACCESS_TOKEN) return null;
-  
+
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(movieName)}&include_adult=false&language=en-US&page=1`,
@@ -29,15 +29,15 @@ export async function fetchMovieMetadata(movieName: string): Promise<MovieMetada
         },
       }
     );
-    
+
     const data = await response.json();
     if (!data.results || data.results.length === 0) return null;
-    
+
     const primeMatch = data.results[0];
     return {
       title: primeMatch.title,
       overview: primeMatch.overview,
-      bannerUrl: primeMatch.backdrop_path 
+      bannerUrl: primeMatch.backdrop_path
         ? `https://image.tmdb.org/t/p/w1280${primeMatch.backdrop_path}`
         : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1280',
       releaseDate: primeMatch.release_date,
@@ -98,4 +98,68 @@ export async function getRoomMetadata(roomId: string): Promise<RoomMetadataRespo
 
 export async function toggleRoomActive(roomId: string, isActive: boolean): Promise<void> {
   await apiClient.post(`/api/rooms/toggle-active`, { roomId, isActive });
+}
+
+export interface RoomInvitationItem {
+  id: string;
+  roomId: string;
+  hostId: string;
+  hostName: string;
+  hostAvatar?: string;
+  recipientId: string;
+  recipientUsername?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  createdAt: number;
+}
+
+export async function sendRoomInvitation(params: {
+  roomId: string;
+  targetUserId: string;
+  targetUsername?: string;
+}): Promise<{ delivered: boolean; invitation: RoomInvitationItem }> {
+  const response = await apiClient.post<{ data: { delivered: boolean; invitation: RoomInvitationItem } }>(
+    `/api/rooms/${encodeURIComponent(params.roomId)}/invite`,
+    {
+      targetUserId: params.targetUserId,
+      targetUsername: params.targetUsername,
+    }
+  );
+  return response.data.data;
+}
+
+export async function getPendingRoomInvitations(): Promise<RoomInvitationItem[]> {
+  const headers: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    const guestId = localStorage.getItem('et_anon_user_id');
+    const guestSecret = localStorage.getItem('et_anon_session_secret');
+    if (guestId) headers['x-guest-id'] = guestId;
+    if (guestSecret) headers['x-guest-secret'] = guestSecret;
+  }
+  const response = await apiClient.get<{ data: { invitations: RoomInvitationItem[] } }>(
+    `/api/rooms/invitations/pending`,
+    { headers }
+  );
+  return response.data.data?.invitations || [];
+}
+
+export async function respondToRoomInvitation(
+  invitationId: string,
+  response: 'accept' | 'decline'
+): Promise<{ invitation: RoomInvitationItem; roomId: string }> {
+  const headers: Record<string, string> = {};
+  let guestId: string | undefined;
+  let guestSecret: string | undefined;
+
+  if (typeof window !== 'undefined') {
+    guestId = localStorage.getItem('et_anon_user_id') || undefined;
+    guestSecret = localStorage.getItem('et_anon_session_secret') || undefined;
+    if (guestId) headers['x-guest-id'] = guestId;
+    if (guestSecret) headers['x-guest-secret'] = guestSecret;
+  }
+  const res = await apiClient.post<{ data: { invitation: RoomInvitationItem; roomId: string } }>(
+    `/api/rooms/invitations/${encodeURIComponent(invitationId)}/respond`,
+    { response, guestId, sessionSecret: guestSecret },
+    { headers }
+  );
+  return res.data.data;
 }

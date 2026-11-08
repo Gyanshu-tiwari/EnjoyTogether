@@ -29,6 +29,8 @@ interface UseSocketConnectionParams {
   onWebRTCIceCandidate?: (data: { senderId: string; candidate: RTCIceCandidateInit; connectionId: string }) => void;
   /** Called when viewer signals ready (host only) */
   onViewerReady?: (data: { viewerId: string; connectionId: string }) => void;
+  /** Called when a new viewer joins the room (host only) */
+  onViewerJoined?: (data: { viewerId: string; roomId: string }) => void;
   /** Called when host stream starts (viewer only) */
   onHostStreamReady?: (data: { mediaName: string; mediaDuration: number | null }) => void;
   /** Called when host stream ends (viewer only) */
@@ -75,6 +77,7 @@ export function useSocketConnection({
   onWebRTCAnswer,
   onWebRTCIceCandidate,
   onViewerReady,
+  onViewerJoined,
   onHostStreamReady,
   onHostStreamEnded,
 }: UseSocketConnectionParams): UseSocketConnectionResult {
@@ -82,7 +85,13 @@ export function useSocketConnection({
   const [knocks, setKnocks] = useState<KnockRequest[]>([]);
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Synchronous initialization prevents 'unknown' viewerId race condition
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('et_anon_user_id') || getAnonymousUserId();
+    }
+    return null;
+  });
   const [kickedReason, setKickedReason] = useState<string | null>(null);
 
   // Store sessionState in a ref so the connect callback is never stale
@@ -96,12 +105,14 @@ export function useSocketConnection({
   const onWebRTCAnswerRef = useRef(onWebRTCAnswer);
   const onWebRTCIceCandidateRef = useRef(onWebRTCIceCandidate);
   const onViewerReadyRef = useRef(onViewerReady);
+  const onViewerJoinedRef = useRef(onViewerJoined);
   const onHostStreamReadyRef = useRef(onHostStreamReady);
   const onHostStreamEndedRef = useRef(onHostStreamEnded);
   useEffect(() => { onWebRTCOfferRef.current = onWebRTCOffer; }, [onWebRTCOffer]);
   useEffect(() => { onWebRTCAnswerRef.current = onWebRTCAnswer; }, [onWebRTCAnswer]);
   useEffect(() => { onWebRTCIceCandidateRef.current = onWebRTCIceCandidate; }, [onWebRTCIceCandidate]);
   useEffect(() => { onViewerReadyRef.current = onViewerReady; }, [onViewerReady]);
+  useEffect(() => { onViewerJoinedRef.current = onViewerJoined; }, [onViewerJoined]);
   useEffect(() => { onHostStreamReadyRef.current = onHostStreamReady; }, [onHostStreamReady]);
   useEffect(() => { onHostStreamEndedRef.current = onHostStreamEnded; }, [onHostStreamEnded]);
 
@@ -139,8 +150,8 @@ export function useSocketConnection({
       const token = session?.access_token;
       const userId = session?.user?.id || getAnonymousUserId();
       setCurrentUserId(userId);
-      const rawUsername = session?.user?.user_metadata?.username || 
-                          session?.user?.user_metadata?.full_name || 
+      const rawUsername = session?.user?.user_metadata?.username ||
+                          session?.user?.user_metadata?.full_name ||
                           session?.user?.user_metadata?.name;
       let username = rawUsername;
       if (!username && session?.user?.email) {
@@ -150,10 +161,11 @@ export function useSocketConnection({
         username = `Guest_${userId.slice(0, 5)}`;
       }
       const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+      const sessionSecret = !session?.user?.id && typeof window !== 'undefined' ? (localStorage.getItem('et_anon_session_secret') || undefined) : undefined;
 
       socketInstance = io(backendUrl, {
         transports: ['websocket', 'polling'],
-        auth: { token },
+        auth: { token, sessionSecret },
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
@@ -169,12 +181,12 @@ export function useSocketConnection({
 
         const state = sessionStateRef.current;
         if (state === 'active_session' || state === 'idle_host') {
-          socketInstance?.emit('room:join', { roomId, userId });
+          socketInstance?.emit('room:join', { roomId, userId, sessionSecret });
         } else if (state === 'knocking') {
           if (!isHostRef.current) {
             socketInstance?.emit('room:knock', { roomId, username });
           } else {
-            socketInstance?.emit('room:join', { roomId, userId });
+            socketInstance?.emit('room:join', { roomId, userId, sessionSecret });
           }
         }
       });
@@ -222,7 +234,15 @@ export function useSocketConnection({
       });
 
       socketInstance.on('room:active-users', (users: ActiveUser[]) => {
-        setActiveUsers(users);
+        const userMap = new Map<string, ActiveUser>();
+        for (const u of users) {
+          const key = (u.userId && u.userId !== 'guest') ? u.userId : (u.name || u.socketId);
+          const existing = userMap.get(key);
+          if (!existing || u.isHost || u.role === 'host') {
+            userMap.set(key, u);
+          }
+        }
+        setActiveUsers(Array.from(userMap.values()));
       });
 
       socketInstance.on('room:kicked', () => {
@@ -230,11 +250,22 @@ export function useSocketConnection({
         setKickedReason('You have been removed from the watch party by the host.');
       });
 
-      socketInstance.on('sync-state', (roomState: { streamUrl?: string }) => {
+      socketInstance.on('sync-state', (roomState: { streamUrl?: string; mediaSourceType?: string; mediaName?: string; mediaDuration?: number | null }) => {
         if (roomState?.streamUrl) setCurrentStreamUrl(roomState.streamUrl);
+        if (roomState?.mediaSourceType === 'local') {
+          console.log('[Socket] sync-state indicates host is streaming local media:', roomState.mediaName);
+          onHostStreamReadyRef.current?.({
+            mediaName: roomState.mediaName || 'Host Stream',
+            mediaDuration: roomState.mediaDuration ?? null,
+          });
+        }
       });
 
       socketInstance.on('room:host_disconnected_fallback', () => {
+        if (isHostRef.current) {
+          console.log('🛡️ Host ignoring host_disconnected_fallback event');
+          return;
+        }
         console.warn('⚠️ Host disconnected. Reverting to idle state.');
         setSessionState('idle_guest');
         setSocket(null);
@@ -261,6 +292,11 @@ export function useSocketConnection({
       socketInstance.on('webrtc:viewer-ready', (data: { viewerId: string; connectionId: string }) => {
         console.log(`[Socket] webrtc:viewer-ready from viewer ${data.viewerId}`);
         onViewerReadyRef.current?.(data);
+      });
+
+      socketInstance.on('webrtc:viewer-joined', (data: { viewerId: string; roomId: string }) => {
+        console.log(`[Socket] webrtc:viewer-joined for viewer ${data.viewerId}`);
+        onViewerJoinedRef.current?.(data);
       });
 
       socketInstance.on('webrtc:host-stream-ready', (data: { mediaName: string; mediaDuration: number | null }) => {
@@ -324,8 +360,12 @@ export function useSocketConnection({
     socketRef.current?.emit('webrtc:offer', { roomId, targetId, sdp, connectionId });
   }, [roomId]);
 
+  const resolveEffectiveUserId = useCallback(() => {
+    return currentUserId || (typeof window !== 'undefined' ? (localStorage.getItem('et_anon_user_id') || getAnonymousUserId()) : 'guest');
+  }, [currentUserId]);
+
   const sendWebRTCAnswer = useCallback((sdp: RTCSessionDescriptionInit, connectionId: string) => {
-    const userId = currentUserId;
+    const userId = resolveEffectiveUserId();
     socketRef.current?.emit('webrtc:answer', {
       roomId,
       targetId: 'host',
@@ -333,10 +373,10 @@ export function useSocketConnection({
       connectionId,
       senderId: userId,
     });
-  }, [roomId, currentUserId]);
+  }, [roomId, resolveEffectiveUserId]);
 
   const sendWebRTCIce = useCallback((targetId: string, candidate: RTCIceCandidateInit, connectionId: string) => {
-    const userId = currentUserId;
+    const userId = resolveEffectiveUserId();
     socketRef.current?.emit('webrtc:ice-candidate', {
       roomId,
       targetId,
@@ -344,13 +384,13 @@ export function useSocketConnection({
       connectionId,
       senderId: userId,
     });
-  }, [roomId, currentUserId]);
+  }, [roomId, resolveEffectiveUserId]);
 
   const signalViewerReady = useCallback((connectionId: string) => {
-    const userId = currentUserId;
+    const userId = resolveEffectiveUserId();
     if (!userId) return;
     socketRef.current?.emit('webrtc:viewer-ready', { roomId, viewerId: userId, connectionId });
-  }, [roomId, currentUserId]);
+  }, [roomId, resolveEffectiveUserId]);
 
   const notifyHostStreamReady = useCallback((mediaName: string, mediaDuration: number | null) => {
     socketRef.current?.emit('webrtc:host-stream-ready', { roomId, mediaName, mediaDuration });

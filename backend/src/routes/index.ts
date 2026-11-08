@@ -4,6 +4,7 @@ import videoRoutes from './video.routes.js';
 import livekitRoutes from './livekit.routes.js';
 import userRoutes from './user.routes.js';
 import friendRoutes from './friend.routes.js';
+import guestRoutes from './guest.routes.js';
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use('/video', videoRoutes);
 router.use('/livekit', livekitRoutes);
 router.use('/users', userRoutes);
 router.use('/friends', friendRoutes);
+router.use('/guests', guestRoutes);
 
 export default router;

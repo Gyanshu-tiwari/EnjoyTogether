@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Track } from 'livekit-client';
 import type { ParticipantInfo } from '../hooks/useLiveKitRoom';
 import { AlertTriangle, Radio, Mic, MicOff } from 'lucide-react';
+import { Avatar } from '@/shared/components/ui/Avatar';
 
 interface VideoCallOverlayProps {
   participants: ParticipantInfo[];
@@ -96,7 +97,7 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
   return (
     <div className="flex flex-col h-full w-full justify-between">
       {/* Hidden audio players to hear remote participants */}
-      <div className="hidden">
+      <div className="sr-only" aria-hidden="true">
         {displayParticipants
           .filter((p) => p.audioTrack && !p.isLocal)
           .map((p) => (
@@ -107,11 +108,11 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
       {/* Grid of Participants */}
       <div className="flex-1 overflow-y-auto min-h-0 pr-1">
         {displayParticipants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-white/5 bg-bg-primary/10 rounded-2xl h-70 text-center gap-3 animate-fade-in">
-            <Radio className="w-8 h-8 text-indigo-400 mb-2 animate-pulse" />
-            <p className="text-sm font-bold text-neutral-300">Connected</p>
-            <p className="text-xs text-text-secondary max-w-55">
-              Waiting for other peers to join voice chat.
+          <div className="flex flex-col items-center justify-center border border-white/5 bg-bg-primary/10 rounded-2xl p-6 text-center gap-2 animate-fade-in aspect-video w-full">
+            <Radio className="w-6 h-6 text-indigo-400 mb-1 animate-pulse" />
+            <p className="text-xs font-bold text-neutral-300">Voice Connected</p>
+            <p className="text-[11px] text-text-secondary max-w-44 leading-tight">
+              Waiting for friends to join...
             </p>
           </div>
         ) : (
@@ -127,45 +128,52 @@ export const VideoCallOverlay: React.FC<VideoCallOverlayProps> = ({
 
               const displayName = cleanName(p.identity);
               const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
-              
-              // Simulate an active speaker border if they are speaking (or random for visual flair if not provided by livekit)
-              // Currently LiveKit exposes isSpeaking on the track/participant if subscribed to, but we'll use a hover effect as a placeholder for interactivity.
-              
+
               return (
-                <div key={p.identity} className="relative h-24 w-full rounded-xl bg-[#1e1e1e] border border-white/5 hover:border-[#4f46e5]/50 transition-all duration-300 group overflow-hidden flex shadow-lg">
-                  
-                  {/* Camera Video Stream vs Placeholder Avatar */}
+                <div
+                  key={p.identity}
+                  className="relative w-full aspect-video rounded-2xl bg-[#141418] border border-white/10 hover:border-white/20 transition-all duration-200 group overflow-hidden shadow-xl flex items-center justify-center"
+                >
+                  {/* Camera Video Stream vs Centered Avatar */}
                   {p.isCameraEnabled && p.videoTrack ? (
                     <div className="absolute inset-0 w-full h-full z-0">
                       <TrackRenderer track={p.videoTrack} isLocal={p.isLocal} />
                     </div>
                   ) : (
-                    <div className="absolute inset-0 w-full h-full bg-[#121212] flex items-center justify-center z-0">
-                      <div className="w-12 h-12 rounded-full bg-brand-muted border border-brand-border flex items-center justify-center shadow-inner">
-                        <span className="text-sm font-bold text-indigo-400 font-mono">
-                          {initial}
-                        </span>
-                      </div>
+                    <div className="absolute inset-0 w-full h-full bg-linear-to-b from-[#22222a] to-[#121215] flex items-center justify-center z-0">
+                      <Avatar
+                        fallback={initial}
+                        size="lg"
+                        className="border border-white/15 shadow-lg"
+                      />
                     </div>
                   )}
 
-                  {/* Right Side Gradient Overlay */}
-                  <div className="absolute inset-0 bg-linear-to-l from-black/90 via-black/40 to-transparent pointer-events-none z-10" />
+                  {/* Bottom subtle gradient for contrast with name overlay */}
+                  <div className="absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-black/80 via-black/40 to-transparent pointer-events-none z-10" />
 
-                  {/* User Info (Name & Mic) on the right */}
-                  <div className="absolute inset-y-0 right-4 flex items-center justify-end gap-3 z-20">
-                    <span className="text-[13px] font-medium text-neutral-200 drop-shadow-md truncate max-w-30">
+                  {/* Bottom-left: Traditional Name Badge */}
+                  <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md border border-white/10 z-20 max-w-[75%]">
+                    <span className="text-xs font-medium text-white truncate drop-shadow-sm">
                       {displayName}
                     </span>
+                  </div>
+
+                  {/* Bottom-right: Mic Indicator */}
+                  <div className="absolute bottom-2.5 right-2.5 z-20">
                     {p.isMicEnabled ? (
-                      <Mic className="w-4 h-4 text-neutral-400 drop-shadow-md" />
+                      <div className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-neutral-300 shadow-sm">
+                        <Mic className="w-3.5 h-3.5" />
+                      </div>
                     ) : (
-                      <MicOff className="w-4 h-4 text-red-500 drop-shadow-md" />
+                      <div className="w-6 h-6 rounded-full bg-red-500/90 border border-red-400/30 flex items-center justify-center text-white shadow-md">
+                        <MicOff className="w-3.5 h-3.5" />
+                      </div>
                     )}
                   </div>
-                  
-                  {/* Active Speaker Border Glow (mocked with hover for now) */}
-                  <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#4f46e5] rounded-xl z-30 pointer-events-none transition-colors duration-300"></div>
+
+                  {/* Active speaker / hover ring */}
+                  <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-indigo-500/40 pointer-events-none transition-colors duration-200" />
                 </div>
               );
             })}
