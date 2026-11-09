@@ -129,6 +129,7 @@ export const TheaterProvider: React.FC<{
   const hostManagerRef = useRef<WebRTCHostManager | null>(null);
   const viewerManagerRef = useRef<WebRTCViewerManager | null>(null);
   const pendingViewersRef = useRef<Array<{ viewerId: string; connectionId: string }>>([]);
+  const pendingSignalReadyRef = useRef<boolean>(false);
 
   // ── Room session state machine ─────────────────────────────────────────────
   const {
@@ -219,7 +220,11 @@ export const TheaterProvider: React.FC<{
       if (!isHost) {
         console.log('[TheaterProvider] onHostStreamReady received for viewer:', data);
         setWebRTCStatus((prev) => (prev === 'connected' ? 'connected' : 'connecting'));
-        viewerManagerRef.current?.signalReady();
+        if (viewerManagerRef.current) {
+          viewerManagerRef.current.signalReady(true);
+        } else {
+          pendingSignalReadyRef.current = true;
+        }
       }
     }, [isHost]),
 
@@ -281,7 +286,8 @@ export const TheaterProvider: React.FC<{
 
       viewerManagerRef.current = manager;
       setWebRTCStatus('connecting');
-      manager.signalReady();
+      manager.signalReady(true);
+      pendingSignalReadyRef.current = false;
     }
 
     return () => {
