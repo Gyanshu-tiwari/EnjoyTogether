@@ -28,9 +28,10 @@ export function useRoomSession(
 ): RoomSessionResult {
 
   const getInitialState = (): SessionState => {
+    const isPreApproved = typeof window !== 'undefined' && sessionStorage.getItem(`et_accepted_room_${roomId}`) === 'true';
     if (initialActive !== undefined && isHostProp !== undefined) {
       if (initialActive) {
-        return isHostProp ? 'active_session' : 'knocking';
+        return (isHostProp || isPreApproved) ? 'active_session' : 'knocking';
       } else {
         return isHostProp ? 'idle_host' : 'idle_guest';
       }
@@ -86,8 +87,9 @@ export function useRoomSession(
           if (matchedHost) {
             setSessionState(room.is_active ? 'active_session' : 'idle_host');
           } else {
+            const isPreApproved = typeof window !== 'undefined' && sessionStorage.getItem(`et_accepted_room_${roomId}`) === 'true';
             if (room.is_active) {
-              setSessionState('knocking');
+              setSessionState(isPreApproved ? 'active_session' : 'knocking');
             } else {
               setSessionState(matchedHost ? 'idle_host' : 'idle_guest');
             }

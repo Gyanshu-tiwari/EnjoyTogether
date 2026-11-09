@@ -340,6 +340,47 @@ const RoomContent: React.FC<{
           </div>
         )}
       </div>
+
+      {/* Host Admission Alerts in Lobby */}
+      {isHost && knocks.length > 0 && (
+        <div className="fixed top-6 right-6 flex flex-col gap-3 w-80" style={{ zIndex: 99999 }}>
+          {knocks.map((knock) => (
+            <div
+              key={knock.socketId}
+              className="bg-bg-card border border-brand-border rounded-2xl p-4 shadow-2xl backdrop-blur-md flex flex-col gap-3 animate-fade-in"
+            >
+              <div className="flex items-center gap-2">
+                <Hand className="w-5 h-5 text-indigo-400" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Join Request</span>
+                  <span className="text-xs text-indigo-400 font-mono truncate max-w-50" title={knock.username}>
+                    {knock.username}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-text-secondary">
+                wants to join party
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  onClick={() => rejectGuest(knock.socketId)}
+                  variant="secondary"
+                  className="px-3 py-1 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20"
+                >
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => approveGuest(knock.socketId)}
+                  variant="brand"
+                  className="px-3 py-1 text-xs"
+                >
+                  Accept
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -398,6 +398,11 @@ export const InvitationProvider: React.FC<{ children: ReactNode }> = ({ children
       // Mark notification as accepted and read
       updateNotificationStatus(invitationId, 'accepted');
 
+      // Pre-approve this room for the invited guest so they enter automatically
+      if (typeof window !== 'undefined' && res.roomId) {
+        sessionStorage.setItem(`et_accepted_room_${res.roomId}`, 'true');
+      }
+
       showToast('Invitation accepted! Entering Watch Party...');
       navigate(`/room/${res.roomId}`);
     } catch (err: any) {
