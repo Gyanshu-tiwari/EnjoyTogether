@@ -165,7 +165,7 @@ export function useSocketConnection({
 
       socketInstance = io(backendUrl, {
         transports: ['websocket', 'polling'],
-        auth: { token, sessionSecret },
+        auth: { token, sessionSecret, anonymous: !token, guestId: userId },
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
@@ -191,6 +191,10 @@ export function useSocketConnection({
         }
       });
 
+      socketInstance.on('error', (err: any) => {
+        console.error('❌ Socket received error from server:', err);
+      });
+
       socketInstance.on('disconnect', () => {
         setSocket(null);
         socketRef.current = null;
@@ -200,7 +204,7 @@ export function useSocketConnection({
       socketInstance.on('room:entry-approved', () => {
         console.log('🎉 Approved by host!');
         setSessionState('active_session');
-        socketInstance?.emit('room:join', { roomId, userId });
+        socketInstance?.emit('room:join', { roomId, userId, sessionSecret });
       });
 
       socketInstance.on('room:entry-rejected', () => {

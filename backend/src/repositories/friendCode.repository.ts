@@ -463,10 +463,7 @@ export class FriendCodeRepository {
           handleSharedDbError(error, `getGuestSession for ${cleanGuestId}`);
           const inMem = inMemoryGuestSessions.get(cleanGuestId);
           if (inMem) return inMem;
-          if (isSupabaseDisabled()) return null;
-          if (process.env.NODE_ENV === 'production') {
-            throw new AppError('Authoritative guest session service unavailable.', 503);
-          }
+          return null;
         } else if (data) {
           const inMem = inMemoryGuestSessions.get(cleanGuestId);
           return {
@@ -481,14 +478,10 @@ export class FriendCodeRepository {
           };
         }
       } catch (err) {
-        if (err instanceof AppError) throw err;
         handleSharedDbError(err, `getGuestSession exception for ${cleanGuestId}`);
         const inMem = inMemoryGuestSessions.get(cleanGuestId);
         if (inMem) return inMem;
-        if (isSupabaseDisabled()) return null;
-        if (process.env.NODE_ENV === 'production') {
-          throw new AppError('Authoritative guest session service unavailable.', 503);
-        }
+        return null;
       }
     }
 
