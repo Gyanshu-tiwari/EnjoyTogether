@@ -7,3 +7,19 @@
 # Database backups and dumps
 *.dump
 *.backup
+
+# Media & sample video files (local playback only)
+*.mp4
+*.mkv
+*.webm
+*.avi
+*.mov
+
+# Ad-hoc diagnostic and benchmarking scripts
+backend/scripts/
+backend/tests/diagnose_*.ts
+backend/tests/inspect_*.ts
+backend/tests/run_*.ts
+backend/tests/test_*.ts
+backend/tests/verify_*.ts
+backend/tests/e2e_real_browser_*.ts
