@@ -139,140 +139,150 @@ export const setupSockets = (io: Server): void => {
 
     // ── Global User Registration (for notifications & invitations) ───────────
     socket.on('user:register', async (data: { userId?: string; sessionSecret?: string }) => {
-      const verifiedUserId = (socket as any).userId || (socket as any).user?.sub;
-      let cleanUserId: string;
+      try {
+        const verifiedUserId = (socket as any).userId || (socket as any).user?.sub;
+        let cleanUserId: string;
 
-      if (verifiedUserId) {
-        cleanUserId = verifiedUserId;
-      } else {
-        const requestedId = typeof data?.userId === 'string' ? data.userId.trim() : '';
-        if (requestedId.startsWith('anon_') || requestedId.startsWith('guest_')) {
-          cleanUserId = requestedId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
+        if (verifiedUserId) {
+          cleanUserId = verifiedUserId;
         } else {
-          cleanUserId = `anon_${socket.id.substring(0, 8)}`;
+          const requestedId = typeof data?.userId === 'string' ? data.userId.trim() : '';
+          if (requestedId.startsWith('anon_') || requestedId.startsWith('guest_')) {
+            cleanUserId = requestedId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
+          } else {
+            cleanUserId = `anon_${socket.id.substring(0, 8)}`;
+          }
+
+          const secret = data?.sessionSecret || (typeof socket.handshake.auth?.sessionSecret === 'string' ? socket.handshake.auth.sessionSecret.trim() : undefined);
+          const guestSession = await FriendCodeRepository.getGuestSession(cleanUserId);
+          if (guestSession) {
+            if (!guestSession.isActive || new Date(guestSession.expiresAt).getTime() <= Date.now()) {
+              return socket.emit('error', 'Guest session has expired or is inactive.');
+            }
+            if (!secret || !FriendCodeRepository.verifySecret(secret, guestSession.secretHash)) {
+              return socket.emit('error', 'Forbidden: Invalid guest session credentials.');
+            }
+          }
         }
 
-        const secret = data?.sessionSecret || (typeof socket.handshake.auth?.sessionSecret === 'string' ? socket.handshake.auth.sessionSecret.trim() : undefined);
-        const guestSession = await FriendCodeRepository.getGuestSession(cleanUserId);
-        if (guestSession) {
-          if (!guestSession.isActive || new Date(guestSession.expiresAt).getTime() <= Date.now()) {
-            return socket.emit('error', 'Guest session has expired or is inactive.');
-          }
-          if (!secret || !FriendCodeRepository.verifySecret(secret, guestSession.secretHash)) {
-            return socket.emit('error', 'Forbidden: Invalid guest session credentials.');
-          }
-        }
+        (socket as any).userId = cleanUserId;
+        registerSocketUser(socket.id, cleanUserId);
+        socket.emit('user:registered', { userId: cleanUserId });
+        console.log(`📡 Registered global notification socket ${socket.id} for user ${cleanUserId}`);
+      } catch (err: any) {
+        console.error('❌ Error in user:register handler:', err?.message || err);
+        socket.emit('error', err?.message || 'Failed to register socket user.');
       }
-
-      (socket as any).userId = cleanUserId;
-      registerSocketUser(socket.id, cleanUserId);
-      socket.emit('user:registered', { userId: cleanUserId });
-      console.log(`📡 Registered global notification socket ${socket.id} for user ${cleanUserId}`);
     });
 
     // ── Room Join ────────────────────────────────────────────────────────────
     socket.on('room:join', async (data: { roomId: string; userId: string; sessionSecret?: string }) => {
-      const { roomId, userId, sessionSecret } = data;
-      const cleanRoomId = String(roomId || '').trim();
-      if (!cleanRoomId) return socket.emit('error', 'Room identifier is required');
+      try {
+        const { roomId, userId, sessionSecret } = data;
+        const cleanRoomId = String(roomId || '').trim();
+        if (!cleanRoomId) return socket.emit('error', 'Room identifier is required');
 
-      // Security: If the socket presents a verified JWT, bind to that verified identity.
-      // Do not allow client payload to spoof registered user accounts.
-      const verifiedUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id;
-      let cleanUserId: string;
+        // Security: If the socket presents a verified JWT, bind to that verified identity.
+        // Do not allow client payload to spoof registered user accounts.
+        const verifiedUserId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id;
+        let cleanUserId: string;
 
-      if (verifiedUserId) {
-        cleanUserId = verifiedUserId;
-      } else {
-        const requestedId = typeof userId === 'string' ? userId.trim() : '';
-        // Unauthenticated guests must have an anon_ or guest_ prefix to prevent claiming registered UUIDs
-        if (requestedId.startsWith('anon_') || requestedId.startsWith('guest_')) {
-          cleanUserId = requestedId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
+        if (verifiedUserId) {
+          cleanUserId = verifiedUserId;
         } else {
-          cleanUserId = `anon_${socket.id.substring(0, 8)}`;
-        }
-
-        // Validate guest session validity and expiration server-side
-        const secret = (typeof sessionSecret === 'string' && sessionSecret.trim())
-          || (typeof socket.handshake.auth?.sessionSecret === 'string' && socket.handshake.auth.sessionSecret.trim())
-          || undefined;
-
-        const guestSession = await FriendCodeRepository.getGuestSession(cleanUserId);
-
-        if (guestSession) {
-          if (!guestSession.isActive) {
-            return socket.emit('error', 'Guest session is inactive or revoked. Please start a new session.');
+          const requestedId = typeof userId === 'string' ? userId.trim() : '';
+          // Unauthenticated guests must have an anon_ or guest_ prefix to prevent claiming registered UUIDs
+          if (requestedId.startsWith('anon_') || requestedId.startsWith('guest_')) {
+            cleanUserId = requestedId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
+          } else {
+            cleanUserId = `anon_${socket.id.substring(0, 8)}`;
           }
-          if (new Date(guestSession.expiresAt).getTime() <= Date.now()) {
-            await FriendCodeRepository.revokeGuestSession(cleanUserId, undefined, true);
-            return socket.emit('error', 'Guest session has expired. Please refresh to start a new session.');
-          }
-          // Proof of ownership: missing, malformed, or incorrect secret is strictly rejected
-          if (!secret || !FriendCodeRepository.verifySecret(secret, guestSession.secretHash)) {
+
+          // Validate guest session validity and expiration server-side
+          const secret = (typeof sessionSecret === 'string' && sessionSecret.trim())
+            || (typeof socket.handshake.auth?.sessionSecret === 'string' && socket.handshake.auth.sessionSecret.trim())
+            || undefined;
+
+          const guestSession = await FriendCodeRepository.getGuestSession(cleanUserId);
+
+          if (guestSession) {
+            if (!guestSession.isActive) {
+              return socket.emit('error', 'Guest session is inactive or revoked. Please start a new session.');
+            }
+            if (new Date(guestSession.expiresAt).getTime() <= Date.now()) {
+              await FriendCodeRepository.revokeGuestSession(cleanUserId, undefined, true);
+              return socket.emit('error', 'Guest session has expired. Please refresh to start a new session.');
+            }
+            // Proof of ownership: missing, malformed, or incorrect secret is strictly rejected
+            if (!secret || !FriendCodeRepository.verifySecret(secret, guestSession.secretHash)) {
+              return socket.emit('error', 'Forbidden: Invalid guest session credentials.');
+            }
+          } else if (secret) {
+            // If a secret is submitted for a nonexistent guest session, reject
             return socket.emit('error', 'Forbidden: Invalid guest session credentials.');
           }
-        } else if (secret) {
-          // If a secret is submitted for a nonexistent guest session, reject
-          return socket.emit('error', 'Forbidden: Invalid guest session credentials.');
         }
-      }
-      (socket as any).userId = cleanUserId;
-      registerSocketUser(socket.id, cleanUserId);
+        (socket as any).userId = cleanUserId;
+        registerSocketUser(socket.id, cleanUserId);
 
-      socket.join(cleanRoomId);
-      console.log(`👥 User ${cleanUserId} (${socket.id}) joined room ${cleanRoomId}`);
+        socket.join(cleanRoomId);
+        console.log(`👥 User ${cleanUserId} (${socket.id}) joined room ${cleanRoomId}`);
 
-      const metadata = await RoomRepository.getRoomMetadata(cleanRoomId);
-      // Security: An anonymous socket can only be host if the room's host_id was explicitly an anonymous ID matching theirs.
-      // Registered hosts require a verified JWT.
-      const isHost = verifiedUserId
-        ? cleanUserId === metadata.host_id
-        : metadata.host_id.startsWith('anon_') && cleanUserId === metadata.host_id;
+        const metadata = await RoomRepository.getRoomMetadata(cleanRoomId);
+        // Security: An anonymous socket can only be host if the room's host_id was explicitly an anonymous ID matching theirs.
+        // Registered hosts require a verified JWT.
+        const isHost = verifiedUserId
+          ? cleanUserId === metadata.host_id
+          : metadata.host_id.startsWith('anon_') && cleanUserId === metadata.host_id;
 
-      const role = isHost ? 'host' : await RoomRepository.getUserRoomRole(cleanRoomId, cleanUserId);
+        const role = isHost ? 'host' : await RoomRepository.getUserRoomRole(cleanRoomId, cleanUserId);
 
-      let name = (socket as any).user?.name;
-      if (!name && (socket as any).user?.email) {
-        name = (socket as any).user.email.split('@')[0];
-      }
-      if (!name) {
-        name = cleanUserId;
-      }
-
-      socketInfo.set(socket.id, { roomId: cleanRoomId, userId: cleanUserId, name, isHost, role });
-
-      if (isHost) {
-        const existing = activeHosts.get(cleanRoomId);
-        if (existing?.disconnectTimeout) {
-          console.log(`🔄 Host reconnected. Clearing teardown timer for room: ${cleanRoomId}`);
-          clearTimeout(existing.disconnectTimeout);
+        let name = (socket as any).user?.name;
+        if (!name && (socket as any).user?.email) {
+          name = (socket as any).user.email.split('@')[0];
         }
-        activeHosts.set(cleanRoomId, { userId: cleanUserId, socketId: socket.id });
-        flushPendingViewerSignals(io, cleanRoomId, socket.id);
-      }
+        if (!name) {
+          name = cleanUserId;
+        }
 
-      const roomState = await RoomRepository.getRoomState(cleanRoomId);
-      socket.emit('sync-state', roomState);
+        socketInfo.set(socket.id, { roomId: cleanRoomId, userId: cleanUserId, name, isHost, role });
 
-      // If host is actively streaming a local video, catch up the newly joined viewer immediately
-      if (roomState.mediaSourceType === 'local' && !isHost) {
-        console.log(`📡 Catching up new viewer ${cleanUserId} on active local host stream in room ${cleanRoomId}`);
-        socket.emit('webrtc:host-stream-ready', {
-          mediaName: roomState.mediaName || 'Host Stream',
-          mediaDuration: roomState.mediaDuration ?? null,
-        });
+        if (isHost) {
+          const existing = activeHosts.get(cleanRoomId);
+          if (existing?.disconnectTimeout) {
+            console.log(`🔄 Host reconnected. Clearing teardown timer for room: ${cleanRoomId}`);
+            clearTimeout(existing.disconnectTimeout);
+          }
+          activeHosts.set(cleanRoomId, { userId: cleanUserId, socketId: socket.id });
+          flushPendingViewerSignals(io, cleanRoomId, socket.id);
+        }
 
-        const hostSocketId = activeHosts.get(cleanRoomId)?.socketId;
-        if (hostSocketId && hostSocketId !== socket.id) {
-          io.to(hostSocketId).emit('webrtc:viewer-joined', {
-            viewerId: cleanUserId,
-            roomId: cleanRoomId,
+        const roomState = await RoomRepository.getRoomState(cleanRoomId);
+        socket.emit('sync-state', roomState);
+
+        // If host is actively streaming a local video, catch up the newly joined viewer immediately
+        if (roomState.mediaSourceType === 'local' && !isHost) {
+          console.log(`📡 Catching up new viewer ${cleanUserId} on active local host stream in room ${cleanRoomId}`);
+          socket.emit('webrtc:host-stream-ready', {
+            mediaName: roomState.mediaName || 'Host Stream',
+            mediaDuration: roomState.mediaDuration ?? null,
           });
-        }
-      }
 
-      // Broadcast active users
-      broadcastActiveUsers(io, cleanRoomId);
+          const hostSocketId = activeHosts.get(cleanRoomId)?.socketId;
+          if (hostSocketId && hostSocketId !== socket.id) {
+            io.to(hostSocketId).emit('webrtc:viewer-joined', {
+              viewerId: cleanUserId,
+              roomId: cleanRoomId,
+            });
+          }
+        }
+
+        // Broadcast active users
+        broadcastActiveUsers(io, cleanRoomId);
+      } catch (err: any) {
+        console.error('❌ Error in room:join handler:', err?.message || err);
+        socket.emit('error', err?.message || 'Failed to join room.');
+      }
     });
 
     // ── Watch Party Room Invitation Relay ────────────────────────────────────

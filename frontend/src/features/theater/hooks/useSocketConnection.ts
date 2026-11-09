@@ -326,6 +326,47 @@ export function useSocketConnection({
     };
   }, [hasLobbyAccess, roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Proactively react to sessionState transitions (e.g., guest goes from idle_guest -> knocking, or approved -> active_session)
+  useEffect(() => {
+    const s = socketRef.current || socket;
+    if (!s || !s.connected) return;
+
+    let isMounted = true;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
+      const userId = session?.user?.id || getAnonymousUserId();
+      const sessionSecret = !session?.user?.id && typeof window !== 'undefined'
+        ? (localStorage.getItem('et_anon_session_secret') || undefined)
+        : undefined;
+
+      const rawUsername = session?.user?.user_metadata?.username ||
+                          session?.user?.user_metadata?.full_name ||
+                          session?.user?.user_metadata?.name;
+      let username = rawUsername;
+      if (!username && session?.user?.email) {
+        username = session.user.email.split('@')[0];
+      }
+      if (!username) {
+        username = `Guest_${userId.slice(0, 5)}`;
+      }
+
+      if (sessionState === 'active_session' || sessionState === 'idle_host') {
+        s.emit('room:join', { roomId, userId, sessionSecret });
+      } else if (sessionState === 'knocking') {
+        if (!isHost) {
+          console.log(`✊ Reactive emit: room:knock for guest ${username} in room ${roomId}`);
+          s.emit('room:knock', { roomId, username });
+        } else {
+          s.emit('room:join', { roomId, userId, sessionSecret });
+        }
+      }
+    })();
+
+    return () => { isMounted = false; };
+  }, [sessionState, socket, isHost, roomId]);
+
   // ── Action callbacks ───────────────────────────────────────────────────────
 
   const approveGuest = useCallback((guestSocketId: string) => {

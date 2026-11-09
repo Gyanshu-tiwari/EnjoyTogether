@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Link, Copy, Check, Search, Loader2, Users, Send, Clock } from 'lucide-react';
+import { X, Link, Copy, Check, Search, Loader2, Users, Send, Clock, UserCheck } from 'lucide-react';
 import { Button } from '@/shared/components/ui/Button';
 import { Avatar } from '@/shared/components/ui/Avatar';
 import { getFriends, searchUsers, type FriendEntry, type UserSearchResult } from '@/features/friends/api/friendApi';
@@ -8,6 +8,7 @@ import { sendRoomInvitation } from '@/features/theater/api/theaterApi';
 import { useNotifications } from '@/features/invitations';
 import { useAuthSession } from '@/features/auth';
 import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
+import { TheaterContext } from '../context/useTheater';
 
 interface InviteModalProps {
   roomId: string;
@@ -22,13 +23,17 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
   const [search, setSearch] = useState('');
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [searchingCode, setSearchingCode] = useState(false);
-  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  const [previouslyInvitedIds, setPreviouslyInvitedIds] = useState<Set<string>>(new Set());
   const [inviteStatuses, setInviteStatuses] = useState<Record<string, 'delivered' | 'offline' | 'accepted' | 'declined'>>({});
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const codeSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const theater = useContext(TheaterContext);
+  const activeUsers = theater?.activeUsers || [];
 
   const { lastSenderUpdate } = useNotifications();
   const { session, isGuest } = useAuthSession();
@@ -36,16 +41,40 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
     ? session.user.id
     : (typeof window !== 'undefined' ? localStorage.getItem('et_anon_user_id') : null) || getAnonymousUserId();
 
+  const setTransientStatus = React.useCallback((
+    userId: string,
+    status: 'delivered' | 'offline' | 'accepted' | 'declined',
+    durationMs = 2500
+  ) => {
+    setInviteStatuses((prev) => ({ ...prev, [userId]: status }));
+    if (statusTimers.current[userId]) {
+      clearTimeout(statusTimers.current[userId]);
+    }
+    statusTimers.current[userId] = setTimeout(() => {
+      setInviteStatuses((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      delete statusTimers.current[userId];
+    }, durationMs);
+  }, []);
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(statusTimers.current).forEach(clearTimeout);
+    };
+  }, []);
+
   // Listen to live recipient response updates
   useEffect(() => {
     if (!lastSenderUpdate) return;
     if (lastSenderUpdate.roomId === roomId) {
-      setInviteStatuses((prev) => ({
-        ...prev,
-        [lastSenderUpdate.recipientId]: lastSenderUpdate.type === 'accepted' ? 'accepted' : 'declined',
-      }));
+      const status = lastSenderUpdate.type === 'accepted' ? 'accepted' : 'declined';
+      setTransientStatus(lastSenderUpdate.recipientId, status, 3000);
     }
-  }, [lastSenderUpdate, roomId]);
+  }, [lastSenderUpdate, roomId, setTransientStatus]);
 
   const roomUrl = `${window.location.origin}/room/${roomId}`;
 
@@ -58,12 +87,21 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
   const handleClose = React.useCallback(() => {
     setSearch('');
     setCodeResults([]);
-    setInvitedIds(new Set());
     setInviteStatuses({});
     setInvitingId(null);
     setLinkCopied(false);
+    Object.values(statusTimers.current).forEach(clearTimeout);
+    statusTimers.current = {};
     onClose();
   }, [onClose]);
+
+  const isUserInRoom = (userId: string, username: string) => {
+    return activeUsers.some(
+      (u) =>
+        (u.userId && u.userId === userId) ||
+        (u.name && u.name.toLowerCase() === username.toLowerCase())
+    );
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -140,14 +178,12 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
         targetUserId: friend.friendId,
         targetUsername: friend.username,
       });
-      setInvitedIds((prev) => new Set(prev).add(friend.friendId));
-      setInviteStatuses((prev) => ({
-        ...prev,
-        [friend.friendId]: res.delivered ? 'delivered' : 'offline',
-      }));
+      setPreviouslyInvitedIds((prev) => new Set(prev).add(friend.friendId));
       if (res.delivered) {
+        setTransientStatus(friend.friendId, 'delivered', 2500);
         showToast(`Invitation delivered to @${friend.username}!`);
       } else {
+        setTransientStatus(friend.friendId, 'offline', 2500);
         showToast(`Invitation sent! @${friend.username} will see it when online.`);
       }
     } catch (err: any) {
@@ -166,14 +202,12 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
         targetUserId: user.id,
         targetUsername: user.username,
       });
-      setInvitedIds((prev) => new Set(prev).add(user.id));
-      setInviteStatuses((prev) => ({
-        ...prev,
-        [user.id]: res.delivered ? 'delivered' : 'offline',
-      }));
+      setPreviouslyInvitedIds((prev) => new Set(prev).add(user.id));
       if (res.delivered) {
+        setTransientStatus(user.id, 'delivered', 2500);
         showToast(`Invitation delivered to @${user.username}!`);
       } else {
+        setTransientStatus(user.id, 'offline', 2500);
         showToast(`Invitation sent! @${user.username} will see it when online.`);
       }
     } catch (err: any) {
@@ -182,6 +216,76 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
     } finally {
       setInvitingId(null);
     }
+  };
+
+  const renderInviteButton = (
+    targetId: string,
+    targetUsername: string,
+    onInvite: () => void,
+    size: 'sm' | 'md' = 'sm'
+  ) => {
+    const inRoom = isUserInRoom(targetId, targetUsername);
+    const status = inviteStatuses[targetId];
+    const isThisInviting = invitingId === targetId;
+    const wasInvited = previouslyInvitedIds.has(targetId);
+
+    const sizeClasses = size === 'md' ? 'h-7 px-3 text-xs' : 'h-6 px-2.5 text-[11px]';
+
+    if (inRoom) {
+      return (
+        <Button
+          variant="secondary"
+          className={`${sizeClasses} shrink-0 border border-emerald-500/30 text-emerald-400 bg-emerald-950/20 cursor-default opacity-90`}
+          disabled
+        >
+          <UserCheck className="w-3 h-3 mr-1 text-emerald-400" />
+          In Room
+        </Button>
+      );
+    }
+
+    if (isThisInviting) {
+      return (
+        <Button variant="brand" className={`${sizeClasses} shrink-0`} disabled>
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+          Sending...
+        </Button>
+      );
+    }
+
+    if (status === 'accepted') {
+      return (
+        <Button variant="emerald" className={`${sizeClasses} shrink-0`} disabled>
+          <Check className="w-3 h-3 mr-1 text-emerald-400" />
+          Accepted
+        </Button>
+      );
+    }
+
+    if (status === 'delivered') {
+      return (
+        <Button variant="secondary" className={`${sizeClasses} shrink-0 opacity-80`} disabled>
+          <Check className="w-3 h-3 mr-1 text-brand" />
+          Invited!
+        </Button>
+      );
+    }
+
+    if (status === 'offline') {
+      return (
+        <Button variant="secondary" className={`${sizeClasses} shrink-0 opacity-80`} disabled>
+          <Clock className="w-3 h-3 mr-1 text-amber-400" />
+          Offline
+        </Button>
+      );
+    }
+
+    return (
+      <Button variant="brand" className={`${sizeClasses} shrink-0`} onClick={onInvite}>
+        <Send className="w-3 h-3 mr-1" />
+        {status === 'declined' || wasInvited ? 'Re-invite' : 'Invite'}
+      </Button>
+    );
   };
 
 
@@ -263,51 +367,23 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
                 <p className="text-[9px] font-bold text-brand uppercase tracking-wider mb-1.5 px-1">
                   Found by Friend Code
                 </p>
-                {filteredCodeResults.map((u) => {
-                  const status = inviteStatuses[u.id];
-                  const isInvited = invitedIds.has(u.id) || !!status;
-                  const isThisInviting = invitingId === u.id;
-                  const isDeclined = status === 'declined';
-                  const isAccepted = status === 'accepted';
-                  const isOffline = status === 'offline';
-
-                  return (
-                    <div key={u.id} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-neutral-800/60 transition-colors">
-                      <Avatar
-                        src={u.avatarUrl}
-                        fallback={u.username.charAt(0).toUpperCase()}
-                        size="sm"
-                        className="shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-white truncate">@{u.username}</p>
-                        <p className="text-[9px] text-neutral-500 font-mono">
-                          {u.isGuest ? 'Temporary Guest' : 'Registered User'}
-                        </p>
-                      </div>
-                      <Button
-                        variant={isAccepted ? 'emerald' : isInvited && !isDeclined ? 'secondary' : 'brand'}
-                        className={`h-6 px-2.5 text-[11px] shrink-0 ${isInvited && !isDeclined && !isAccepted ? 'opacity-80' : ''}`}
-                        onClick={() => (!isInvited || isDeclined) && !isThisInviting && handleInviteUser(u)}
-                        disabled={isThisInviting || (isInvited && !isDeclined)}
-                      >
-                        {isThisInviting ? (
-                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Sending...</>
-                        ) : isAccepted ? (
-                          <><Check className="w-3 h-3 mr-1 text-emerald-400" />Accepted</>
-                        ) : isDeclined ? (
-                          <><Send className="w-3 h-3 mr-1" />Re-invite</>
-                        ) : isOffline ? (
-                          <><Clock className="w-3 h-3 mr-1 text-amber-400" />Offline</>
-                        ) : isInvited ? (
-                          <><Check className="w-3 h-3 mr-1" />Delivered</>
-                        ) : (
-                          <><Send className="w-3 h-3 mr-1" />Invite</>
-                        )}
-                      </Button>
+                {filteredCodeResults.map((u) => (
+                  <div key={u.id} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-neutral-800/60 transition-colors">
+                    <Avatar
+                      src={u.avatarUrl}
+                      fallback={u.username.charAt(0).toUpperCase()}
+                      size="sm"
+                      className="shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">@{u.username}</p>
+                      <p className="text-[9px] text-neutral-500 font-mono">
+                        {u.isGuest ? 'Temporary Guest' : 'Registered User'}
+                      </p>
                     </div>
-                  );
-                })}
+                    {renderInviteButton(u.id, u.username, () => handleInviteUser(u), 'sm')}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -325,51 +401,23 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
                   </p>
                 </div>
               ) : (
-                filteredFriends.map((friend) => {
-                  const status = inviteStatuses[friend.friendId];
-                  const isInvited = invitedIds.has(friend.friendId) || !!status;
-                  const isThisInviting = invitingId === friend.friendId;
-                  const isDeclined = status === 'declined';
-                  const isAccepted = status === 'accepted';
-                  const isOffline = status === 'offline';
-
-                  return (
-                    <div
-                      key={friend.friendshipId}
-                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-neutral-800/50 transition-colors"
-                    >
-                      <Avatar
-                        src={friend.avatarUrl}
-                        fallback={friend.username.charAt(0).toUpperCase()}
-                        size="sm"
-                        className="shrink-0"
-                      />
-                      <span className="flex-1 text-sm font-semibold text-white truncate min-w-0">
-                        @{friend.username}
-                      </span>
-                      <Button
-                        variant={isAccepted ? 'emerald' : isInvited && !isDeclined ? 'secondary' : 'brand'}
-                        className={`h-7 px-3 text-xs shrink-0 ${isInvited && !isDeclined && !isAccepted ? 'opacity-80' : ''}`}
-                        onClick={() => (!isInvited || isDeclined) && !isThisInviting && handleInviteFriend(friend)}
-                        disabled={isThisInviting || (isInvited && !isDeclined)}
-                      >
-                        {isThisInviting ? (
-                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Sending...</>
-                        ) : isAccepted ? (
-                          <><Check className="w-3 h-3 mr-1 text-emerald-400" />Accepted</>
-                        ) : isDeclined ? (
-                          <><Send className="w-3 h-3 mr-1" />Re-invite</>
-                        ) : isOffline ? (
-                          <><Clock className="w-3 h-3 mr-1 text-amber-400" />Sent (Offline)</>
-                        ) : isInvited ? (
-                          <><Check className="w-3 h-3 mr-1" />Delivered</>
-                        ) : (
-                          <><Send className="w-3 h-3 mr-1" />Invite</>
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })
+                filteredFriends.map((friend) => (
+                  <div
+                    key={friend.friendshipId}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-neutral-800/50 transition-colors"
+                  >
+                    <Avatar
+                      src={friend.avatarUrl}
+                      fallback={friend.username.charAt(0).toUpperCase()}
+                      size="sm"
+                      className="shrink-0"
+                    />
+                    <span className="flex-1 text-sm font-semibold text-white truncate min-w-0">
+                      @{friend.username}
+                    </span>
+                    {renderInviteButton(friend.friendId, friend.username, () => handleInviteFriend(friend), 'md')}
+                  </div>
+                ))
               )}
             </div>
           </div>
