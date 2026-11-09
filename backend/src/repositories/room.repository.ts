@@ -132,7 +132,7 @@ export class RoomRepository {
     const key = `${cleanRoomId}:${cleanUserId}`;
     if (inMemoryRoleStore[key]) return inMemoryRoleStore[key]!;
 
-    const meta = inMemoryRoomMetadata[cleanRoomId];
+    const meta = inMemoryRoomMetadata[cleanRoomId] || (await this.getRoomMetadata(cleanRoomId));
     if (meta && meta.host_id === cleanUserId) return 'host';
 
     return 'viewer';
