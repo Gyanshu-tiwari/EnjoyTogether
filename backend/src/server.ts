@@ -54,25 +54,6 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling'], // polling fallback for restricted networks
 });
 
-// ── HLS Static Files ──────────────────────────────────────────────────────────
-const HLS_DIR = path.join(process.cwd(), 'output_hls');
-app.use(
-  '/api/video/hls-local',
-  express.static(HLS_DIR, {
-    maxAge: '1y',
-    setHeaders: (res, filePath) => {
-      res.set('Access-Control-Allow-Origin', '*');
-      if (filePath.endsWith('.m3u8')) {
-        // Playlists must never be cached — viewers need fresh segment lists
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      } else {
-        // Individual .ts segments are immutable once written
-        res.set('Cache-Control', 'public, max-age=31536000, immutable');
-      }
-    },
-  })
-);
-
 // ── Avatars Local Static Fallback ─────────────────────────────────────────────
 const AVATARS_DIR = path.join(process.cwd(), 'public', 'avatars');
 app.use('/api/avatars/local', express.static(AVATARS_DIR, { maxAge: '1d' }));

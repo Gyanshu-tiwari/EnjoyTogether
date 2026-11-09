@@ -9,13 +9,6 @@ export interface MovieMetadata {
   releaseDate: string;
 }
 
-export interface TranscodeStatus {
-  status: string;
-  progress: number;
-  eta: string;
-  speed: string;
-}
-
 export async function fetchMovieMetadata(movieName: string): Promise<MovieMetadata | null> {
   if (!movieName.trim() || !TMDB_ACCESS_TOKEN) return null;
 
@@ -46,40 +39,6 @@ export async function fetchMovieMetadata(movieName: string): Promise<MovieMetada
     console.error('TMDB pipeline connection failed:', error);
     return null;
   }
-}
-
-export async function startUpload(fileId?: string): Promise<void> {
-  await apiClient.post(`/api/video/start-upload`, fileId ? { fileId } : {});
-}
-
-export interface UploadChunkParams {
-  chunk: Blob;
-  fileName: string;
-  fileId: string;
-  chunkIndex: number;
-  totalChunks: number;
-  onProgress: (progressEvent: import('axios').AxiosProgressEvent) => void;
-}
-
-export async function uploadChunk({ chunk, fileName, fileId, chunkIndex, totalChunks, onProgress }: UploadChunkParams) {
-  const formData = new FormData();
-  formData.append('chunk', chunk);
-  formData.append('name', fileName);
-  formData.append('fileId', fileId);
-  formData.append('chunkIndex', chunkIndex.toString());
-  formData.append('totalChunks', totalChunks.toString());
-
-  const response = await apiClient.post(`/api/video/upload-chunk`, formData, {
-    onUploadProgress: onProgress,
-  });
-
-  return response.data;
-}
-
-export async function getTranscodeStatus(fileId?: string): Promise<TranscodeStatus> {
-  const params = fileId ? { params: { fileId, _cb: Date.now() } } : { params: { _cb: Date.now() } };
-  const response = await apiClient.get(`/api/video/transcode-status`, params);
-  return response.data;
 }
 
 export interface RoomMetadataResponse {
