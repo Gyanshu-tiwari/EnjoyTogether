@@ -7,7 +7,15 @@ export interface RoomState {
   isPlaying: boolean;
   position: number;
   lastUpdated: number;
+  /** Monotonic version counter — clients must ignore sync-state if version ≤ their current version */
+  stateVersion: number;
   streamUrl?: string | undefined;
+  /** Display name of the current media (filename for local, title for cloud) — never file bytes */
+  mediaName?: string | undefined;
+  /** Duration in seconds; null if unknown */
+  mediaDuration?: number | undefined;
+  /** Source type tag — 'local' for MVP */
+  mediaSourceType?: 'local' | undefined;
 }
 
 export interface RoomMetadata {
@@ -21,7 +29,7 @@ const inMemoryRoomStates: Record<string, RoomState> = {};
 const inMemoryRoomMetadata: Record<string, RoomMetadata> = {
   'enjoy-together-main': {
     host_id: 'default-host-id',
-    movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+    movie_url: '',
     is_active: false,
   },
 };
@@ -57,7 +65,7 @@ export class RoomRepository {
           );
         if (error) throw error;
       } catch (err) {
-        handleSharedDbError(err, `assignRoomHost for room ${cleanRoomId}, user ${cleanUserId}`);
+        // room_members is ephemeral; fallback to inMemoryRoleStore without disabling Supabase globally
       }
     }
   }
@@ -78,7 +86,7 @@ export class RoomRepository {
           .update({ role: newRole })
           .eq('room_id', cleanRoomId)
           .eq('user_id', cleanUserId);
-        
+
         if (error) {
           // If update fails because record doesn't exist, we can try to insert it (upsert)
           const { error: upsertError } = await supabase
@@ -90,7 +98,7 @@ export class RoomRepository {
           if (upsertError) throw upsertError;
         }
       } catch (err) {
-        handleSharedDbError(err, `updateUserRoomRole for room ${cleanRoomId}, user ${cleanUserId}`);
+        // room_members is ephemeral; fallback to inMemoryRoleStore without disabling Supabase globally
       }
     }
   }
@@ -116,7 +124,7 @@ export class RoomRepository {
           return data.role as WatchPartyRole;
         }
       } catch (err) {
-        handleSharedDbError(err, `getUserRoomRole for room ${cleanRoomId}, user ${cleanUserId}`);
+        // room_members is ephemeral; fallback to inMemoryRoleStore without disabling Supabase globally
       }
     }
 
@@ -140,16 +148,21 @@ export class RoomRepository {
           .from('rooms')
           .select('is_playing, position, last_updated, stream_url')
           .eq('id', cleanRoomId)
-          .single();
+          .maybeSingle();
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           handleSharedDbError(error, `get room state for ${cleanRoomId}`);
         } else if (data) {
+          const mem: Partial<RoomState> = inMemoryRoomStates[cleanRoomId] || {};
           return {
             isPlaying: data.is_playing,
             position: data.position,
             lastUpdated: new Date(data.last_updated).getTime(),
+            stateVersion: (data as any).state_version ?? 0,
             streamUrl: data.stream_url || undefined,
+            ...(mem.mediaName !== undefined && { mediaName: mem.mediaName }),
+            ...(mem.mediaDuration !== undefined && { mediaDuration: mem.mediaDuration }),
+            ...(mem.mediaSourceType !== undefined && { mediaSourceType: mem.mediaSourceType }),
           };
         }
       } catch (err) {
@@ -163,8 +176,10 @@ export class RoomRepository {
         isPlaying: false,
         position: 0,
         lastUpdated: Date.now(),
+        stateVersion: 0,
         streamUrl: meta ? meta.movie_url : undefined,
       };
+
     }
     return inMemoryRoomStates[cleanRoomId]!;
   }
@@ -176,6 +191,8 @@ export class RoomRepository {
       ...currentState,
       ...updates,
       lastUpdated: Date.now(),
+      // Increment stateVersion on every update so clients can reject stale events
+      stateVersion: (currentState.stateVersion ?? 0) + 1,
     };
 
     inMemoryRoomStates[cleanRoomId] = updatedState;
@@ -184,13 +201,13 @@ export class RoomRepository {
       try {
         const { error } = await supabase
           .from('rooms')
-          .upsert({
-            id: cleanRoomId,
+          .update({
             is_playing: updatedState.isPlaying,
             position: updatedState.position,
             last_updated: new Date(updatedState.lastUpdated).toISOString(),
             stream_url: updatedState.streamUrl || null,
-          });
+          })
+          .eq('id', cleanRoomId);
         if (error) throw error;
       } catch (err) {
         handleSharedDbError(err, `update room state for ${cleanRoomId}`);
@@ -209,7 +226,7 @@ export class RoomRepository {
     if (!inMemoryRoomMetadata[cleanRoomId]) {
       inMemoryRoomMetadata[cleanRoomId] = {
         host_id: 'default-host-id',
-        movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+        movie_url: '',
         is_active: isActive,
       };
     } else {
@@ -255,7 +272,7 @@ export class RoomRepository {
     if (!inMemoryRoomMetadata[cleanRoomId]) {
       inMemoryRoomMetadata[cleanRoomId] = {
         host_id: 'default-host-id',
-        movie_url: `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+        movie_url: '',
         is_active: false,
       };
     }
@@ -267,7 +284,7 @@ export class RoomRepository {
     const cleanHostId = hostId.trim() || 'default-host-id';
     const metadata: RoomMetadata = {
       host_id: cleanHostId,
-      movie_url: movieUrl || `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`,
+      movie_url: movieUrl || '',
       is_active: false,
     };
 

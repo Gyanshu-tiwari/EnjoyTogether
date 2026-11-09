@@ -1,5 +1,5 @@
 import { useEffect, Suspense, lazy } from 'react';
-import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { supabase } from '@/shared/lib/supabase';
 import { useAuthSession } from '@/features/auth';
 import Landing from '@/pages/Landing';
@@ -32,7 +32,10 @@ const AuthListener = () => {
 
       if (event === 'SIGNED_IN') {
         if (window.location.pathname === '/login') {
-          navigate('/', { replace: true });
+          const params = new URLSearchParams(window.location.search);
+          const redirect = params.get('redirect') || params.get('returnUrl');
+          const target = redirect && redirect.startsWith('/') && redirect !== '/login' ? redirect : '/dashboard';
+          navigate(target, { replace: true });
         }
       }
     });
@@ -46,11 +49,12 @@ const AuthListener = () => {
 };
 
 const ProtectedRoute = ({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) => {
-  const { session, loading } = useAuthSession();
+  const { session, loading, isGuest } = useAuthSession();
+  const location = useLocation();
 
   if (loading) {
     if (fallback) return <>{fallback}</>;
-    
+
     return (
       <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center text-neutral-400 font-medium gap-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
@@ -63,8 +67,20 @@ const ProtectedRoute = ({ children, fallback }: { children: React.ReactNode; fal
     );
   }
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
+  const isGuestMode =
+    isGuest ||
+    (typeof window !== 'undefined' &&
+      (sessionStorage.getItem('guest_session') === 'true' || location.pathname.startsWith('/room/')));
+
+  if (!session && !isGuestMode) {
+    const redirectUrl = location.pathname + location.search;
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(redirectUrl)}`}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   return <>{children}</>;

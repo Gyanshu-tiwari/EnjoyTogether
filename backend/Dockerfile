@@ -11,8 +11,8 @@ FROM node:22-alpine AS runner
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
-# System deps: ffmpeg (transcoding), curl (healthcheck probe)
-RUN apk add --no-cache ffmpeg curl
+# System deps: curl (healthcheck probe)
+RUN apk add --no-cache curl
 
 # Install only production dependencies
 COPY package*.json ./
@@ -22,7 +22,7 @@ RUN npm ci --omit=dev
 COPY --from=builder /usr/src/app/dist ./dist
 
 # Create runtime directories (will be overlaid by volume mounts in prod)
-RUN mkdir -p uploads output_hls \
+RUN mkdir -p uploads \
   && chown -R node:node /usr/src/app
 
 # Drop to non-root for security

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheater } from '../context/useTheater';
 import type { ActiveUser } from '../context/useTheater';
 import { Users, X } from 'lucide-react';
+import { Avatar } from '@/shared/components/ui/Avatar';
 
 interface ActiveUsersModalProps {
   isOpen: boolean;
@@ -11,6 +12,18 @@ interface ActiveUsersModalProps {
 export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onClose }) => {
   const { activeUsers, currentUserId, isHost, changeRole, kickUser } = useTheater();
 
+  const uniqueUsers = React.useMemo(() => {
+    const map = new Map<string, ActiveUser>();
+    for (const user of activeUsers) {
+      const key = (user.userId && user.userId !== 'guest') ? user.userId : (user.name || user.socketId);
+      const existing = map.get(key);
+      if (!existing || user.isHost || user.role === 'host') {
+        map.set(key, user);
+      }
+    }
+    return Array.from(map.values());
+  }, [activeUsers]);
+
   if (!isOpen) return null;
 
   return (
@@ -18,9 +31,9 @@ export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onCl
       <div className="p-4 border-b border-white/5 flex justify-between items-center bg-bg-primary/50">
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
           <Users className="w-4 h-4 text-indigo-400" />
-          <span>Participants ({activeUsers.length})</span>
+          <span>Participants ({uniqueUsers.length})</span>
         </h3>
-        <button 
+        <button
           onClick={onClose}
           className="text-neutral-400 hover:text-white transition-colors p-1"
         >
@@ -29,14 +42,17 @@ export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onCl
       </div>
 
       <div className="max-h-64 overflow-y-auto p-2">
-        {activeUsers.map((user: ActiveUser) => {
+        {uniqueUsers.map((user: ActiveUser) => {
           const isMe = user.userId === currentUserId;
           return (
             <div key={user.socketId} className="flex items-center justify-between p-2 hover:bg-white/5 rounded-xl transition-colors group">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-xs font-bold text-white shadow-md">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+                <Avatar
+                  src={(user as any).avatarUrl}
+                  fallback={user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  size="sm"
+                  className="shrink-0"
+                />
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-neutral-200">
                     {user.name} {isMe && <span className="text-[10px] text-neutral-500 font-normal">(You)</span>}
@@ -46,11 +62,11 @@ export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onCl
                   </span>
                 </div>
               </div>
-              
+
               {/* Host Controls */}
               {isHost && !isMe && (
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <select 
+                  <select
                     value={user.role}
                     onChange={(e) => changeRole(user.userId, e.target.value)}
                     className="bg-bg-primary border border-white/5 text-xs text-neutral-300 rounded px-1 py-1 focus:outline-none cursor-pointer"

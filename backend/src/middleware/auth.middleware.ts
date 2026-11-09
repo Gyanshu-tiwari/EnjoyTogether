@@ -19,26 +19,38 @@ export const authMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    if (req.user) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // Without Supabase configured, allow anonymous access in dev
-      if (!process.env.SUPABASE_URL) {
-        return next();
+      // In production mode, always enforce real authentication token
+      if (process.env.NODE_ENV === 'production') {
+        return next(new AppError('Unauthorized: Missing access token', 401));
       }
-      return next(new AppError('Unauthorized: Missing access token', 401));
+      // In local dev / test / non-production mode, allow anonymous requests
+      req.user = {
+        id: (req.query.userId as string) || (req.body?.hostId as string) || 'anonymous-user',
+        email: 'guest@local',
+      };
+      return next();
     }
 
     const token = authHeader.split(' ')[1];
     if (!token) return next(new AppError('Unauthorized: Malformed authorization header', 401));
 
     if (!supabase) {
+      if (process.env.NODE_ENV === 'production') {
+        return next(new AppError('Authentication service unavailable', 503));
+      }
       console.warn('⚠️ authMiddleware bypassed: Supabase client not initialized.');
       return next();
     }
 
     // Official secure validation via Supabase API. Handles HS256/RS256 transparently.
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+
     if (error || !user) {
       console.error('Supabase Auth verification failed:', error?.message);
       return next(new AppError('Unauthorized: Invalid or expired access token', 401));

@@ -1,60 +1,30 @@
 import type { Request, Response, NextFunction } from 'express';
-import { spawn, exec } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
 import { AppError } from '../utils/appError.js';
 import { RoomRepository } from '../repositories/room.repository.js';
-
-// __dirname equivalent for ESM modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ─── Telegram Lazy Singleton ────────────────────────────────────────────────
-// Initialised only on first use to avoid crashing the server if credentials
-// are missing at startup.
-let _telegramClient: import('telegram').TelegramClient | null = null;
-
-async function getTelegramClient(): Promise<import('telegram').TelegramClient> {
-  if (_telegramClient) return _telegramClient;
-
-  const { TelegramClient, sessions } = await import('telegram');
-  const bigInt = (await import('big-integer')).default;
-
-  const stringSession = new sessions.StringSession(process.env.TELEGRAM_SESSION || '');
-  const apiId = Number(process.env.TELEGRAM_API_ID);
-  const apiHash = process.env.TELEGRAM_API_HASH || '';
-
-  if (!apiId || !apiHash) {
-    throw new AppError('Telegram credentials not configured.', 503);
-  }
-
-  const client = new TelegramClient(stringSession, apiId, apiHash, {
-    connectionRetries: 5,
-  });
-  await client.connect();
-  _telegramClient = client;
-  console.log('⚡ Telegram Client connected on first use.');
-  return client;
-}
-
-const channelId: string = process.env.TELEGRAM_CHANNEL_ID || '';
-
-const activeUploads = new Map<string, Set<number>>();
 
 export class RoomController {
   // ── Room Lifecycle ─────────────────────────────────────────────────────────
 
   static async createRoom(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { hostId, movieUrl } = req.body;
+      const { hostId, movieUrl, mediaName } = req.body;
       const roomId = crypto.randomUUID();
+      const actualHostId = req.user?.id || hostId || 'default-host-id';
       const metadata = await RoomRepository.createRoom(
         roomId,
-        hostId || 'default-host-id',
-        movieUrl || `${process.env.BACKEND_URL || ''}/api/video/hls-local/master_party.m3u8`
+        actualHostId,
+        movieUrl || ''
       );
+
+      // If a local media name is provided at creation time, store it
+      if (mediaName) {
+        await RoomRepository.updateRoomState(roomId, {
+          mediaName,
+          mediaSourceType: 'local',
+        });
+      }
+
       // createRoom() already calls assignRoomHost() internally
       res.status(201).json({ success: true, roomId, metadata });
     } catch (error) {
@@ -83,273 +53,6 @@ export class RoomController {
       res.status(200).json({ success: true, roomId, isActive });
     } catch (error) {
       next(new AppError('Failed to toggle room active status.', 500));
-    }
-  }
-
-  // ── Video Upload Pipeline ──────────────────────────────────────────────────
-
-  static async startUpload(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      // ── Zombie Process Cleanup (with grace period) ─────────────────────────
-      // Kill any leftover ffmpeg/transcoder processes from a previous aborted session.
-      // The 3s delay ensures the kill command doesn't race against a legitimately
-      // running transcoder that was spawned by the final chunk of the previous upload.
-      setTimeout(() => {
-        exec('pkill -f ffmpeg', () => {});
-        exec('pkill -f transcodeAndUpload', () => {});
-      }, 3000);
-
-      const { fileId } = req.body;
-      // Write per-fileId status file so concurrent uploads track independently.
-      // Also write the shared file for backwards compatibility.
-      const payload = JSON.stringify({ status: 'uploading', progress: 0, eta: 'Uploading...', speed: '0x' }, null, 2);
-      if (fileId) {
-        fs.writeFileSync(path.join(process.cwd(), `transcode_status_${fileId}.json`), payload);
-      }
-      fs.writeFileSync(path.join(process.cwd(), 'transcode_status.json'), payload);
-      res.status(200).json({ success: true });
-    } catch (error) {
-      next(new AppError('Failed to initialize upload status.', 500));
-    }
-  }
-
-  static async uploadChunk(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      if (!req.file) return next(new AppError('Missing binary payload stream fields.', 400));
-
-      const chunkIndex = parseInt(req.body.chunkIndex, 10);
-      const totalChunks = parseInt(req.body.totalChunks, 10);
-      const fileId = req.body.fileId;
-      const fileName: string = req.body.name || req.file.originalname || 'upload';
-
-      if (isNaN(chunkIndex) || isNaN(totalChunks) || !fileId) {
-        return next(new AppError('Missing chunking metadata.', 400));
-      }
-
-      // Preserve the original file extension so ffprobe identifies the container correctly
-      const originalExt = path.extname(fileName).toLowerCase() || '.mp4';
-      const uploadedChunkPath = req.file.path;
-      const targetFilePath = path.join(process.cwd(), 'uploads', `${fileId}${originalExt}`);
-      const chunkFilePath = `${targetFilePath}.part${chunkIndex}`;
-
-      // Rename multer temp file to the specific chunk file
-      fs.renameSync(uploadedChunkPath, chunkFilePath);
-
-      // Track received chunks
-      if (!activeUploads.has(fileId)) {
-        activeUploads.set(fileId, new Set<number>());
-      }
-      activeUploads.get(fileId)!.add(chunkIndex);
-
-      console.log(`🚀 Chunk ${chunkIndex + 1}/${totalChunks} received for file ${fileId}`);
-
-      // Check if all chunks have been received
-      if (activeUploads.get(fileId)!.size === totalChunks) {
-        console.log(`✅ All chunks received. Assembling file: ${targetFilePath}`);
-        
-        // Assemble chunks in order
-        const writeStream = fs.createWriteStream(targetFilePath);
-        for (let i = 0; i < totalChunks; i++) {
-          const partPath = `${targetFilePath}.part${i}`;
-          if (fs.existsSync(partPath)) {
-            const data = fs.readFileSync(partPath);
-            writeStream.write(data);
-            fs.unlinkSync(partPath); // Clean up chunk
-          }
-        }
-        writeStream.end();
-
-        activeUploads.delete(fileId);
-
-        // Wait for assemble to finish before launching transcoder
-        writeStream.on('finish', () => {
-          console.log(`🎬 File assembled. Launching transcoder pipeline for: ${targetFilePath}`);
-          
-          // Resolve script path relative to THIS compiled file's directory (__dirname).
-          const isDev = process.env.NODE_ENV !== 'production';
-          const jsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.js');
-          const tsScript = path.resolve(__dirname, '../utils/transcodeAndUpload.ts');
-
-          const useTsx = isDev && fs.existsSync(tsScript);
-          const cmd = useTsx ? 'npx' : 'node';
-          const args = useTsx ? ['tsx', tsScript, targetFilePath, fileId] : [jsScript, targetFilePath, fileId];
-
-          // Ensure output_hls dir exists before opening log file
-          const hlsDir = path.join(process.cwd(), 'output_hls');
-          if (!fs.existsSync(hlsDir)) fs.mkdirSync(hlsDir, { recursive: true });
-
-          const logPath = path.join(hlsDir, 'transcoder.log');
-          const out = fs.openSync(logPath, 'a');
-          const err = fs.openSync(logPath, 'a');
-
-          const child = spawn(cmd, args, {
-            detached: true,
-            stdio: ['ignore', out, err],
-            env: process.env,
-          });
-          child.unref();
-
-          child.on('error', (spawnErr) => {
-            console.error('❌ Failed to spawn transcoder process:', spawnErr);
-          });
-        });
-      }
-
-      const fallbackStreamUrl = `${process.env.BACKEND_URL || ''}/api/video/hls-local/${fileId}.m3u8`;
-      res.status(202).json({ success: true, fileId: `${fileId}.m3u8`, streamUrl: fallbackStreamUrl });
-    } catch (error) {
-      console.error('Chunk processing error:', error);
-      next(new AppError('Failed to process uploaded chunk request.', 500));
-    }
-  }
-
-  static async transcodeStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      const fileId = req.query.fileId as string | undefined;
-      // Prefer the per-fileId status file when a fileId is provided.
-      // This allows concurrent uploads to have independent status tracking.
-      const candidates: string[] = fileId
-        ? [
-            path.join(process.cwd(), `transcode_status_${fileId}.json`),
-            path.join(process.cwd(), 'transcode_status.json'),
-          ]
-        : [path.join(process.cwd(), 'transcode_status.json')];
-
-      for (const statusFile of candidates) {
-        if (fs.existsSync(statusFile)) {
-          try {
-            const data = JSON.parse(fs.readFileSync(statusFile, 'utf-8'));
-            res.json(data);
-            return;
-          } catch {
-            // Ignore parse error during write collision; try next candidate
-          }
-        }
-      }
-      res.json({ status: 'idle', progress: 0, eta: 'Calculating...', speed: '0x' });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const logPath = path.join(process.cwd(), 'output_hls', 'transcoder.log');
-      if (fs.existsSync(logPath)) {
-        res.setHeader('Content-Type', 'text/plain');
-        res.send(fs.readFileSync(logPath, 'utf-8'));
-      } else {
-        res.send('No logs found.');
-      }
-    } catch (error: any) {
-      res.send('Error reading logs: ' + error.message);
-    }
-  }
-
-  // ── Telegram Media Streaming ───────────────────────────────────────────────
-
-  static async streamVideo(req: Request, res: Response, next: NextFunction): Promise<any> {
-    const messageIdParam = req.params.messageId;
-    if (!messageIdParam) return next(new AppError('Missing identification parameter', 400));
-
-    const parsedMessageId = parseInt(
-      (Array.isArray(messageIdParam) ? messageIdParam[0] : messageIdParam) as string,
-      10
-    );
-    if (isNaN(parsedMessageId)) return next(new AppError('Invalid message identification parameter', 400));
-
-    try {
-      const { default: bigInt } = await import('big-integer');
-      const client = await getTelegramClient();
-
-      const messages = await client.getMessages(channelId, { ids: [parsedMessageId] });
-      const targetMessage = messages[0];
-      if (!targetMessage || !targetMessage.media) {
-        return next(new AppError('Target media file not found on Telegram servers', 404));
-      }
-
-      let fileSize = 0;
-      const media = targetMessage.media;
-      if ('document' in media && media.document && 'size' in media.document) {
-        fileSize = Number((media.document as any).size);
-      } else if ('photo' in media && media.photo && 'sizes' in media.photo) {
-        const sizes = (media.photo as any).sizes;
-        const largest = sizes?.[sizes.length - 1];
-        if (largest && 'size' in largest) fileSize = Number((largest as any).size);
-      }
-
-      const rangeHeader = req.headers.range;
-      let start = 0;
-      let end = fileSize - 1;
-
-      res.setHeader('Content-Type', 'video/mp4');
-      res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'no-cache');
-
-      if (rangeHeader) {
-        const parts = rangeHeader.replace(/bytes=/, '').split('-');
-        start = parseInt(parts[0] || '0', 10);
-        end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-
-        if (start >= fileSize) {
-          res.status(416).set('Content-Range', `bytes */${fileSize}`).end();
-          return;
-        }
-
-        res.status(206);
-        res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
-      } else {
-        res.status(200);
-      }
-
-      const contentLength = end - start + 1;
-      res.setHeader('Content-Length', contentLength);
-
-      let bytesWritten = 0;
-      let clientDisconnected = false;
-      req.on('close', () => { clientDisconnected = true; });
-
-      const chunkIterator = client.iterDownload({
-        file: targetMessage.media,
-        chunkSize: 512 * 1024,
-        requestSize: 1024 * 1024,
-        offset: bigInt(start),
-      });
-
-      for await (const chunk of chunkIterator) {
-        if (clientDisconnected) break;
-        const remaining = contentLength - bytesWritten;
-        if (remaining <= 0) break;
-        
-        const dataToWrite = chunk.length <= remaining ? chunk : chunk.slice(0, remaining);
-        const canContinue = res.write(dataToWrite);
-        bytesWritten += dataToWrite.length;
-
-        if (!canContinue && !clientDisconnected) {
-          // ── Zero-Memory Proxy Backpressure ──
-          // Wait for OS socket buffer to drain before pulling more chunks from Telegram
-          await new Promise<void>((resolve) => {
-            const onDrain = () => {
-              req.off('close', onClose);
-              resolve();
-            };
-            const onClose = () => {
-              res.off('drain', onDrain);
-              resolve();
-            };
-            res.once('drain', onDrain);
-            req.once('close', onClose);
-          });
-        }
-      }
-
-      res.end();
-    } catch (error) {
-      console.error('🔴 Streaming pipeline failure:', error);
-      if (!res.headersSent) {
-        next(new AppError('Internal server media streaming pipeline failure', 500));
-      }
     }
   }
 }

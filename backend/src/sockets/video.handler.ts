@@ -2,14 +2,17 @@ import type { Socket, Server } from 'socket.io';
 import { RoomRepository } from '../repositories/room.repository.js';
 import { SOCKET_EVENTS } from '../constants/socketEvents.js';
 
+type SocketInfoMap = Map<string, { roomId: string; userId: string; name: string; isHost: boolean; role: string }>;
+
 // ─── RBAC helper ──────────────────────────────────────────────────────────
-async function assertCanControl(socket: Socket, roomId: string): Promise<boolean> {
-  const userId = (socket as any).userId || (socket as any).user?.id;
+async function assertCanControl(socket: Socket, roomId: string, socketInfo?: SocketInfoMap): Promise<boolean> {
+  const info = socketInfo?.get(socket.id);
+  const userId = (socket as any).userId || (socket as any).user?.sub || (socket as any).user?.id || info?.userId;
   if (!userId) {
     socket.emit('error_notification', { message: 'Unauthorized: authentication required.' });
     return false;
   }
-  const role = await RoomRepository.getUserRoomRole(roomId, userId);
+  const role = info?.role || (await RoomRepository.getUserRoomRole(roomId, userId));
   if (role === 'viewer') {
     console.warn(`⚠️ RBAC: viewer ${userId} attempted media control in room ${roomId} — blocked.`);
     socket.emit('error_notification', {
@@ -21,14 +24,14 @@ async function assertCanControl(socket: Socket, roomId: string): Promise<boolean
   return true;
 }
 
-export const registerVideoHandlers = (io: Server, socket: Socket) => {
+export const registerVideoHandlers = (io: Server, socket: Socket, socketInfo?: SocketInfoMap) => {
   // ── Play ────────────────────────────────────────────────────────────────
   socket.on('video:play', async (data: { roomId: string; position: number }) => {
     const { roomId, position } = data;
     const cleanRoomId = String(roomId).trim();
 
     try {
-      if (!(await assertCanControl(socket, cleanRoomId))) return;
+      if (!(await assertCanControl(socket, cleanRoomId, socketInfo))) return;
 
       console.log(`🎬 video:play — room ${cleanRoomId} at ${position}s`);
       const updated = await RoomRepository.updateRoomState(cleanRoomId, { isPlaying: true, position });
@@ -46,7 +49,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket) => {
     const cleanRoomId = String(roomId).trim();
 
     try {
-      if (!(await assertCanControl(socket, cleanRoomId))) return;
+      if (!(await assertCanControl(socket, cleanRoomId, socketInfo))) return;
 
       console.log(`🎬 video:pause — room ${cleanRoomId} at ${position}s`);
       const updated = await RoomRepository.updateRoomState(cleanRoomId, { isPlaying: false, position });
@@ -63,7 +66,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket) => {
     const cleanRoomId = String(roomId).trim();
 
     try {
-      if (!(await assertCanControl(socket, cleanRoomId))) return;
+      if (!(await assertCanControl(socket, cleanRoomId, socketInfo))) return;
 
       console.log(`🎬 video:seek — room ${cleanRoomId} to ${position}s`);
       const updated = await RoomRepository.updateRoomState(cleanRoomId, { position });
@@ -82,7 +85,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket) => {
       const cleanRoomId = String(roomId).trim();
 
       try {
-        if (!(await assertCanControl(socket, cleanRoomId))) return;
+        if (!(await assertCanControl(socket, cleanRoomId, socketInfo))) return;
         const updatedState = await RoomRepository.updateRoomState(cleanRoomId, { isPlaying, position });
         socket.to(cleanRoomId).emit('sync-state', { ...updatedState, serverTimestamp: Date.now() });
       } catch (err) {
@@ -99,7 +102,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket) => {
       const cleanRoomId = String(roomId).trim();
 
       try {
-        if (!(await assertCanControl(socket, cleanRoomId))) return;
+        if (!(await assertCanControl(socket, cleanRoomId, socketInfo))) return;
         console.log(`🎬 Legacy stream source hot-swap in room ${cleanRoomId}: ${streamUrl}`);
         const updated = await RoomRepository.updateRoomState(cleanRoomId, { streamUrl });
         socket.to(cleanRoomId).emit(SOCKET_EVENTS.UPDATE_VIDEO_SRC, streamUrl);

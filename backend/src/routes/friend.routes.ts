@@ -7,11 +7,12 @@ import {
   respondToRequestSchema,
 } from '../validations/friend.validation.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import { codeLookupRateLimiter } from '../middleware/rateLimit.middleware.js';
 
 const router = Router();
 
 // All friend routes require authentication
-router.get('/search', authMiddleware, validate(searchFriendsSchema), FriendController.searchUsers);
+router.get('/search', authMiddleware, codeLookupRateLimiter, validate(searchFriendsSchema), FriendController.searchUsers);
 router.get('/pending', authMiddleware, FriendController.getPending);
 router.get('/', authMiddleware, FriendController.getFriends);
 router.post('/request', authMiddleware, validate(sendFriendRequestSchema), FriendController.sendRequest);

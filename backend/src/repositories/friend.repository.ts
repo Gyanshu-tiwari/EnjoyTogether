@@ -1,4 +1,7 @@
 import { supabase, isSupabaseDisabled, handleSharedDbError } from '../config/supabase.js';
+import { UserRepository } from './user.repository.js';
+import { FriendCodeRepository } from './friendCode.repository.js';
+import { AppError } from '../utils/appError.js';
 
 export type FriendshipStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
 export type FriendshipAction = 'ACCEPT' | 'REJECT';
@@ -15,6 +18,9 @@ export interface UserSearchResult {
   id: string;
   username: string;
   avatarUrl?: string | undefined;
+  friendCode?: string | undefined;
+  identityType?: 'REGISTERED' | 'GUEST';
+  isGuest?: boolean;
   friendshipStatus: FriendshipStatus;
   friendshipId?: string | undefined;
 }
@@ -23,16 +29,66 @@ export interface UserSearchResult {
 const inMemoryFriendships: Map<string, Friendship> = new Map();
 
 export class FriendRepository {
+  static getInMemoryFriendshipsCount(): number {
+    return inMemoryFriendships.size;
+  }
+
+  static clearInMemoryFriendships(): void {
+    inMemoryFriendships.clear();
+  }
 
   static async searchUsers(query: string, requesterId: string): Promise<UserSearchResult[]> {
-    const cleanQuery = query.trim().toLowerCase().replace(/^@/, '');
-    if (!cleanQuery) return [];
+    const rawQuery = (query || '').trim().replace(/^@/, '');
+    if (!rawQuery) return [];
 
+    // 1. Exact 6-digit Friend Code lookup (preserves leading zeros)
+    if (/^\d{6}$/.test(rawQuery)) {
+      const codeRecord = await FriendCodeRepository.lookupCode(rawQuery);
+      if (!codeRecord || codeRecord.identityId === requesterId) {
+        return [];
+      }
+
+      if (codeRecord.identityType === 'REGISTERED') {
+        const profile = await UserRepository.getProfile(codeRecord.identityId);
+        if (!profile) return [];
+
+        const status = await this.getFriendshipStatus(requesterId, profile.id);
+        return [
+          {
+            id: profile.id,
+            username: profile.username || profile.id,
+            avatarUrl: profile.avatarUrl,
+            friendCode: codeRecord.code,
+            identityType: 'REGISTERED',
+            isGuest: false,
+            friendshipStatus: status.status,
+            friendshipId: status.friendshipId,
+          },
+        ];
+      }
+
+      // Guest identity
+      const guestSession = await FriendCodeRepository.getGuestSession(codeRecord.identityId);
+      return [
+        {
+          id: codeRecord.identityId,
+          username: `Guest_${codeRecord.code}`,
+          avatarUrl: guestSession?.avatarUrl || undefined,
+          friendCode: codeRecord.code,
+          identityType: 'GUEST',
+          isGuest: true,
+          friendshipStatus: 'NONE',
+        },
+      ];
+    }
+
+    // 2. Standard username search (registered users only)
+    const cleanQuery = rawQuery.toLowerCase();
     if (supabase && !isSupabaseDisabled()) {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, username, avatar_url')
+          .select('id, username, avatar_url, friend_code')
           .ilike('username', `%${cleanQuery}%`)
           .neq('id', requesterId)
           .limit(20);
@@ -47,6 +103,9 @@ export class FriendRepository {
               id: profile.id,
               username: profile.username || profile.id,
               avatarUrl: profile.avatar_url,
+              friendCode: profile.friend_code,
+              identityType: 'REGISTERED' as const,
+              isGuest: false,
               friendshipStatus: status.status,
               friendshipId: status.friendshipId,
             };
@@ -58,8 +117,24 @@ export class FriendRepository {
       }
     }
 
-    // In-memory fallback: no persistent user index, return empty
-    return [];
+    // In-memory fallback: query registered inMemoryProfiles
+    const matchingProfiles = UserRepository.searchInMemoryProfiles(cleanQuery, requesterId);
+    const results: UserSearchResult[] = await Promise.all(
+      matchingProfiles.map(async (profile) => {
+        const status = await this.getFriendshipStatus(requesterId, profile.id);
+        return {
+          id: profile.id,
+          username: profile.username || profile.id,
+          avatarUrl: profile.avatarUrl,
+          friendCode: profile.friendCode,
+          identityType: 'REGISTERED' as const,
+          isGuest: false,
+          friendshipStatus: status.status,
+          friendshipId: status.friendshipId,
+        };
+      })
+    );
+    return results;
   }
 
   static async getFriendshipStatus(
@@ -99,43 +174,91 @@ export class FriendRepository {
   }
 
   static async sendFriendRequest(requesterId: string, addresseeId: string): Promise<Friendship> {
-    if (requesterId === addresseeId) {
-      throw new Error('Cannot send a friend request to yourself.');
+    const cleanRequesterId = (requesterId || '').trim();
+    const cleanAddresseeId = (addresseeId || '').trim();
+
+    if (!cleanRequesterId || !cleanAddresseeId) {
+      throw new AppError('Both requester and recipient identifiers are required.', 400);
     }
 
-    const existing = await this.getFriendshipStatus(requesterId, addresseeId);
+    // 1. Preserve self-request check
+    if (cleanRequesterId === cleanAddresseeId) {
+      throw new AppError('Cannot send a friend request to yourself.', 400);
+    }
+
+    // 2. Explicit format check: reject anonymous/guest formatted IDs immediately
+    const isAnonymousGuestId = (id: string): boolean => {
+      const lower = id.toLowerCase();
+      return (
+        lower.startsWith('anon_') ||
+        lower.startsWith('guest_') ||
+        lower === 'anonymous-user' ||
+        lower === 'guest'
+      );
+    };
+
+    if (isAnonymousGuestId(cleanRequesterId)) {
+      throw new AppError('Anonymous guests cannot send friend requests. Please sign in or create an account.', 400);
+    }
+
+    if (isAnonymousGuestId(cleanAddresseeId)) {
+      throw new AppError('Cannot send friend request to an anonymous guest.', 400);
+    }
+
+    // 3. Authoritative verification: both users MUST exist as registered profiles
+    const [requesterProfile, addresseeProfile] = await Promise.all([
+      UserRepository.getProfile(cleanRequesterId),
+      UserRepository.getProfile(cleanAddresseeId),
+    ]);
+
+    if (!requesterProfile) {
+      throw new AppError('Requester account is not a valid registered user profile.', 400);
+    }
+
+    if (!addresseeProfile) {
+      throw new AppError('Recipient user does not exist or is not a registered user.', 400);
+    }
+
+    // 4. Duplicate request check
+    const existing = await this.getFriendshipStatus(cleanRequesterId, cleanAddresseeId);
     if (existing.status !== 'NONE') {
-      throw new Error(`Friend request already exists with status: ${existing.status}`);
+      throw new AppError(`Friend request already exists with status: ${existing.status}`, 400);
     }
 
     const newFriendship: Friendship = {
       id: crypto.randomUUID(),
-      requesterId,
-      addresseeId,
+      requesterId: cleanRequesterId,
+      addresseeId: cleanAddresseeId,
       status: 'PENDING',
       createdAt: new Date().toISOString(),
     };
 
-    inMemoryFriendships.set(newFriendship.id, newFriendship);
-
+    // 5. Database insertion with fail-safe error handling
     if (supabase && !isSupabaseDisabled()) {
       try {
         const { data, error } = await supabase
           .from('friendships')
           .insert({
-            requester_id: requesterId,
-            addressee_id: addresseeId,
+            requester_id: cleanRequesterId,
+            addressee_id: cleanAddresseeId,
             status: 'PENDING',
           })
           .select('id, requester_id, addressee_id, status, created_at')
           .single();
 
-        if (error) throw error;
+        if (error) {
+          handleSharedDbError(error, `sendFriendRequest ${cleanRequesterId} → ${cleanAddresseeId}`);
+          throw new AppError('Failed to record friendship in database.', 500);
+        }
+
         newFriendship.id = data.id;
         inMemoryFriendships.set(newFriendship.id, newFriendship);
       } catch (err) {
-        handleSharedDbError(err, `sendFriendRequest ${requesterId} → ${addresseeId}`);
+        if (err instanceof AppError) throw err;
+        throw new AppError('Database operation failed while recording friend request.', 500);
       }
+    } else {
+      inMemoryFriendships.set(newFriendship.id, newFriendship);
     }
 
     return newFriendship;

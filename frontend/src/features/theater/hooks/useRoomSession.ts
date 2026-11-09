@@ -74,15 +74,23 @@ export function useRoomSession(
         if (cancelled) return;
 
         if (room) {
-          const matchedHost = isHostProp !== undefined ? isHostProp : room.host_id === userId;
+          // Authoritative host determination:
+          // If room.host_id in the database matches userId, the user is authoritatively host.
+          // isHostProp=false from a parent component must NEVER demote the true room owner.
+          const isDbHost = Boolean(userId && room.host_id === userId);
+          const matchedHost = isDbHost || isHostProp === true;
           setIsHost(matchedHost);
 
           if (room.movie_url) setCurrentStreamUrl(room.movie_url);
 
-          if (room.is_active) {
-            setSessionState(matchedHost ? 'active_session' : 'knocking');
+          if (matchedHost) {
+            setSessionState(room.is_active ? 'active_session' : 'idle_host');
           } else {
-            setSessionState(matchedHost ? 'idle_host' : 'idle_guest');
+            if (room.is_active) {
+              setSessionState('knocking');
+            } else {
+              setSessionState(matchedHost ? 'idle_host' : 'idle_guest');
+            }
           }
         }
       } catch (err) {
@@ -98,7 +106,7 @@ export function useRoomSession(
 
   // 2. Polling for idle guests — increased to 3s to reduce server load
   useEffect(() => {
-    if (sessionState !== 'idle_guest' || dbError) return;
+    if (sessionState !== 'idle_guest' || isHost || dbError) return;
 
     // Fix #4: Capture interval in ref to avoid race between async callback and cleanup
     pollIntervalRef.current = setInterval(async () => {
@@ -108,7 +116,8 @@ export function useRoomSession(
         if (room?.is_active) {
           console.log('📡 Guest detected active session! Transitioning to knocking...');
           if (room.movie_url) setCurrentStreamUrl(room.movie_url);
-          setSessionState('knocking');
+          const isPreApproved = typeof window !== 'undefined' && sessionStorage.getItem(`et_accepted_room_${roomId}`) === 'true';
+          setSessionState(isPreApproved ? 'active_session' : 'knocking');
         }
       } catch (err) {
         if (axios.isAxiosError(err)) {
@@ -129,12 +138,13 @@ export function useRoomSession(
         pollIntervalRef.current = null;
       }
     };
-  }, [sessionState, roomId, dbError]);
+  }, [sessionState, roomId, dbError, isHost]);
 
   const startSession = useCallback(async () => {
     try {
       setLoading(true);
       setSessionState('active_session');
+      setIsHost(true);
       await toggleRoomActive(roomId, true);
     } catch (err) {
       setSessionState('idle_host');

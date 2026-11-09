@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Link, Copy, Check, Search, Loader2, Users, Send } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Link, Copy, Check, Search, Loader2, Users, Send, Clock } from 'lucide-react';
 import { Button } from '@/shared/components/ui/Button';
 import { Avatar } from '@/shared/components/ui/Avatar';
-import { getFriends, type FriendEntry } from '@/features/friends/api/friendApi';
+import { getFriends, searchUsers, type FriendEntry, type UserSearchResult } from '@/features/friends/api/friendApi';
+import { sendRoomInvitation } from '@/features/theater/api/theaterApi';
+import { useNotifications } from '@/features/invitations';
+import { useAuthSession } from '@/features/auth';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 
 interface InviteModalProps {
   roomId: string;
@@ -13,24 +18,49 @@ interface InviteModalProps {
 export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClose }) => {
   const [linkCopied, setLinkCopied] = useState(false);
   const [friends, setFriends] = useState<FriendEntry[]>([]);
+  const [codeResults, setCodeResults] = useState<UserSearchResult[]>([]);
   const [search, setSearch] = useState('');
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [searchingCode, setSearchingCode] = useState(false);
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  const [inviteStatuses, setInviteStatuses] = useState<Record<string, 'delivered' | 'offline' | 'accepted' | 'declined'>>({});
+  const [invitingId, setInvitingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const codeSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { lastSenderUpdate } = useNotifications();
+  const { session, isGuest } = useAuthSession();
+  const currentUserId = (!isGuest && session?.user?.id)
+    ? session.user.id
+    : (typeof window !== 'undefined' ? localStorage.getItem('et_anon_user_id') : null) || getAnonymousUserId();
+
+  // Listen to live recipient response updates
+  useEffect(() => {
+    if (!lastSenderUpdate) return;
+    if (lastSenderUpdate.roomId === roomId) {
+      setInviteStatuses((prev) => ({
+        ...prev,
+        [lastSenderUpdate.recipientId]: lastSenderUpdate.type === 'accepted' ? 'accepted' : 'declined',
+      }));
+    }
+  }, [lastSenderUpdate, roomId]);
 
   const roomUrl = `${window.location.origin}/room/${roomId}`;
 
   const showToast = (msg: string) => {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
   };
 
   const handleClose = React.useCallback(() => {
     setSearch('');
+    setCodeResults([]);
     setInvitedIds(new Set());
+    setInviteStatuses({});
+    setInvitingId(null);
     setLinkCopied(false);
     onClose();
   }, [onClose]);
@@ -50,8 +80,42 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
     return () => { ignore = true; };
   }, [isOpen]);
 
+  // Code / User search effect
+  useEffect(() => {
+    const query = search.trim();
+    if (!query) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCodeResults([]);
+      return;
+    }
+
+    if (codeSearchTimer.current) clearTimeout(codeSearchTimer.current);
+    codeSearchTimer.current = setTimeout(async () => {
+      if (/^\d{6}$/.test(query)) {
+        setSearchingCode(true);
+        try {
+          const results = await searchUsers(query);
+          setCodeResults(results);
+        } catch {
+          setCodeResults([]);
+        } finally {
+          setSearchingCode(false);
+        }
+      } else {
+        setCodeResults([]);
+      }
+    }, 250);
+
+    return () => {
+      if (codeSearchTimer.current) clearTimeout(codeSearchTimer.current);
+    };
+  }, [search]);
+
   const q = search.toLowerCase().trim();
-  const filteredFriends = q ? friends.filter((f) => f.username.toLowerCase().includes(q)) : friends;
+  const filteredFriends = friends
+    .filter((f) => f.friendId !== currentUserId)
+    .filter((f) => !q || f.username.toLowerCase().includes(q));
+  const filteredCodeResults = codeResults.filter((u) => u.id !== currentUserId);
 
   // Close on Escape
   useEffect(() => {
@@ -69,23 +133,70 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
   };
 
   const handleInviteFriend = async (friend: FriendEntry) => {
-    await navigator.clipboard.writeText(roomUrl);
-    setInvitedIds((prev) => new Set(prev).add(friend.friendId));
-    showToast(`Link copied — invite sent to @${friend.username}!`);
+    try {
+      setInvitingId(friend.friendId);
+      const res = await sendRoomInvitation({
+        roomId,
+        targetUserId: friend.friendId,
+        targetUsername: friend.username,
+      });
+      setInvitedIds((prev) => new Set(prev).add(friend.friendId));
+      setInviteStatuses((prev) => ({
+        ...prev,
+        [friend.friendId]: res.delivered ? 'delivered' : 'offline',
+      }));
+      if (res.delivered) {
+        showToast(`Invitation delivered to @${friend.username}!`);
+      } else {
+        showToast(`Invitation sent! @${friend.username} will see it when online.`);
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to send invitation';
+      showToast(`Error: ${msg}`);
+    } finally {
+      setInvitingId(null);
+    }
   };
+
+  const handleInviteUser = async (user: UserSearchResult) => {
+    try {
+      setInvitingId(user.id);
+      const res = await sendRoomInvitation({
+        roomId,
+        targetUserId: user.id,
+        targetUsername: user.username,
+      });
+      setInvitedIds((prev) => new Set(prev).add(user.id));
+      setInviteStatuses((prev) => ({
+        ...prev,
+        [user.id]: res.delivered ? 'delivered' : 'offline',
+      }));
+      if (res.delivered) {
+        showToast(`Invitation delivered to @${user.username}!`);
+      } else {
+        showToast(`Invitation sent! @${user.username} will see it when online.`);
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to send invitation';
+      showToast(`Error: ${msg}`);
+    } finally {
+      setInvitingId(null);
+    }
+  };
+
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-9000 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)' }}
       onClick={(e) => { if (e.target === overlayRef.current) handleClose(); }}
     >
-      <div className="w-full max-w-md bg-bg-card border border-neutral-800 rounded-2xl shadow-2xl animate-slide-up overflow-hidden">
+      <div className="w-full max-w-md max-h-[88vh] bg-bg-card border border-neutral-800 rounded-2xl shadow-2xl animate-slide-up flex flex-col overflow-hidden my-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800 shrink-0">
           <div>
             <h2 className="text-base font-extrabold text-white tracking-tight">Invite to Watch Party</h2>
             <p className="text-[10px] text-text-secondary mt-0.5 font-mono">Room: {roomId}</p>
@@ -98,7 +209,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
           </button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-5 space-y-5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
           {/* Section 1: Copy Link */}
           <div>
             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">
@@ -125,23 +236,80 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
             </div>
           </div>
 
-          {/* Section 2: Friend List */}
+          {/* Section 2: Friend List & Code Lookup */}
           <div>
             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">
-              Invite Friends
+              Invite Friends & Guests
             </p>
 
-            {/* Search within friends */}
+            {/* Search input supporting username or 6-digit code */}
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-600" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter friends…"
+                placeholder="Filter friends or enter 6-digit code…"
                 className="w-full pl-9 pr-3 h-9 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-brand/50 transition-all"
               />
+              {searchingCode && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500 animate-spin" />
+              )}
             </div>
+
+            {/* Exact code lookup results */}
+            {filteredCodeResults.length > 0 && (
+              <div className="mb-3 p-2 bg-neutral-900 border border-brand/30 rounded-xl">
+                <p className="text-[9px] font-bold text-brand uppercase tracking-wider mb-1.5 px-1">
+                  Found by Friend Code
+                </p>
+                {filteredCodeResults.map((u) => {
+                  const status = inviteStatuses[u.id];
+                  const isInvited = invitedIds.has(u.id) || !!status;
+                  const isThisInviting = invitingId === u.id;
+                  const isDeclined = status === 'declined';
+                  const isAccepted = status === 'accepted';
+                  const isOffline = status === 'offline';
+
+                  return (
+                    <div key={u.id} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-neutral-800/60 transition-colors">
+                      <Avatar
+                        src={u.avatarUrl}
+                        fallback={u.username.charAt(0).toUpperCase()}
+                        size="sm"
+                        className="shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">@{u.username}</p>
+                        <p className="text-[9px] text-neutral-500 font-mono">
+                          {u.isGuest ? 'Temporary Guest' : 'Registered User'}
+                        </p>
+                      </div>
+                      <Button
+                        variant={isAccepted ? 'emerald' : isInvited && !isDeclined ? 'secondary' : 'brand'}
+                        className={`h-6 px-2.5 text-[11px] shrink-0 ${isInvited && !isDeclined && !isAccepted ? 'opacity-80' : ''}`}
+                        onClick={() => (!isInvited || isDeclined) && !isThisInviting && handleInviteUser(u)}
+                        disabled={isThisInviting || (isInvited && !isDeclined)}
+                      >
+                        {isThisInviting ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Sending...</>
+                        ) : isAccepted ? (
+                          <><Check className="w-3 h-3 mr-1 text-emerald-400" />Accepted</>
+                        ) : isDeclined ? (
+                          <><Send className="w-3 h-3 mr-1" />Re-invite</>
+                        ) : isOffline ? (
+                          <><Clock className="w-3 h-3 mr-1 text-amber-400" />Offline</>
+                        ) : isInvited ? (
+                          <><Check className="w-3 h-3 mr-1" />Delivered</>
+                        ) : (
+                          <><Send className="w-3 h-3 mr-1" />Invite</>
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Friend list */}
             <div className="max-h-52 overflow-y-auto custom-scrollbar space-y-1.5">
@@ -158,7 +326,13 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
                 </div>
               ) : (
                 filteredFriends.map((friend) => {
-                  const invited = invitedIds.has(friend.friendId);
+                  const status = inviteStatuses[friend.friendId];
+                  const isInvited = invitedIds.has(friend.friendId) || !!status;
+                  const isThisInviting = invitingId === friend.friendId;
+                  const isDeclined = status === 'declined';
+                  const isAccepted = status === 'accepted';
+                  const isOffline = status === 'offline';
+
                   return (
                     <div
                       key={friend.friendshipId}
@@ -174,13 +348,21 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
                         @{friend.username}
                       </span>
                       <Button
-                        variant={invited ? 'secondary' : 'brand'}
-                        className={`h-7 px-3 text-xs shrink-0 ${invited ? 'opacity-60' : ''}`}
-                        onClick={() => !invited && handleInviteFriend(friend)}
-                        disabled={invited}
+                        variant={isAccepted ? 'emerald' : isInvited && !isDeclined ? 'secondary' : 'brand'}
+                        className={`h-7 px-3 text-xs shrink-0 ${isInvited && !isDeclined && !isAccepted ? 'opacity-80' : ''}`}
+                        onClick={() => (!isInvited || isDeclined) && !isThisInviting && handleInviteFriend(friend)}
+                        disabled={isThisInviting || (isInvited && !isDeclined)}
                       >
-                        {invited ? (
-                          <><Check className="w-3 h-3 mr-1" />Invited</>
+                        {isThisInviting ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Sending...</>
+                        ) : isAccepted ? (
+                          <><Check className="w-3 h-3 mr-1 text-emerald-400" />Accepted</>
+                        ) : isDeclined ? (
+                          <><Send className="w-3 h-3 mr-1" />Re-invite</>
+                        ) : isOffline ? (
+                          <><Clock className="w-3 h-3 mr-1 text-amber-400" />Sent (Offline)</>
+                        ) : isInvited ? (
+                          <><Check className="w-3 h-3 mr-1" />Delivered</>
                         ) : (
                           <><Send className="w-3 h-3 mr-1" />Invite</>
                         )}
@@ -195,12 +377,13 @@ export const InviteModal: React.FC<InviteModalProps> = ({ roomId, isOpen, onClos
 
         {/* Inline Toast */}
         {toast && (
-          <div className="mx-5 mb-4 flex items-center gap-2 px-3 py-2.5 bg-emerald-950/40 border border-emerald-900/50 text-emerald-400 rounded-xl text-xs font-medium animate-slide-up">
+          <div className="mx-5 mb-4 shrink-0 flex items-center gap-2 px-3 py-2.5 bg-emerald-950/40 border border-emerald-900/50 text-emerald-400 rounded-xl text-xs font-medium animate-slide-up">
             <Check className="w-3.5 h-3.5 shrink-0" />
             <span>{toast}</span>
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

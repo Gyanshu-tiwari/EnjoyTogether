@@ -32,10 +32,18 @@ export function isSupabaseDisabled(): boolean {
 }
 
 export function handleSharedDbError(err: any, context: string): void {
-  if (err && (err.code === 'PGRST205' || (err.message && err.message.includes('schema cache')))) {
+  if (
+    err &&
+    (err.code === 'PGRST205' ||
+      (err.message &&
+        (err.message.includes('schema cache') ||
+          err.message.includes('fetch failed') ||
+          err.message.includes('ENOTFOUND') ||
+          err.message.includes('ECONNREFUSED'))))
+  ) {
     if (!_supabaseDisabled) {
       _supabaseDisabled = true;
-      console.warn('⚠️ Supabase table(s) not found in schema cache. Falling back to in-memory mode for all repositories.');
+      console.warn('⚠️ Supabase unavailable or table(s) not found. Falling back to in-memory mode for all repositories.');
     }
   } else {
     console.error(`❌ DB Error [${context}]:`, err);

@@ -4,12 +4,16 @@ import { Button } from '@/shared/components/ui/Button';
 import { Avatar } from '@/shared/components/ui/Avatar';
 import { Badge } from '@/shared/components/ui/Badge';
 import { supabase } from '@/shared/lib/supabase';
+import { useAuthSession } from '@/features/auth';
+import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
 import {
   searchUsers,
   sendFriendRequest,
   respondToRequest,
   getFriends,
   getPendingRequests,
+  getUserProfile,
+  initGuestSession,
   type UserSearchResult,
   type FriendEntry,
   type PendingRequest,
@@ -24,22 +28,116 @@ export const FriendsTab: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hashKey, setHashKey] = useState<string>('U00000');
+  const { session } = useAuthSession();
+  const [friendCode, setFriendCode] = useState<string | null>(() => {
+    if (typeof window !== 'undefined' && !session?.user?.id) {
+      return localStorage.getItem('et_anon_friend_code') || null;
+    }
+    return null;
+  });
+  const [codeLoading, setCodeLoading] = useState<boolean>(true);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [accountInfo, setAccountInfo] = useState<{
+    displayName: string;
+    avatarUrl?: string | null;
+    isGuest: boolean;
+  }>({
+    displayName: 'My Account',
+    isGuest: false,
+  });
   const [copied, setCopied] = useState(false);
-  
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    // Generate simulated Hash Key from User ID
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user?.id) {
-        const id = data.session.user.id;
-        // Simple hash for display (first 5 chars of uuid after 'U')
-        setHashKey(`U ${id.substring(0, 1).toUpperCase()} ${id.substring(1, 2)} ${id.substring(2, 3)} ${id.substring(3, 4)} ${id.substring(4, 5)}`);
+  const fetchIdentityAndCode = useCallback(async () => {
+    setCodeLoading(true);
+    setCodeError(null);
+
+    try {
+      // 1. Authoritative registered user identity
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentSession = sessionData.session || session;
+
+      if (currentSession?.user?.id) {
+        const meta = currentSession.user.user_metadata;
+        const initialName = meta?.username || meta?.full_name || currentSession.user.email?.split('@')[0] || 'User';
+        const initialAvatar = meta?.avatar_url || null;
+
+        setAccountInfo({
+          displayName: initialName,
+          avatarUrl: initialAvatar,
+          isGuest: false,
+        });
+
+        const profile = await getUserProfile();
+        if (profile) {
+          if (profile.username) {
+            setAccountInfo((prev) => ({
+              ...prev,
+              displayName: profile.username || prev.displayName,
+              avatarUrl: profile.avatarUrl !== undefined ? profile.avatarUrl : prev.avatarUrl,
+            }));
+          }
+          if (profile.friendCode) {
+            setFriendCode(profile.friendCode);
+            setCodeLoading(false);
+            return;
+          }
+        }
+
+        setCodeError('Friend code not available.');
+        setCodeLoading(false);
+        return;
       }
-    });
-  }, []);
+
+      // 2. Anonymous guest user identity
+      setAccountInfo({
+        displayName: 'Guest User',
+        avatarUrl: null,
+        isGuest: true,
+      });
+
+      const guestId = (typeof window !== 'undefined' ? localStorage.getItem('et_anon_user_id') : null) || getAnonymousUserId();
+      const existingSecret = typeof window !== 'undefined' ? (localStorage.getItem('et_anon_session_secret') || undefined) : undefined;
+      const cachedCode = typeof window !== 'undefined' ? localStorage.getItem('et_anon_friend_code') : null;
+
+      if (cachedCode && cachedCode.length === 6 && existingSecret) {
+        setFriendCode(cachedCode);
+      }
+
+      const guestSession = await initGuestSession(guestId, existingSecret);
+      if (guestSession?.friendCode) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('et_anon_user_id', guestSession.guestId);
+          localStorage.setItem('et_anon_friend_code', guestSession.friendCode);
+          localStorage.setItem('et_anon_session_secret', guestSession.sessionSecret);
+        }
+        setFriendCode(guestSession.friendCode);
+        setCodeLoading(false);
+      } else if (cachedCode) {
+        setFriendCode(cachedCode);
+        setCodeLoading(false);
+      } else {
+        setCodeError('Failed to allocate guest friend code.');
+        setCodeLoading(false);
+      }
+    } catch (err) {
+      console.error('[FriendsTab] Failed to resolve friend code:', err);
+      const cached = typeof window !== 'undefined' ? localStorage.getItem('et_anon_friend_code') : null;
+      if (cached && cached.length === 6) {
+        setFriendCode(cached);
+        setCodeLoading(false);
+      } else {
+        setCodeError('Unable to load friend code.');
+        setCodeLoading(false);
+      }
+    }
+  }, [session]);
+
+  useEffect(() => {
+    fetchIdentityAndCode();
+  }, [fetchIdentityAndCode]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -59,12 +157,14 @@ export const FriendsTab: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 
   // Debounced search
   useEffect(() => {
     if (!searchQuery.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchResults([]);
       return;
     }
@@ -92,7 +192,7 @@ export const FriendsTab: React.FC = () => {
       setSearchResults((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, friendshipStatus: 'PENDING' } : u))
       );
-    } catch (e: unknown) {
+    } catch {
       setError('Failed to send request.');
     } finally {
       setActionLoading(null);
@@ -111,40 +211,82 @@ export const FriendsTab: React.FC = () => {
     }
   };
 
-  const copyHashKey = () => {
-    navigator.clipboard.writeText(hashKey.replace(/ /g, ''));
+  const copyFriendCode = () => {
+    if (!friendCode) return;
+    navigator.clipboard.writeText(friendCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const formattedCode = friendCode && friendCode.length === 6 ? `${friendCode.slice(0, 3)} ${friendCode.slice(3, 6)}` : friendCode;
 
   return (
     <div className="w-full max-w-6xl animate-fade-in grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 items-start mx-auto mt-4">
       {/* Left Column: Actions & Search */}
       <div className="flex flex-col gap-6">
-        
-        {/* Hash Key & Pending Card */}
+
+        {/* Friend Code & Pending Card */}
         <div className="bg-[#111214] border border-white/5 rounded-[24px] p-6 shadow-2xl">
            <div className="flex items-center gap-3 mb-6">
-              <Avatar src={undefined} fallback="M" size="lg" className="border-neutral-800" />
+              <Avatar
+                src={accountInfo.avatarUrl || undefined}
+                fallback={accountInfo.displayName.charAt(0).toUpperCase()}
+                size="lg"
+                className="border-neutral-800"
+              />
               <div className="flex flex-col min-w-0">
-                 <span className="text-base font-bold text-white truncate">My Account</span>
-                 <span className="text-xs text-neutral-500 font-mono">#{hashKey.replace(/ /g, '')}</span>
+                 <span className="text-base font-bold text-white truncate">{accountInfo.displayName}</span>
+                 {friendCode ? (
+                   <span className="text-xs text-neutral-500 font-mono">#{friendCode}</span>
+                 ) : (
+                   <span className="text-xs text-neutral-500 font-mono">
+                     {accountInfo.isGuest ? 'Guest Session' : 'Account'}
+                   </span>
+                 )}
               </div>
            </div>
 
            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 mb-2 relative overflow-hidden group">
               <div className="flex justify-between items-center mb-3 relative z-10">
-                 <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">YOUR HASH KEY</h4>
-                 <button 
-                   onClick={copyHashKey}
-                   className="text-[10px] font-bold flex items-center gap-1.5 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-                 >
-                   {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                   {copied ? 'Copied' : 'Copy'}
-                 </button>
+                 <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">YOUR FRIEND CODE</h4>
+                 {friendCode && (
+                   <button
+                     onClick={copyFriendCode}
+                     className="text-[10px] font-bold flex items-center gap-1.5 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                   >
+                     {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                     {copied ? 'Copied' : 'Copy'}
+                   </button>
+                 )}
               </div>
-              <p className="text-3xl font-black text-white tracking-[0.2em] mb-2 font-mono relative z-10">{hashKey}</p>
-              <p className="text-[11px] text-neutral-500 font-medium relative z-10">Share with friends to connect</p>
+
+              {codeLoading && !friendCode ? (
+                <div className="flex items-center gap-3 py-3 relative z-10">
+                  <Loader2 className="w-6 h-6 animate-spin text-brand" />
+                  <span className="text-xs text-neutral-400 font-mono animate-pulse">Loading friend code...</span>
+                </div>
+              ) : codeError && !friendCode ? (
+                <div className="py-2 relative z-10">
+                  <p className="text-xs text-red-400 mb-2 font-medium">{codeError}</p>
+                  <button
+                    onClick={fetchIdentityAndCode}
+                    className="text-[11px] font-semibold text-brand hover:underline cursor-pointer"
+                  >
+                    Retry loading code
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-3xl font-black text-white tracking-[0.2em] mb-2 font-mono relative z-10">
+                    {formattedCode || '------'}
+                  </p>
+                  <p className="text-[11px] text-neutral-500 font-medium relative z-10">
+                    {accountInfo.isGuest
+                      ? 'Temporary 6-digit code for this guest session'
+                      : 'Share your permanent 6-digit code with friends'}
+                  </p>
+                </>
+              )}
            </div>
 
            {/* Pending Requests */}
@@ -192,9 +334,9 @@ export const FriendsTab: React.FC = () => {
               </div>
               <h3 className="text-xl font-bold text-white tracking-tight">Find People</h3>
            </div>
-           
+
            <p className="text-xs text-neutral-400 mb-6">
-              Search by Display Name or <span className="font-bold text-white">Hash Key</span> (recommended).
+              Search by exact 6-digit <span className="font-bold text-white">Friend Code</span> or username.
            </p>
 
            <div className="relative mb-6">
@@ -204,7 +346,7 @@ export const FriendsTab: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="e.g. A83921 or John"
+                placeholder="e.g. 042918 or john"
                 className="w-full pl-10 pr-4 h-11 bg-neutral-900 border border-neutral-800 rounded-xl text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-brand/50 transition-all font-medium"
               />
               {searching && (
@@ -226,9 +368,17 @@ export const FriendsTab: React.FC = () => {
                        <Avatar src={user.avatarUrl} fallback={user.username.charAt(0).toUpperCase()} size="sm" className="shrink-0" />
                        <div className="flex-1 min-w-0">
                          <p className="text-sm font-semibold text-white truncate">@{user.username}</p>
+                         {user.friendCode && (
+                           <p className="text-[10px] text-neutral-500 font-mono">#{user.friendCode}</p>
+                         )}
                        </div>
                        <div className="shrink-0">
-                         {user.friendshipStatus === 'ACCEPTED' ? (
+                         {user.isGuest ? (
+                           <div className="flex flex-col items-end">
+                             <Badge variant="warning" className="text-[10px] text-amber-400 border-amber-500/30">Guest</Badge>
+                             <span className="text-[9px] text-neutral-500 mt-0.5">Watch Party only</span>
+                           </div>
+                         ) : user.friendshipStatus === 'ACCEPTED' ? (
                            <Badge variant="success">Friends</Badge>
                          ) : user.friendshipStatus === 'PENDING' ? (
                            <Badge variant="warning">Pending</Badge>
@@ -259,7 +409,7 @@ export const FriendsTab: React.FC = () => {
       <div className="bg-[#111214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col min-h-150 relative overflow-hidden">
          <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
             <h2 className="text-3xl font-black text-white tracking-tight">Connections</h2>
-            <button 
+            <button
               onClick={() => {
                 searchInputRef.current?.focus();
               }}

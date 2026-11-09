@@ -8,12 +8,6 @@ export const getLivekitTokenSchema = z.object({
   }),
 });
 
-export const startUploadSchema = z.object({
-  body: z.object({
-    fileId: z.string().uuid('fileId must be a valid UUID').optional(),
-  }).optional(),
-});
-
 export const changeVideoSrcSchema = z.object({
   body: z.object({
     roomId: roomIdSchema,
@@ -24,7 +18,8 @@ export const changeVideoSrcSchema = z.object({
 export const createRoomSchema = z.object({
   body: z.object({
     hostId: z.string().optional(),
-    movieUrl: z.string().trim().min(1, 'Video source path cannot be empty').optional(),
+    movieUrl: z.string().optional(),
+    mediaName: z.string().optional(),
   }),
 });
 
