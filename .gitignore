@@ -23,3 +23,7 @@ backend/tests/run_*.ts
 backend/tests/test_*.ts
 backend/tests/verify_*.ts
 backend/tests/e2e_real_browser_*.ts
+
+# Agent and temporary scratchpads
+scratchpad/
+scratch/
