@@ -84,4 +84,13 @@ const server = httpServer.listen(PORT, '0.0.0.0', () => {
 server.timeout = 0;
 server.keepAliveTimeout = 65_000; // > most load-balancer idle timeouts (60s)
 
+// ── Process-Level Resilience Handlers ─────────────────────────────────────────
+process.on('unhandledRejection', (reason: any) => {
+  console.error('⚠️ Unhandled Promise Rejection caught at process level:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err: Error) => {
+  console.error('❌ Uncaught Exception caught at process level:', err);
+});
+
 export { app, httpServer };

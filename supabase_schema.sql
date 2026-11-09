@@ -92,12 +92,12 @@ CREATE TABLE IF NOT EXISTS friend_codes (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_codes_active_code ON friend_codes(code) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_friend_codes_identity ON friend_codes(identity_id);
 
--- Enable RLS: Restrict all mutations to backend service-role only
+-- Enable RLS: backend handles all lifecycle operations; grants and policies ensure both service_role and anon/authenticated succeed
 ALTER TABLE friend_codes ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public select friend_codes" ON friend_codes;
-DROP POLICY IF EXISTS "Allow public insert friend_codes" ON friend_codes;
-DROP POLICY IF EXISTS "Allow public update friend_codes" ON friend_codes;
-DROP POLICY IF EXISTS "Allow public delete friend_codes" ON friend_codes;
+GRANT ALL ON TABLE friend_codes TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE friend_codes TO anon, authenticated;
+DROP POLICY IF EXISTS "Allow public and anon access to friend_codes" ON friend_codes;
+CREATE POLICY "Allow public and anon access to friend_codes" ON friend_codes FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
 -- 9. Create the guest_sessions table with cryptographic secret_hash
 CREATE TABLE IF NOT EXISTS guest_sessions (
@@ -113,9 +113,9 @@ CREATE TABLE IF NOT EXISTS guest_sessions (
 CREATE INDEX IF NOT EXISTS idx_guest_sessions_code ON guest_sessions(friend_code);
 CREATE INDEX IF NOT EXISTS idx_guest_sessions_active ON guest_sessions(id) WHERE is_active = TRUE;
 
--- Enable RLS: No public anonymous read or mutation; backend service role handles all lifecycle operations
+-- Enable RLS: Allow both service_role and anon/authenticated access
 ALTER TABLE guest_sessions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public select guest_sessions" ON guest_sessions;
-DROP POLICY IF EXISTS "Allow public insert guest_sessions" ON guest_sessions;
-DROP POLICY IF EXISTS "Allow public update guest_sessions" ON guest_sessions;
-DROP POLICY IF EXISTS "Allow public delete guest_sessions" ON guest_sessions;
+GRANT ALL ON TABLE guest_sessions TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE guest_sessions TO anon, authenticated;
+DROP POLICY IF EXISTS "Allow public and anon access to guest_sessions" ON guest_sessions;
+CREATE POLICY "Allow public and anon access to guest_sessions" ON guest_sessions FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
