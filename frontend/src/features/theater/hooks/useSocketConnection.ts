@@ -281,8 +281,7 @@ export function useSocketConnection({
 
       socketInstance.on('sync-state', (roomState: { streamUrl?: string; mediaSourceType?: string; mediaName?: string; mediaDuration?: number | null }) => {
         if (roomState?.streamUrl) setCurrentStreamUrl(roomState.streamUrl);
-        if (roomState?.mediaSourceType === 'local') {
-          console.log('[Socket] sync-state indicates host is streaming local media:', roomState.mediaName);
+        if (roomState?.mediaSourceType === 'local' || (roomState?.mediaDuration !== undefined && roomState?.mediaDuration !== null)) {
           onHostStreamReadyRef.current?.({
             mediaName: roomState.mediaName || 'Host Stream',
             mediaDuration: roomState.mediaDuration ?? null,

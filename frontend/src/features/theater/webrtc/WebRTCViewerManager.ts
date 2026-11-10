@@ -392,10 +392,8 @@ export class WebRTCViewerManager {
       console.log(`[WebRTCViewerManager] ICE state: ${pc.iceConnectionState}`);
       this._logPeerLifecycle('ice_state_change');
       if (pc.iceConnectionState === 'failed') {
-        console.warn('[WebRTCViewerManager] ICE failed. Requesting reconnect.');
-        this._closePeer();
-        this._onStreamLost();
-        this._onConnectionStateChange?.('failed');
+        console.warn('[WebRTCViewerManager] ICE failed. Retrying connection...');
+        this.retry();
       }
     };
 

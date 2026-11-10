@@ -220,9 +220,8 @@ export const TheaterProvider: React.FC<{
       }
       if (!isHost) {
         console.log('[TheaterProvider] onHostStreamReady received for viewer:', data);
-        setWebRTCStatus((prev) => (prev === 'connected' ? 'connected' : 'connecting'));
         if (viewerManagerRef.current) {
-          viewerManagerRef.current.signalReady(true);
+          viewerManagerRef.current.signalReady(false);
         } else {
           pendingSignalReadyRef.current = true;
         }
@@ -235,6 +234,11 @@ export const TheaterProvider: React.FC<{
       setWebRTCStatus('host_disconnected');
     }, []),
   });
+
+  const currentUserIdRef = useRef(currentUserId);
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
 
   const retryViewerConnection = useCallback(() => {
     if (!isHost) {
@@ -251,11 +255,19 @@ export const TheaterProvider: React.FC<{
     const iceServers = getIceServers();
 
     if (isHost) {
-      // Host manager is set up when the host selects a video file (see setLocalFile below)
-      // Nothing to do here yet — no file selected
+      // Host WebRTC is managed via startHostCapture / setLocalFile
+      if (viewerManagerRef.current) {
+        viewerManagerRef.current.destroy();
+        viewerManagerRef.current = null;
+      }
     } else {
-      // Viewer: set up viewer manager and signal ready
-      const effectiveViewerId = currentUserId || (typeof window !== 'undefined' ? (localStorage.getItem('et_anon_user_id') || getAnonymousUserId()) : 'viewer');
+      // Viewer: reuse existing active manager if already established for this room
+      if (viewerManagerRef.current) {
+        console.log('[TheaterProvider] WebRTCViewerManager already active for room, preserving connection.');
+        return;
+      }
+
+      const effectiveViewerId = currentUserIdRef.current || (typeof window !== 'undefined' ? (localStorage.getItem('et_anon_user_id') || getAnonymousUserId()) : 'viewer');
       console.log(`[TheaterProvider] Setting up WebRTCViewerManager for viewer ${effectiveViewerId}.`);
       const manager = new WebRTCViewerManager({
         socket,
@@ -287,17 +299,10 @@ export const TheaterProvider: React.FC<{
 
       viewerManagerRef.current = manager;
       setWebRTCStatus('connecting');
-      manager.signalReady(true);
+      manager.signalReady(false);
       pendingSignalReadyRef.current = false;
     }
-
-    return () => {
-      if (!isHost && viewerManagerRef.current) {
-        viewerManagerRef.current.destroy();
-        viewerManagerRef.current = null;
-      }
-    };
-  }, [sessionState, socket, isHost, roomId, currentUserId]);
+  }, [sessionState, socket, isHost, roomId]);
 
   // ── Host: select a local file ──────────────────────────────────────────────
   const setLocalFile = useCallback(async (file: File | null) => {
