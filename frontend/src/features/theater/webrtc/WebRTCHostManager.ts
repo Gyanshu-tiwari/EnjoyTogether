@@ -32,10 +32,29 @@ export interface VideoEncodingProfile {
 export const DEFAULT_VIDEO_ENCODING_PROFILE: VideoEncodingProfile = {
   targetWidth: 1280,
   targetHeight: 720,
-  maxBitrate: 2_500_000,
+  maxBitrate: 3_000_000,
   maxFramerate: 30,
   degradationPreference: 'maintain-framerate',
 };
+
+/**
+ * Munges SDP to enforce stereo, high-fidelity bitrate (128kbps), and CBR for Opus audio.
+ * Prevents WebRTC from defaulting to mono speech with voice activity suppression on movie tracks.
+ */
+export function tuneOpusSdp(sdp: string): string {
+  return sdp.replace(/a=fmtp:(\d+)\s+([^\r\n]+)/g, (line, payloadType, params) => {
+    const isOpus = payloadType === '111' || sdp.includes(`a=rtpmap:${payloadType} opus/48000`);
+    if (isOpus) {
+      let tuned = params;
+      if (!tuned.includes('stereo=')) tuned += ';stereo=1';
+      if (!tuned.includes('sprop-stereo=')) tuned += ';sprop-stereo=1';
+      if (!tuned.includes('maxaveragebitrate=')) tuned += ';maxaveragebitrate=128000';
+      if (!tuned.includes('cbr=')) tuned += ';cbr=1';
+      return `a=fmtp:${payloadType} ${tuned}`;
+    }
+    return line;
+  });
+}
 
 export interface HostMediaStats {
   viewerId: string;
@@ -279,6 +298,9 @@ export class WebRTCHostManager {
       }
     }
 
+    // Prioritize hardware-accelerated H.264 video codec if available
+    this._configureCodecPreferences(pc);
+
     // Apply video sender encoding constraints (framerate, bitrate ceiling, resolution scaling)
     await this._configureVideoSender(pc);
 
@@ -312,19 +334,21 @@ export class WebRTCHostManager {
       }
     };
 
-    // Create and send offer
+    // Create and send offer with tuned stereo Opus SDP
     try {
       entry.makingOffer = true;
       const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+      const tunedSdp = tuneOpusSdp(offer.sdp || '');
+      const tunedOffer = new RTCSessionDescription({ type: offer.type, sdp: tunedSdp });
+      await pc.setLocalDescription(tunedOffer);
       this._logPeerLifecycle(entry, 'offer_created');
       this._socket.emit('webrtc:offer', {
         roomId: this._roomId,
         targetId: viewerId,
-        sdp: { type: offer.type, sdp: offer.sdp },
+        sdp: { type: tunedOffer.type, sdp: tunedOffer.sdp },
         connectionId,
       });
-      console.log(`[WebRTCHostManager] Offer sent to viewer ${viewerId}.`);
+      console.log(`[WebRTCHostManager] Offer sent to viewer ${viewerId} with stereo Opus parameters.`);
     } catch (err) {
       console.error(`[WebRTCHostManager] Failed to create/send offer to ${viewerId}:`, err);
       this._removePeer(viewerId, 'error');
@@ -394,6 +418,32 @@ export class WebRTCHostManager {
   }
 
   /**
+   * Prioritize hardware-accelerated H.264 video codec if available to minimize CPU encoding stutter.
+   */
+  private _configureCodecPreferences(pc: RTCPeerConnection): void {
+    const videoTransceiver = pc.getTransceivers().find((t) => t.sender.track?.kind === 'video');
+    if (
+      videoTransceiver &&
+      typeof (videoTransceiver as any).setCodecPreferences === 'function' &&
+      typeof RTCRtpSender.getCapabilities === 'function'
+    ) {
+      try {
+        const capabilities = RTCRtpSender.getCapabilities('video');
+        if (capabilities && capabilities.codecs) {
+          const h264Codecs = capabilities.codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264');
+          const otherCodecs = capabilities.codecs.filter((c) => c.mimeType.toLowerCase() !== 'video/h264');
+          if (h264Codecs.length > 0) {
+            (videoTransceiver as any).setCodecPreferences([...h264Codecs, ...otherCodecs]);
+            console.log('[WebRTCHostManager] Prioritized H.264 hardware encoding for smooth playback.');
+          }
+        }
+      } catch (err) {
+        console.warn('[WebRTCHostManager] Failed to set codec preferences:', err);
+      }
+    }
+  }
+
+  /**
    * Applies video encoding configuration (scaleResolutionDownBy, maxFramerate, maxBitrate, degradationPreference)
    * to the peer's video sender without modifying or downscaling the original local video element.
    */
@@ -408,13 +458,12 @@ export class WebRTCHostManager {
       const sourceHeight = settings?.height || this._sourceDimensions?.height || 0;
 
       let scale = 1.0;
-      const targetWidth = this._videoProfile.targetWidth;
-      const targetHeight = this._videoProfile.targetHeight;
-
-      if (sourceWidth > 0 && targetWidth > 0 && sourceWidth > targetWidth) {
-        scale = Math.max(1.0, Number((sourceWidth / targetWidth).toFixed(2)));
-      } else if (sourceHeight > 0 && targetHeight > 0 && sourceHeight > targetHeight) {
-        scale = Math.max(1.0, Number((sourceHeight / targetHeight).toFixed(2)));
+      if (sourceHeight >= 1440) {
+        scale = 2.0; // 1440p+ cleanly downscaled to 720p without non-integer CPU burden
+      } else if (sourceHeight > 1080) {
+        scale = 1.5;
+      } else {
+        scale = 1.0; // 1080p and 720p retain native scaling to avoid CPU encoding jitter
       }
 
       const params = videoSender.getParameters();
@@ -429,7 +478,7 @@ export class WebRTCHostManager {
 
       await videoSender.setParameters(params);
       console.log(
-        `[WebRTCHostManager] Video sender encoding applied: scale=${scale} (source=${sourceWidth}x${sourceHeight} -> target=${targetWidth}x${targetHeight}), ` +
+        `[WebRTCHostManager] Video sender encoding applied: scale=${scale} (source=${sourceWidth}x${sourceHeight} -> target=${this._videoProfile.targetWidth}x${this._videoProfile.targetHeight}), ` +
         `maxBitrate=${this._videoProfile.maxBitrate}, maxFramerate=${this._videoProfile.maxFramerate}, degPref=${this._videoProfile.degradationPreference}`
       );
     } catch (err) {

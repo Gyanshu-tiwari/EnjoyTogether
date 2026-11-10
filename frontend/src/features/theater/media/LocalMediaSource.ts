@@ -191,9 +191,39 @@ export class LocalMediaSource {
     const stream = captureStreamSafe(videoElement);
     if (!stream) {
       console.error('[LocalMediaSource] captureStream() returned null — browser may not support it.');
-    } else {
-      console.log(`[LocalMediaSource] captureStream() succeeded: ${stream.getTracks().length} track(s).`);
+      return null;
     }
+    console.log(`[LocalMediaSource] captureStream() succeeded: ${stream.getTracks().length} track(s).`);
+
+    // Ensure audio track is stereo downmixed via Web Audio API so center channel (dialogue & vocals) is preserved
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack && typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const actx = new AudioContextClass();
+        if (actx.state === 'suspended') {
+          actx.resume().catch(() => {});
+        }
+        const srcNode = actx.createMediaStreamSource(new MediaStream([audioTrack]));
+        const destNode = actx.createMediaStreamDestination();
+        destNode.channelCount = 2;
+        destNode.channelCountMode = 'explicit';
+        destNode.channelInterpretation = 'speakers';
+        srcNode.connect(destNode);
+
+        const cleanAudioTrack = destNode.stream.getAudioTracks()[0];
+        if (cleanAudioTrack) {
+          console.log('[LocalMediaSource] Clean stereo audio downmix created (vocals & center channel preserved).');
+          return new MediaStream([
+            ...stream.getVideoTracks(),
+            cleanAudioTrack,
+          ]);
+        }
+      } catch (e) {
+        console.warn('[LocalMediaSource] Web Audio downmixing failed, using raw audio track:', e);
+      }
+    }
+
     return stream;
   }
 

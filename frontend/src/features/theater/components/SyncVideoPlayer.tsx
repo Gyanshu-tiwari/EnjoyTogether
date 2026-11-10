@@ -134,14 +134,15 @@ export const SyncVideoPlayer: React.FC = () => {
     captureStartedRef.current = false;
 
     // Begin captureStream only when the video element has loaded valid metadata
-    const tryStartCapture = () => {
-      if (captureStartedRef.current || !videoRef.current) return;
+    const tryStartCapture = (forceRefresh: boolean = false) => {
+      if (!videoRef.current) return;
+      if (captureStartedRef.current && !forceRefresh) return;
       if (
         videoRef.current.readyState >= HTMLMediaElement.HAVE_METADATA &&
         (videoRef.current.videoWidth > 0 || videoRef.current.duration > 0)
       ) {
         captureStartedRef.current = true;
-        console.log('[SyncVideoPlayer] Host video metadata verified, starting WebRTC capture stream.');
+        console.log(`[SyncVideoPlayer] Host video metadata verified (forceRefresh=${forceRefresh}), updating WebRTC capture stream.`);
         startHostCapture(videoRef.current);
       }
     };
@@ -154,7 +155,7 @@ export const SyncVideoPlayer: React.FC = () => {
     const onWaiting = () => setIsBuffering(true);
     const onPlaying = () => {
       setIsBuffering(false);
-      tryStartCapture();
+      tryStartCapture(true); // Ensure audio tracks are refreshed on active playback
     };
 
     const onError = () => {
@@ -173,7 +174,7 @@ export const SyncVideoPlayer: React.FC = () => {
     };
 
     const onPlay = () => {
-      tryStartCapture();
+      tryStartCapture(true);
     };
 
     video.addEventListener('canplay', onCanPlay);
@@ -281,6 +282,30 @@ export const SyncVideoPlayer: React.FC = () => {
       }
     };
   }, [mode, viewerStream]);
+
+  // ── VIEWER MODE: Auto-unmute immediately upon first user interaction ────────
+  useEffect(() => {
+    if (!isMutedAutoplay || mode !== 'webrtc_viewer') return;
+
+    const unmuteOnInteraction = () => {
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
+        setIsMutedAutoplay(false);
+        console.log('[SyncVideoPlayer] Viewer audio automatically unmuted via user interaction.');
+      }
+    };
+
+    window.addEventListener('click', unmuteOnInteraction, { capture: true, once: true });
+    window.addEventListener('keydown', unmuteOnInteraction, { capture: true, once: true });
+    window.addEventListener('touchstart', unmuteOnInteraction, { capture: true, once: true });
+
+    return () => {
+      window.removeEventListener('click', unmuteOnInteraction, { capture: true });
+      window.removeEventListener('keydown', unmuteOnInteraction, { capture: true });
+      window.removeEventListener('touchstart', unmuteOnInteraction, { capture: true });
+    };
+  }, [isMutedAutoplay, mode]);
 
   // ── LEGACY HLS MODE ────────────────────────────────────────────────────────
   useEffect(() => {
