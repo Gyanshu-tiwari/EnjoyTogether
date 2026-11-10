@@ -45,6 +45,7 @@ export function useSocketSync({
 }: UseSocketSyncParams) {
   // isSyncingRef: true during programmatic play/pause so our own video events don't echo back
   const isSyncingRef = useRef<boolean>(false);
+  const isSeekingProgrammaticallyRef = useRef<boolean>(false);
   const lastSyncedRef = useRef<SyncState | null>(null);
   // Track the highest received stateVersion to reject stale messages
   const lastStateVersionRef = useRef<number>(-1);
@@ -109,7 +110,20 @@ export function useSocketSync({
 
         if ((state as any).isSeek || timeDiff > 1.0 || (!state.isPlaying && timeDiff > 0.1)) {
           // Hard sync: snap immediately — seek triggered or notable drift
+          isSeekingProgrammaticallyRef.current = true;
           video.currentTime = latencyCompensatedPosition;
+          const onSeeked = () => {
+            video.removeEventListener('seeked', onSeeked);
+            setTimeout(() => {
+              isSeekingProgrammaticallyRef.current = false;
+              isSyncingRef.current = false;
+            }, 100);
+          };
+          video.addEventListener('seeked', onSeeked, { once: true });
+          setTimeout(() => {
+            isSeekingProgrammaticallyRef.current = false;
+            isSyncingRef.current = false;
+          }, 2500);
         } else if (timeDiff > 0.3) {
           // Soft sync: nudge playback rate to converge smoothly over ~3s
           const nudge = video.currentTime < latencyCompensatedPosition ? 1.05 : 0.95;
@@ -128,15 +142,27 @@ export function useSocketSync({
           .catch(() => setIsBlocked(true))
           .finally(() => {
             if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-            syncTimeoutRef.current = setTimeout(() => { isSyncingRef.current = false; }, 200);
+            syncTimeoutRef.current = setTimeout(() => {
+              if (!isSeekingProgrammaticallyRef.current) {
+                isSyncingRef.current = false;
+              }
+            }, 300);
           });
       } else if (!state.isPlaying && !video.paused) {
         video.pause();
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = setTimeout(() => { isSyncingRef.current = false; }, 200);
+        syncTimeoutRef.current = setTimeout(() => {
+          if (!isSeekingProgrammaticallyRef.current) {
+            isSyncingRef.current = false;
+          }
+        }, 300);
       } else {
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = setTimeout(() => { isSyncingRef.current = false; }, 200);
+        syncTimeoutRef.current = setTimeout(() => {
+          if (!isSeekingProgrammaticallyRef.current) {
+            isSyncingRef.current = false;
+          }
+        }, 300);
       }
     };
 
@@ -146,8 +172,8 @@ export function useSocketSync({
       // Viewers must never broadcast play/pause/seek events to the room
       if (!canControl) return;
 
-      // Skip: we're processing an incoming sync event ourselves
-      if (isSyncingRef.current) return;
+      // Skip: we're processing an incoming sync or seek event ourselves
+      if (isSyncingRef.current || isSeekingProgrammaticallyRef.current) return;
 
       const isPlaying = !video.paused;
       const position  = video.currentTime;

@@ -482,7 +482,7 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
           ? externalCurrentTime
           : (video.currentTime || currentTime);
         const maxDur = effectiveDuration || video.duration || 0;
-        const target = clamp(baseTime + secondsDelta, 0, maxDur);
+        const target = maxDur > 0 ? clamp(baseTime + secondsDelta, 0, maxDur) : Math.max(0, baseTime + secondsDelta);
         if (externalCurrentTime === undefined || externalCurrentTime === null) {
           video.currentTime = target;
         }

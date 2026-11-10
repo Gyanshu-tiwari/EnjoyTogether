@@ -105,9 +105,11 @@ export const SyncVideoPlayer: React.FC = () => {
 
   const handlePlayerSeek = useCallback((targetTime: number) => {
     if (!canControl) return;
-    console.log(`[SyncVideoPlayer] Co-host/Host emitting video:seek to ${targetTime.toFixed(2)}s`);
-    socket?.emit('video:seek', { roomId, position: targetTime });
-  }, [canControl, socket, roomId]);
+    if (mode === 'webrtc_viewer') {
+      console.log(`[SyncVideoPlayer] Co-host emitting video:seek to ${targetTime.toFixed(2)}s`);
+      socket?.emit('video:seek', { roomId, position: targetTime });
+    }
+  }, [canControl, mode, socket, roomId]);
 
   // Reset retry/loading state when HLS stream changes
   useEffect(() => {

@@ -141,6 +141,17 @@ export class WebRTCHostManager {
         console.log(`[WebRTCHostManager] Peer ${viewerId} is already connected on connectionId ${connectionId}. Skipping redundant negotiation.`);
         return;
       }
+      // If peer is waiting on an offer they might have missed, re-transmit current local offer
+      if (existing.pc.signalingState === 'have-local-offer' && existing.pc.localDescription) {
+        console.log(`[WebRTCHostManager] Peer ${viewerId} re-requested offer on connectionId ${connectionId}. Re-emitting offer.`);
+        this._socket.emit('webrtc:offer', {
+          roomId: this._roomId,
+          targetId: viewerId,
+          sdp: { type: existing.pc.localDescription.type, sdp: existing.pc.localDescription.sdp },
+          connectionId,
+        });
+        return;
+      }
       if (existing.pc.signalingState !== 'closed' && existing.pc.connectionState !== 'failed' && existing.pc.connectionState !== 'closed') {
         console.log(`[WebRTCHostManager] Peer ${viewerId} is already negotiating on connectionId ${connectionId} (signaling: ${existing.pc.signalingState}, conn: ${existing.pc.connectionState}). Skipping duplicate negotiation.`);
         return;
@@ -299,7 +310,7 @@ export class WebRTCHostManager {
       this._logPeerLifecycle(entry, 'ice_state_change');
       if (pc.iceConnectionState === 'failed') {
         console.warn(`[WebRTCHostManager] ICE failed for ${viewerId}. Attempting ICE restart.`);
-        pc.restartIce();
+        this._restartIceForViewer(viewerId, entry);
       }
     };
 
@@ -328,6 +339,31 @@ export class WebRTCHostManager {
     } catch (err) {
       console.error(`[WebRTCHostManager] Failed to create/send offer to ${viewerId}:`, err);
       this._removePeer(viewerId, 'error');
+    } finally {
+      entry.makingOffer = false;
+    }
+  }
+
+  /** Performs a standards-compliant ICE restart by generating and emitting a new offer */
+  private async _restartIceForViewer(viewerId: string, entry: PeerEntry): Promise<void> {
+    try {
+      if (this._destroyed || entry.makingOffer || entry.pc.signalingState !== 'stable') {
+        return;
+      }
+      entry.makingOffer = true;
+      entry.pc.restartIce();
+      const offer = await entry.pc.createOffer({ iceRestart: true });
+      await entry.pc.setLocalDescription(offer);
+      this._logPeerLifecycle(entry, 'ice_restart_offer_sent');
+      this._socket.emit('webrtc:offer', {
+        roomId: this._roomId,
+        targetId: viewerId,
+        sdp: { type: offer.type, sdp: offer.sdp },
+        connectionId: entry.connectionId,
+      });
+      console.log(`[WebRTCHostManager] ICE restart offer sent to viewer ${viewerId}.`);
+    } catch (err) {
+      console.warn(`[WebRTCHostManager] Failed to restart ICE for ${viewerId}:`, err);
     } finally {
       entry.makingOffer = false;
     }
