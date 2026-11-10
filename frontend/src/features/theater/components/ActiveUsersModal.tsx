@@ -10,7 +10,7 @@ interface ActiveUsersModalProps {
 }
 
 export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onClose }) => {
-  const { activeUsers, currentUserId, isHost, changeRole, kickUser } = useTheater();
+  const { activeUsers, currentUserId, isHost, userRole, changeRole, kickUser } = useTheater();
 
   const uniqueUsers = React.useMemo(() => {
     const map = new Map<string, ActiveUser>();
@@ -63,17 +63,19 @@ export const ActiveUsersModal: React.FC<ActiveUsersModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              {/* Host Controls */}
-              {isHost && !isMe && (
+              {/* Host & Co-Host Controls */}
+              {!isMe && (isHost || (userRole === 'co-host' && user.role === 'viewer')) && (
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <select
-                    value={user.role}
-                    onChange={(e) => changeRole(user.userId, e.target.value)}
-                    className="bg-bg-primary border border-white/5 text-xs text-neutral-300 rounded px-1 py-1 focus:outline-none cursor-pointer"
-                  >
-                    <option value="viewer">Viewer</option>
-                    <option value="co-host">Co-Host</option>
-                  </select>
+                  {isHost && (
+                    <select
+                      value={user.role}
+                      onChange={(e) => changeRole(user.userId, e.target.value)}
+                      className="bg-bg-primary border border-white/5 text-xs text-neutral-300 rounded px-1 py-1 focus:outline-none cursor-pointer"
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="co-host">Co-Host</option>
+                    </select>
+                  )}
                   <button
                     onClick={() => kickUser(user.userId)}
                     className="text-xs bg-red-500/20 text-red-400 hover:bg-red-500/40 px-2 py-1 rounded border border-red-500/20 transition-colors"

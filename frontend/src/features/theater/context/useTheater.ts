@@ -7,6 +7,7 @@
 import { createContext, useContext } from 'react';
 import { Socket } from 'socket.io-client';
 import type { WatchPartyRole } from '@/features/videocall/hooks/useLiveKitRoom';
+export type { WatchPartyRole };
 import type { LocalMediaSource } from '../media/LocalMediaSource';
 import type { MediaSourceDescriptor } from '../media/types';
 

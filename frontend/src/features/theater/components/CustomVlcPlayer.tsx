@@ -76,6 +76,10 @@ export interface CustomVlcPlayerProps {
   children?: React.ReactNode;
   /** Authoritative media duration from host/room state for WebRTC MediaStreams where video.duration is infinite or unknown */
   externalDuration?: number | null;
+  /** Authoritative current playback time from host/room sync state */
+  externalCurrentTime?: number | null;
+  /** Authoritative play/pause status from room sync state */
+  externalIsPlaying?: boolean;
 }
 
 /**
@@ -182,6 +186,8 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
       className = '',
       children,
       externalDuration,
+      externalCurrentTime,
+      externalIsPlaying,
     },
     ref
   ) => {
@@ -189,6 +195,7 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
     const containerRef = useRef<HTMLDivElement | null>(null);
     const internalVideoRef = useRef<HTMLVideoElement | null>(null);
     const scrubBarRef = useRef<HTMLDivElement | null>(null);
+    const scrubTargetRef = useRef<number | null>(null);
     const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const doubleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -210,6 +217,7 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
         : isFinite(duration) && duration > 0
         ? duration
         : 0;
+
     const [bufferedEnd, setBufferedEnd] = useState<number>(0);
     const [volume, setVolumeState] = useState<number>(1);
     const [isMuted, setIsMuted] = useState<boolean>(false);
@@ -223,6 +231,20 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
     const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
     const [hoverTime, setHoverTime] = useState<number | null>(null);
     const [hoverX, setHoverX] = useState<number>(0);
+
+    // Sync authoritative timeline position from room state
+    useEffect(() => {
+      if (externalCurrentTime !== undefined && externalCurrentTime !== null && !isScrubbing) {
+        setCurrentTime(externalCurrentTime);
+      }
+    }, [externalCurrentTime, isScrubbing]);
+
+    // Sync authoritative play/pause state from room state
+    useEffect(() => {
+      if (externalIsPlaying !== undefined) {
+        setIsPlaying(externalIsPlaying);
+      }
+    }, [externalIsPlaying]);
 
     // ── Mobile Gesture & Simulated Hardware State ─────────────────────────────
     const [brightness, setBrightness] = useState<number>(1.0);
@@ -379,13 +401,15 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
       const video = getVideo();
       if (!video) return;
 
-      if (video.paused || video.ended) {
+      const currentlyPlaying = externalIsPlaying !== undefined ? externalIsPlaying : (!video.paused && !video.ended);
+      if (!currentlyPlaying) {
         video.play().catch((err) => console.warn('[CustomVlcPlayer] Playback failed:', err));
         showVlcOsd({
           type: 'play',
           title: 'Playback',
           value: 'Play',
         });
+        onPlay?.();
       } else {
         video.pause();
         showVlcOsd({
@@ -393,8 +417,9 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
           title: 'Playback',
           value: 'Pause',
         });
+        onPause?.();
       }
-    }, [canControl, getVideo, showVlcOsd]);
+    }, [canControl, getVideo, showVlcOsd, externalIsPlaying, onPlay, onPause]);
 
     // ── Volume & Mute Adjustments ─────────────────────────────────────────────
     const adjustVolume = useCallback(
@@ -453,8 +478,14 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
         if (!canControl) return;
         const video = getVideo();
         if (!video) return;
-        const target = clamp(video.currentTime + secondsDelta, 0, effectiveDuration || video.duration || 0);
-        video.currentTime = target;
+        const baseTime = (externalCurrentTime !== undefined && externalCurrentTime !== null)
+          ? externalCurrentTime
+          : (video.currentTime || currentTime);
+        const maxDur = effectiveDuration || video.duration || 0;
+        const target = clamp(baseTime + secondsDelta, 0, maxDur);
+        if (externalCurrentTime === undefined || externalCurrentTime === null) {
+          video.currentTime = target;
+        }
         setCurrentTime(target);
         onSeek?.(target);
 
@@ -464,10 +495,10 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
           value: secondsDelta >= 0 ? `+${secondsDelta}s` : `${secondsDelta}s`,
           delta: secondsDelta >= 0 ? `+${secondsDelta}s` : `${secondsDelta}s`,
           currentTimeFormatted: formatTime(target),
-          percentage: video.duration > 0 ? Math.round((target / video.duration) * 100) : 0,
+          percentage: maxDur > 0 ? Math.round((target / maxDur) * 100) : 0,
         });
       },
-      [canControl, getVideo, onSeek, showVlcOsd]
+      [canControl, getVideo, externalCurrentTime, currentTime, effectiveDuration, onSeek, showVlcOsd]
     );
 
     // ── Global Keyboard Shortcuts ─────────────────────────────────────────────
@@ -581,8 +612,11 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
         const percentage = offsetX / rect.width;
         const targetTime = percentage * activeDuration;
 
-        video.currentTime = targetTime;
+        if (externalCurrentTime === undefined || externalCurrentTime === null) {
+          video.currentTime = targetTime;
+        }
         setCurrentTime(targetTime);
+        scrubTargetRef.current = targetTime;
 
         showVlcOsd({
           type: 'seek-forward',
@@ -592,7 +626,7 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
           currentTimeFormatted: `${formatTime(targetTime)} / ${formatTime(activeDuration)}`,
         });
       },
-      [effectiveDuration, duration, getVideo, showVlcOsd]
+      [effectiveDuration, duration, externalCurrentTime, getVideo, showVlcOsd]
     );
 
     const handleScrubPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -609,8 +643,14 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
 
       const onPointerUp = () => {
         setIsScrubbing(false);
-        const video = getVideo();
-        if (video) onSeek?.(video.currentTime);
+        const finalTime = scrubTargetRef.current;
+        if (finalTime !== null && finalTime !== undefined) {
+          onSeek?.(finalTime);
+          scrubTargetRef.current = null;
+        } else {
+          const video = getVideo();
+          if (video) onSeek?.(video.currentTime);
+        }
 
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
@@ -851,8 +891,10 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
           onTimeUpdate={() => {
             const video = getVideo();
             if (!video || isScrubbing) return;
-            setCurrentTime(video.currentTime);
-            onTimeUpdate?.(video.currentTime, video.duration || 0);
+            if (externalCurrentTime === undefined || externalCurrentTime === null) {
+              setCurrentTime(video.currentTime);
+            }
+            onTimeUpdate?.(currentTime, video.duration || 0);
 
             if (video.buffered.length > 0) {
               setBufferedEnd(video.buffered.end(video.buffered.length - 1));

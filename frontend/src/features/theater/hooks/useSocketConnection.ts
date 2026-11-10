@@ -10,7 +10,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from '@/shared/lib/supabase';
 import { getAnonymousUserId } from '@/shared/utils/anonymousUser';
-import type { Comment, KnockRequest, FloatingEmoji, ActiveUser } from '../context/useTheater';
+import type { Comment, KnockRequest, FloatingEmoji, ActiveUser, WatchPartyRole } from '../context/useTheater';
 
 type SessionState = 'idle_host' | 'idle_guest' | 'knocking' | 'rejected' | 'active_session';
 
@@ -35,6 +35,8 @@ interface UseSocketConnectionParams {
   onHostStreamReady?: (data: { mediaName: string; mediaDuration: number | null }) => void;
   /** Called when host stream ends (viewer only) */
   onHostStreamEnded?: () => void;
+  /** Called when our RBAC role is updated */
+  onRoleChange?: (newRole: WatchPartyRole) => void;
 }
 
 interface UseSocketConnectionResult {
@@ -80,6 +82,7 @@ export function useSocketConnection({
   onViewerJoined,
   onHostStreamReady,
   onHostStreamEnded,
+  onRoleChange,
 }: UseSocketConnectionParams): UseSocketConnectionResult {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [knocks, setKnocks] = useState<KnockRequest[]>([]);
@@ -108,6 +111,7 @@ export function useSocketConnection({
   const onViewerJoinedRef = useRef(onViewerJoined);
   const onHostStreamReadyRef = useRef(onHostStreamReady);
   const onHostStreamEndedRef = useRef(onHostStreamEnded);
+  const onRoleChangeRef = useRef(onRoleChange);
   useEffect(() => { onWebRTCOfferRef.current = onWebRTCOffer; }, [onWebRTCOffer]);
   useEffect(() => { onWebRTCAnswerRef.current = onWebRTCAnswer; }, [onWebRTCAnswer]);
   useEffect(() => { onWebRTCIceCandidateRef.current = onWebRTCIceCandidate; }, [onWebRTCIceCandidate]);
@@ -115,6 +119,7 @@ export function useSocketConnection({
   useEffect(() => { onViewerJoinedRef.current = onViewerJoined; }, [onViewerJoined]);
   useEffect(() => { onHostStreamReadyRef.current = onHostStreamReady; }, [onHostStreamReady]);
   useEffect(() => { onHostStreamEndedRef.current = onHostStreamEnded; }, [onHostStreamEnded]);
+  useEffect(() => { onRoleChangeRef.current = onRoleChange; }, [onRoleChange]);
 
   // Store socket in a ref for use in callbacks
   const socketRef = useRef<Socket | null>(null);
@@ -246,7 +251,27 @@ export function useSocketConnection({
             userMap.set(key, u);
           }
         }
-        setActiveUsers(Array.from(userMap.values()));
+        const userList = Array.from(userMap.values());
+        setActiveUsers(userList);
+
+        const myUser = userList.find(
+          (u) => u.userId === currentUserId || (socketInstance && u.socketId === socketInstance.id)
+        );
+        if (myUser && myUser.role) {
+          onRoleChangeRef.current?.(myUser.role as WatchPartyRole);
+        }
+      });
+
+      socketInstance.on('room:my-role-changed', (data: { role: WatchPartyRole }) => {
+        console.log('👑 My room role updated to:', data.role);
+        onRoleChangeRef.current?.(data.role);
+      });
+
+      socketInstance.on('room:role-changed', (data: { userId: string; role: WatchPartyRole }) => {
+        if (data.userId === currentUserId || (socketInstance && data.userId === socketInstance.id)) {
+          console.log('👑 Room broadcast: My role updated to:', data.role);
+          onRoleChangeRef.current?.(data.role);
+        }
       });
 
       socketInstance.on('room:kicked', () => {

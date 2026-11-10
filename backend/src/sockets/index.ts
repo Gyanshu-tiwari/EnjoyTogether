@@ -475,34 +475,40 @@ export const setupSockets = (io: Server): void => {
 
         // We should update the role in database or memory. Let's update socketInfo mapping for all sockets of targetUserId.
         let targetFound = false;
+        let actualUserId = targetUserId;
         for (const [sId, sInfo] of socketInfo.entries()) {
-          if (sInfo.roomId === roomId && sInfo.userId === targetUserId) {
+          if (sInfo.roomId === roomId && (sInfo.userId === targetUserId || sId === targetUserId)) {
             sInfo.role = newRole;
+            actualUserId = sInfo.userId;
             targetFound = true;
+            io.to(sId).emit('room:my-role-changed', { role: newRole });
           }
         }
 
         if (targetFound) {
           // Update DB via RoomRepository
-          await RoomRepository.updateUserRoomRole(roomId, targetUserId, newRole as any);
+          await RoomRepository.updateUserRoomRole(roomId, actualUserId, newRole as any);
           broadcastActiveUsers(io, roomId);
+          io.to(roomId).emit('room:role-changed', { userId: actualUserId, role: newRole });
 
-          // Update LiveKit permissions dynamically
-          try {
-            const roomService = new RoomServiceClient(
-              livekitConfig.serverUrl,
-              livekitConfig.apiKey,
-              livekitConfig.apiSecret
-            );
-            const canPublish = newRole === 'host' || newRole === 'co-host';
-            await roomService.updateParticipant(roomId, targetUserId, undefined, {
-              canPublish,
-              canSubscribe: true,
-              canPublishData: canPublish,
-            });
-            console.log(`✅ LiveKit permissions dynamically updated for ${targetUserId} to canPublish=${canPublish}`);
-          } catch (lkErr) {
-            console.warn(`⚠️ Could not update LiveKit permissions for ${targetUserId}:`, lkErr);
+          // Update LiveKit permissions dynamically if configured
+          if (livekitConfig.serverUrl && livekitConfig.apiKey && livekitConfig.apiSecret) {
+            try {
+              const roomService = new RoomServiceClient(
+                livekitConfig.serverUrl,
+                livekitConfig.apiKey,
+                livekitConfig.apiSecret
+              );
+              const canPublish = newRole === 'host' || newRole === 'co-host';
+              await roomService.updateParticipant(roomId, actualUserId, undefined, {
+                canPublish,
+                canSubscribe: true,
+                canPublishData: canPublish,
+              });
+              console.log(`✅ LiveKit permissions dynamically updated for ${actualUserId} to canPublish=${canPublish}`);
+            } catch (lkErr) {
+              console.warn(`⚠️ Could not update LiveKit permissions for ${actualUserId}:`, lkErr);
+            }
           }
         }
       } catch (err) {

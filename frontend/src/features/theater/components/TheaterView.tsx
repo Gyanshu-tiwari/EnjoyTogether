@@ -27,6 +27,7 @@ export const TheaterView: React.FC = () => {
     sendEmoji,
     sessionState,
     isHost,
+    userRole,
     endSession,
     setUserRole,
     knocks,
@@ -39,9 +40,11 @@ export const TheaterView: React.FC = () => {
   // Connect to LiveKit Room at the top level
   const livekit = useLiveKitRoom(roomId, sessionState);
 
-  // Sync RBAC role from LiveKit token into shared theater context
+  // Sync RBAC role from LiveKit token into shared theater context (only if elevated)
   useEffect(() => {
-    if (livekit.userRole) setUserRole(livekit.userRole);
+    if (livekit.userRole && livekit.userRole !== 'viewer') {
+      setUserRole(livekit.userRole);
+    }
   }, [livekit.userRole, setUserRole]);
 
   // Simple local elapsed timer
@@ -113,8 +116,8 @@ export const TheaterView: React.FC = () => {
           <div className="flex-1 min-h-0 min-w-0 bg-black rounded-2xl overflow-hidden shadow-2xl relative flex items-center justify-center border border-white/5">
             <SyncVideoPlayer />
 
-            {/* Host Join Requests UI overlay */}
-            {isHost && knocks.length > 0 && (
+            {/* Host / Co-Host Join Requests UI overlay */}
+            {(isHost || userRole === 'co-host') && knocks.length > 0 && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-auto px-4">
                 {knocks.map((knock) => (
                   <div key={knock.socketId} className="bg-[#18181b]/90 border border-white/10 shadow-2xl rounded-2xl p-4 flex items-center gap-4 animate-slide-down backdrop-blur-md">

@@ -35,8 +35,8 @@ export const registerVideoHandlers = (io: Server, socket: Socket, socketInfo?: S
 
       console.log(`🎬 video:play — room ${cleanRoomId} at ${position}s`);
       const updated = await RoomRepository.updateRoomState(cleanRoomId, { isPlaying: true, position });
-      // Broadcast to all other room members (not the sender)
-      socket.to(cleanRoomId).emit('sync-state', { ...updated, serverTimestamp: Date.now() });
+      // Broadcast to all room members
+      io.to(cleanRoomId).emit('sync-state', { ...updated, serverTimestamp: Date.now() });
     } catch (err) {
       console.error('Error in video:play:', err);
       socket.emit('error_notification', { message: 'Internal server error during play.' });
@@ -53,7 +53,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket, socketInfo?: S
 
       console.log(`🎬 video:pause — room ${cleanRoomId} at ${position}s`);
       const updated = await RoomRepository.updateRoomState(cleanRoomId, { isPlaying: false, position });
-      socket.to(cleanRoomId).emit('sync-state', { ...updated, serverTimestamp: Date.now() });
+      io.to(cleanRoomId).emit('sync-state', { ...updated, serverTimestamp: Date.now() });
     } catch (err) {
       console.error('Error in video:pause:', err);
       socket.emit('error_notification', { message: 'Internal server error during pause.' });
@@ -70,7 +70,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket, socketInfo?: S
 
       console.log(`🎬 video:seek — room ${cleanRoomId} to ${position}s`);
       const updated = await RoomRepository.updateRoomState(cleanRoomId, { position });
-      socket.to(cleanRoomId).emit('sync-state', { ...updated, serverTimestamp: Date.now() });
+      io.to(cleanRoomId).emit('sync-state', { ...updated, serverTimestamp: Date.now(), isSeek: true });
     } catch (err) {
       console.error('Error in video:seek:', err);
       socket.emit('error_notification', { message: 'Internal server error during seek.' });
@@ -87,7 +87,7 @@ export const registerVideoHandlers = (io: Server, socket: Socket, socketInfo?: S
       try {
         if (!(await assertCanControl(socket, cleanRoomId, socketInfo))) return;
         const updatedState = await RoomRepository.updateRoomState(cleanRoomId, { isPlaying, position });
-        socket.to(cleanRoomId).emit('sync-state', { ...updatedState, serverTimestamp: Date.now() });
+        io.to(cleanRoomId).emit('sync-state', { ...updatedState, serverTimestamp: Date.now() });
       } catch (err) {
         console.error('Error in legacy media-action:', err);
       }
