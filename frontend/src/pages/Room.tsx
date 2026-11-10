@@ -22,6 +22,7 @@ const RoomContent: React.FC<{
   const {
     sessionState,
     isHost,
+    userRole,
     startSession,
     loading,
     dbError,
@@ -115,8 +116,8 @@ const RoomContent: React.FC<{
       <div className="w-full h-full flex flex-col overflow-hidden">
         <TheaterView />
 
-        {/* Host Admission Alerts */}
-        {isHost && knocks.length > 0 && (
+        {/* Host / Co-Host Admission Alerts */}
+        {(isHost || userRole === 'co-host') && knocks.length > 0 && (
           <div className="fixed top-6 right-6 flex flex-col gap-3 w-80" style={{ zIndex: 9999 }}>
             {knocks.map((knock) => (
               <div
@@ -341,8 +342,8 @@ const RoomContent: React.FC<{
         )}
       </div>
 
-      {/* Host Admission Alerts in Lobby */}
-      {isHost && knocks.length > 0 && (
+      {/* Host / Co-Host Admission Alerts in Lobby */}
+      {(isHost || userRole === 'co-host') && knocks.length > 0 && (
         <div className="fixed top-6 right-6 flex flex-col gap-3 w-80" style={{ zIndex: 99999 }}>
           {knocks.map((knock) => (
             <div

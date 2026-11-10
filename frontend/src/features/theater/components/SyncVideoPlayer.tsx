@@ -22,7 +22,7 @@
  *   - Preserves backward compatibility with existing HLS-based rooms
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { useTheater } from '../context/useTheater';
 import { useSocketSync } from '../hooks/useSocketSync';
@@ -77,13 +77,37 @@ export const SyncVideoPlayer: React.FC = () => {
   const isLiveStream = mode === 'webrtc_viewer';
 
   // Socket sync (play/pause/seek) — control guarded for host/co-host; rate/seek bypass for live stream
-  const { isBlocked, handleManualUnlock } = useSocketSync({
+  const { isBlocked, handleManualUnlock, moviePosition, roomIsPlaying } = useSocketSync({
     videoRef,
     socket,
     roomId,
     canControl,
     isLiveStream,
   });
+
+  const handlePlayerPlay = useCallback(() => {
+    if (!canControl) return;
+    if (mode === 'webrtc_viewer') {
+      const pos = moviePosition;
+      console.log(`[SyncVideoPlayer] Co-host emitting video:play at ${pos.toFixed(2)}s`);
+      socket?.emit('video:play', { roomId, position: pos });
+    }
+  }, [canControl, mode, moviePosition, socket, roomId]);
+
+  const handlePlayerPause = useCallback(() => {
+    if (!canControl) return;
+    if (mode === 'webrtc_viewer') {
+      const pos = moviePosition;
+      console.log(`[SyncVideoPlayer] Co-host emitting video:pause at ${pos.toFixed(2)}s`);
+      socket?.emit('video:pause', { roomId, position: pos });
+    }
+  }, [canControl, mode, moviePosition, socket, roomId]);
+
+  const handlePlayerSeek = useCallback((targetTime: number) => {
+    if (!canControl) return;
+    console.log(`[SyncVideoPlayer] Co-host/Host emitting video:seek to ${targetTime.toFixed(2)}s`);
+    socket?.emit('video:seek', { roomId, position: targetTime });
+  }, [canControl, socket, roomId]);
 
   // Reset retry/loading state when HLS stream changes
   useEffect(() => {
@@ -410,9 +434,14 @@ export const SyncVideoPlayer: React.FC = () => {
   return (
     <CustomVlcPlayer
       externalVideoRef={videoRef}
-      canControl={canControl && mode !== 'webrtc_viewer'}
+      canControl={canControl}
       className="shadow-2xl border border-white/10"
       externalDuration={isHost ? (mediaSource?.descriptor?.durationSeconds ?? videoRef.current?.duration ?? null) : streamDuration}
+      externalCurrentTime={mode === 'webrtc_viewer' ? moviePosition : null}
+      externalIsPlaying={mode === 'webrtc_viewer' ? roomIsPlaying : undefined}
+      onPlay={handlePlayerPlay}
+      onPause={handlePlayerPause}
+      onSeek={handlePlayerSeek}
     >
       {/* Loading overlay: shown while HLS manifest is being fetched */}
       {mode === 'hls_legacy' && isLoading && !playbackError && (

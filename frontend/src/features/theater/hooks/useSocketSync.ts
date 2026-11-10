@@ -50,8 +50,27 @@ export function useSocketSync({
   const lastStateVersionRef = useRef<number>(-1);
   const [isBlocked, setIsBlocked] = useState<boolean>(false);
 
+  // Authoritative room timeline position for live WebRTC stream playback
+  const [moviePosition, setMoviePosition] = useState<number>(0);
+  const [roomIsPlaying, setRoomIsPlaying] = useState<boolean>(false);
+  const moviePosRef = useRef<number>(0);
+  const roomIsPlayingRef = useRef<boolean>(false);
+  const lastSyncTimeRef = useRef<number>(Date.now());
+
   const playbackRateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live stream timeline ticker: advances moviePosition forward when room is actively playing
+  useEffect(() => {
+    if (!isLiveStream) return;
+    const interval = setInterval(() => {
+      if (roomIsPlayingRef.current) {
+        const elapsed = (Date.now() - lastSyncTimeRef.current) / 1000;
+        setMoviePosition(moviePosRef.current + elapsed);
+      }
+    }, 250);
+    return () => clearInterval(interval);
+  }, [isLiveStream]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -71,6 +90,13 @@ export function useSocketSync({
       lastSyncedRef.current = state;
       isSyncingRef.current = true;
 
+      // Update live stream playback clock
+      moviePosRef.current = state.position;
+      roomIsPlayingRef.current = state.isPlaying;
+      lastSyncTimeRef.current = Date.now();
+      setMoviePosition(state.position);
+      setRoomIsPlaying(state.isPlaying);
+
       // DO NOT seek or nudge rate on live WebRTC stream!
       // In WebRTC mode, frames stream in real-time from the Host's playhead.
       if (!isLiveStream) {
@@ -81,8 +107,8 @@ export function useSocketSync({
 
         const timeDiff = Math.abs(video.currentTime - latencyCompensatedPosition);
 
-        if (timeDiff > 2.0) {
-          // Hard sync: snap immediately — viewer is more than 2s off
+        if ((state as any).isSeek || timeDiff > 1.0 || (!state.isPlaying && timeDiff > 0.1)) {
+          // Hard sync: snap immediately — seek triggered or notable drift
           video.currentTime = latencyCompensatedPosition;
         } else if (timeDiff > 0.3) {
           // Soft sync: nudge playback rate to converge smoothly over ~3s
@@ -152,14 +178,16 @@ export function useSocketSync({
       }
     };
 
-    if (canControl) {
+    // Only host/legacy media attaches native DOM video event listeners
+    // For live WebRTC viewers, playback events are controlled via CustomVlcPlayer callbacks
+    if (canControl && !isLiveStream) {
       video.addEventListener('play', emitMediaAction);
       video.addEventListener('pause', emitMediaAction);
       video.addEventListener('seeked', emitMediaAction);
     }
 
     return () => {
-      if (canControl) {
+      if (canControl && !isLiveStream) {
         video.removeEventListener('play', emitMediaAction);
         video.removeEventListener('pause', emitMediaAction);
         video.removeEventListener('seeked', emitMediaAction);
@@ -178,12 +206,12 @@ export function useSocketSync({
       .play()
       .then(() => {
         setIsBlocked(false);
-        const position = video.currentTime;
+        const position = isLiveStream ? moviePosition : video.currentTime;
         lastSyncedRef.current = { isPlaying: true, position };
         socket.emit('video:play', { roomId, position });
       })
       .catch((err) => console.error('[useSocketSync] Manual unlock failed:', err));
   };
 
-  return { isBlocked, handleManualUnlock };
+  return { isBlocked, handleManualUnlock, moviePosition, roomIsPlaying, setMoviePosition };
 }

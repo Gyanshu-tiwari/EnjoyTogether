@@ -176,6 +176,7 @@ export const TheaterProvider: React.FC<{
     setSessionState,
     setCurrentStreamUrl: _setStreamUrl,
     setComments,
+    onRoleChange: setUserRole,
 
     // ── WebRTC signaling callbacks ──────────────────────────────────────────
     onWebRTCOffer: useCallback((data) => {
@@ -477,8 +478,8 @@ export const TheaterProvider: React.FC<{
   }, [currentStreamUrl, roomId, socket, sessionState, isHost]);
 
   // Derive effective role from activeUsers list, falling back to state
-  const me = activeUsers.find((u) => u.userId === currentUserId);
-  const effectiveRole = (me?.role as WatchPartyRole) || userRole;
+  const me = activeUsers.find((u) => u.userId === currentUserId || (socket && u.socketId === socket.id));
+  const effectiveRole = isHost ? 'host' : ((me?.role as WatchPartyRole) || userRole);
 
   // ── Chat ──────────────────────────────────────────────────────────────────
   const sendMessage = () => {
