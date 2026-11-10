@@ -26,6 +26,8 @@ export class LocalMediaSource {
   private _descriptor: MediaSourceDescriptor;
   private _status: MediaSourceStatus = 'idle';
   private _metadataProbeVideo: HTMLVideoElement | null = null;
+  private _audioContext: AudioContext | null = null;
+  private _capturedStream: MediaStream | null = null;
 
   constructor(file: File) {
     this._file = file;
@@ -188,6 +190,11 @@ export class LocalMediaSource {
         return null;
       }
     }
+
+    if (this._capturedStream && this._capturedStream.active && this._capturedStream.getTracks().some(t => t.readyState === 'live')) {
+      return this._capturedStream;
+    }
+
     const stream = captureStreamSafe(videoElement);
     if (!stream) {
       console.error('[LocalMediaSource] captureStream() returned null — browser may not support it.');
@@ -197,33 +204,62 @@ export class LocalMediaSource {
 
     // Ensure audio track is stereo downmixed via Web Audio API so center channel (dialogue & vocals) is preserved
     const audioTrack = stream.getAudioTracks()[0];
-    if (audioTrack && typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
+    if (audioTrack && typeof window !== 'undefined') {
       try {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        const actx = new AudioContextClass();
-        if (actx.state === 'suspended') {
-          actx.resume().catch(() => {});
-        }
-        const srcNode = actx.createMediaStreamSource(new MediaStream([audioTrack]));
-        const destNode = actx.createMediaStreamDestination();
-        destNode.channelCount = 2;
-        destNode.channelCountMode = 'explicit';
-        destNode.channelInterpretation = 'speakers';
-        srcNode.connect(destNode);
+        if (AudioContextClass) {
+          if (!this._audioContext || this._audioContext.state === 'closed') {
+            this._audioContext = new AudioContextClass();
+          }
+          const actx = this._audioContext;
+          if (actx.state === 'suspended') {
+            actx.resume().catch(() => {});
+          }
+          const srcNode = actx.createMediaStreamSource(new MediaStream([audioTrack]));
+          const splitter = actx.createChannelSplitter(6);
+          const stereoMerger = actx.createChannelMerger(2);
+          const centerGain = actx.createGain();
+          centerGain.gain.value = 0.8; // Preserve and fold Center vocals into stereo
+          const surroundGainL = actx.createGain();
+          surroundGainL.gain.value = 0.6;
+          const surroundGainR = actx.createGain();
+          surroundGainR.gain.value = 0.6;
 
-        const cleanAudioTrack = destNode.stream.getAudioTracks()[0];
-        if (cleanAudioTrack) {
-          console.log('[LocalMediaSource] Clean stereo audio downmix created (vocals & center channel preserved).');
-          return new MediaStream([
-            ...stream.getVideoTracks(),
-            cleanAudioTrack,
-          ]);
+          srcNode.connect(splitter);
+          // Left channel
+          splitter.connect(stereoMerger, 0, 0);
+          // Center channel (vocals) folded into Left & Right
+          splitter.connect(centerGain, 2);
+          centerGain.connect(stereoMerger, 0, 0);
+          centerGain.connect(stereoMerger, 0, 1);
+          // Right channel
+          splitter.connect(stereoMerger, 1, 1);
+          // Surround channels folded into Left & Right
+          splitter.connect(surroundGainL, 4);
+          surroundGainL.connect(stereoMerger, 0, 0);
+          splitter.connect(surroundGainR, 5);
+          surroundGainR.connect(stereoMerger, 0, 1);
+
+          const destNode = actx.createMediaStreamDestination();
+          stereoMerger.connect(destNode);
+
+          const cleanAudioTrack = destNode.stream.getAudioTracks()[0];
+          if (cleanAudioTrack) {
+            console.log('[LocalMediaSource] 5.1 Center & Surround stereo downmixer active (dialogue, vocals, and sound effects preserved).');
+            const combined = new MediaStream([
+              ...stream.getVideoTracks(),
+              cleanAudioTrack,
+            ]);
+            this._capturedStream = combined;
+            return combined;
+          }
         }
       } catch (e) {
         console.warn('[LocalMediaSource] Web Audio downmixing failed, using raw audio track:', e);
       }
     }
 
+    this._capturedStream = stream;
     return stream;
   }
 
@@ -231,6 +267,7 @@ export class LocalMediaSource {
    * Releases all resources:
    * - Revokes the object URL
    * - Clears the metadata probe video
+   * - Closes Web Audio context
    * - Marks this instance as destroyed
    *
    * After calling destroy(), this instance must not be used again.
@@ -245,6 +282,20 @@ export class LocalMediaSource {
       this._metadataProbeVideo.removeAttribute('src');
       this._metadataProbeVideo.load();
       this._metadataProbeVideo = null;
+    }
+
+    // Clean up Web Audio downmixer
+    if (this._audioContext && this._audioContext.state !== 'closed') {
+      this._audioContext.close().catch(() => {});
+      this._audioContext = null;
+    }
+
+    // Stop captured stream tracks
+    if (this._capturedStream) {
+      for (const track of this._capturedStream.getTracks()) {
+        track.stop();
+      }
+      this._capturedStream = null;
     }
 
     // Revoke object URL to free browser memory

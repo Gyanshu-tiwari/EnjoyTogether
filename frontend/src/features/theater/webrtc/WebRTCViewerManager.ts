@@ -16,7 +16,6 @@
  */
 
 import type { Socket } from 'socket.io-client';
-import { tuneOpusSdp } from './WebRTCHostManager';
 
 export interface ViewerMediaStats {
   viewerId: string;
@@ -262,18 +261,16 @@ export class WebRTCViewerManager {
       }
 
       const answer = await pc.createAnswer();
-      const tunedSdp = tuneOpusSdp(answer.sdp || '');
-      const tunedAnswer = new RTCSessionDescription({ type: answer.type, sdp: tunedSdp });
-      await pc.setLocalDescription(tunedAnswer);
+      await pc.setLocalDescription(answer);
       this._logPeerLifecycle('answer_created');
       this._socket.emit('webrtc:answer', {
         roomId: this._roomId,
         targetId: 'host',
-        sdp: { type: tunedAnswer.type, sdp: tunedAnswer.sdp },
+        sdp: { type: answer.type, sdp: answer.sdp },
         connectionId,
         senderId: this._viewerId,
       });
-      console.log(`[WebRTCViewerManager] Answer sent to host for connectionId=${connectionId} with stereo Opus parameters.`);
+      console.log(`[WebRTCViewerManager] Answer sent to host for connectionId=${connectionId}.`);
     } catch (err) {
       console.error('[WebRTCViewerManager] Failed to handle offer:', err);
     } finally {
