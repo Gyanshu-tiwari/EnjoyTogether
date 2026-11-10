@@ -866,6 +866,13 @@ export const CustomVlcPlayer = forwardRef<CustomVlcPlayerHandle, CustomVlcPlayer
               setIsMuted(video.muted);
             }
           }}
+          onVolumeChange={() => {
+            const video = getVideo();
+            if (video) {
+              setVolumeState(video.volume);
+              setIsMuted(video.muted);
+            }
+          }}
           onWaiting={() => setIsBuffering(true)}
           onPlaying={() => setIsBuffering(false)}
           onError={(e) => {

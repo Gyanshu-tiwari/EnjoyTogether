@@ -16,6 +16,7 @@
  */
 
 import type { Socket } from 'socket.io-client';
+import { tuneOpusSdp } from './WebRTCHostManager';
 
 export interface ViewerMediaStats {
   viewerId: string;
@@ -261,16 +262,18 @@ export class WebRTCViewerManager {
       }
 
       const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      const tunedSdp = tuneOpusSdp(answer.sdp || '');
+      const tunedAnswer = new RTCSessionDescription({ type: answer.type, sdp: tunedSdp });
+      await pc.setLocalDescription(tunedAnswer);
       this._logPeerLifecycle('answer_created');
       this._socket.emit('webrtc:answer', {
         roomId: this._roomId,
         targetId: 'host',
-        sdp: { type: answer.type, sdp: answer.sdp },
+        sdp: { type: tunedAnswer.type, sdp: tunedAnswer.sdp },
         connectionId,
         senderId: this._viewerId,
       });
-      console.log(`[WebRTCViewerManager] Answer sent to host for connectionId=${connectionId}.`);
+      console.log(`[WebRTCViewerManager] Answer sent to host for connectionId=${connectionId} with stereo Opus parameters.`);
     } catch (err) {
       console.error('[WebRTCViewerManager] Failed to handle offer:', err);
     } finally {
@@ -338,7 +341,7 @@ export class WebRTCViewerManager {
       event.track.onunmute = () => {
         console.log(`[WebRTCViewerManager] Remote track unmuted: ${event.track.kind}`);
         if (stream.getVideoTracks().length > 0) {
-          this._onStream(stream);
+          this._onStream(new MediaStream(stream.getTracks()));
         }
       };
       event.track.onended = () => {
@@ -359,10 +362,19 @@ export class WebRTCViewerManager {
         }
       }
 
-      // Notify consumer once we have at least a video track
+      // Configure receiver jitter buffer target (250ms) to eliminate network micro-stutters and frame drops
+      for (const receiver of pc.getReceivers()) {
+        if ('jitterBufferTarget' in receiver) {
+          (receiver as any).jitterBufferTarget = 250;
+        } else if ('playoutDelayHint' in receiver) {
+          (receiver as any).playoutDelayHint = 0.25;
+        }
+      }
+
+      // Notify consumer once we have at least a video track with a new MediaStream instance
       if (stream.getVideoTracks().length > 0) {
         console.log(`[WebRTCViewerManager] Incoming stream ready with ${stream.getVideoTracks().length} video track(s) and ${stream.getAudioTracks().length} audio track(s).`);
-        this._onStream(stream);
+        this._onStream(new MediaStream(stream.getTracks()));
       }
     };
 
