@@ -134,15 +134,14 @@ export const SyncVideoPlayer: React.FC = () => {
     captureStartedRef.current = false;
 
     // Begin captureStream only when the video element has loaded valid metadata
-    const tryStartCapture = (forceRefresh: boolean = false) => {
-      if (!videoRef.current) return;
-      if (captureStartedRef.current && !forceRefresh) return;
+    const tryStartCapture = () => {
+      if (captureStartedRef.current || !videoRef.current) return;
       if (
         videoRef.current.readyState >= HTMLMediaElement.HAVE_METADATA &&
         (videoRef.current.videoWidth > 0 || videoRef.current.duration > 0)
       ) {
         captureStartedRef.current = true;
-        console.log(`[SyncVideoPlayer] Host video metadata verified (forceRefresh=${forceRefresh}), updating WebRTC capture stream.`);
+        console.log('[SyncVideoPlayer] Host video metadata verified, starting WebRTC capture stream.');
         startHostCapture(videoRef.current);
       }
     };
@@ -155,7 +154,6 @@ export const SyncVideoPlayer: React.FC = () => {
     const onWaiting = () => setIsBuffering(true);
     const onPlaying = () => {
       setIsBuffering(false);
-      tryStartCapture(true); // Ensure audio tracks are refreshed on active playback
     };
 
     const onError = () => {
@@ -173,16 +171,11 @@ export const SyncVideoPlayer: React.FC = () => {
       tryStartCapture();
     };
 
-    const onPlay = () => {
-      tryStartCapture(true);
-    };
-
     video.addEventListener('canplay', onCanPlay);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('playing', onPlaying);
     video.addEventListener('error', onError);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
-    video.addEventListener('play', onPlay);
 
     // Initial check in case metadata was already loaded or cached
     tryStartCapture();
@@ -193,7 +186,6 @@ export const SyncVideoPlayer: React.FC = () => {
       video.removeEventListener('playing', onPlaying);
       video.removeEventListener('error', onError);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
-      video.removeEventListener('play', onPlay);
     };
   }, [mode, mediaSource, localFile, startHostCapture]);
 
